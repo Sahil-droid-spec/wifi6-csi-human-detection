@@ -1,0 +1,12 @@
+*.zip
+*.pcap
+data/
+dataset/
+datasets/
+20MHz_data/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+.DS_Store
