@@ -2,99 +2,131 @@
 
 # Wi-Fi CSI Human Presence & Activity Sensing
 
-**A research project combining Wi-Fi Channel State Information (CSI), digital signal processing, machine learning, and soft computing.**
+**Combining Wi-Fi 6 Channel State Information (CSI), Digital Signal Processing, Machine Learning, and Soft Computing**
 
 <p>
-  <a href="https://colab.research.google.com/drive/1iFoaTazemwuRKRnVC7APWzceNzxh0OiK?usp=sharing"><img alt="Open research notebook in Colab" src="https://img.shields.io/badge/Open%20Research%20Notebook-Colab-F9AB00?logo=googlecolab&logoColor=white"></a>
-  <a href="https://www.python.org/"><img alt="Python" src="https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white"></a>
-  <a href="https://colab.research.google.com/"><img alt="Google Colab" src="https://img.shields.io/badge/Workflow-Google%20Colab-F9AB00?logo=googlecolab&logoColor=white"></a>
-  <a href="https://scikit-learn.org/"><img alt="scikit-learn" src="https://img.shields.io/badge/ML-scikit--learn-F7931E?logo=scikitlearn&logoColor=white"></a>
-  <a href="https://numpy.org/"><img alt="NumPy" src="https://img.shields.io/badge/Arrays-NumPy-013243?logo=numpy&logoColor=white"></a>
-  <a href="https://standards.ieee.org/ieee/802.11bf/11574/"><img alt="802.11bf research" src="https://img.shields.io/badge/802.11bf-Simulator%20study-0891B2"></a>
+  <a href="https://colab.research.google.com/drive/1iFoaTazemwuRKRnVC7APWzceNzxh0OiK?usp=sharing">
+    <img src="https://img.shields.io/badge/Open_Notebook-Google_Colab-F9AB00?logo=googlecolab&logoColor=white" alt="Open Google Colab Notebook">
+  </a>
+  <img src="https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/Machine_Learning-scikit--learn-F7931E?logo=scikitlearn&logoColor=white" alt="scikit-learn">
+  <img src="https://img.shields.io/badge/DSP-FIR_%7C_DFT-0891B2" alt="Digital Signal Processing">
+  <img src="https://img.shields.io/badge/Soft_Computing-GA_%7C_Fuzzy-0F766E" alt="Soft Computing">
 </p>
 
-<p><b>Recorded CSI experiments · DSP preprocessing · Cross-domain evaluation · AX/BF simulator study</b></p>
+**Recorded CSI Experiments · DSP · AI/ML · Genetic Algorithms · Fuzzy Logic · AX/BF Simulation**
 
 </div>
 
 ---
 
-## At a glance
+## Project Overview
 
-This project studies whether changes in Wi-Fi CSI can support human-presence and activity sensing. It combines recorded CSI datasets with DSP feature extraction, supervised learning, genetic-algorithm feature selection, fuzzy logic, and exploratory cross-domain evaluation. A separate ns-3 experiment compares selected AX-only, BF-only, and mixed AX+BF simulator configurations.
+This project explores the use of Wi-Fi Channel State Information (CSI) for human-presence and activity sensing. Instead of relying only on cameras or wearable sensors, it studies changes in wireless channel measurements and processes them using signal processing and machine-learning techniques.
 
-> **Research status:** These are exploratory software and simulator experiments. The project has not established real-hardware through-wall detection, verified live CSI capture on the author's device, or validated native IEEE 802.11bf operation on consumer hardware.
+The work combines:
 
-## Research notebook
+- **Digital Signal Processing:** CSI amplitude processing, windowing, FIR filtering and DFT analysis.
+- **Machine Learning:** Logistic Regression and Random Forest classifiers.
+- **Soft Computing:** Genetic Algorithm (GA) feature selection and fuzzy-rule experiments.
+- **Cross-domain evaluation:** Testing models across LOS/NLOS environments and antenna configurations.
+- **Wi-Fi AX/BF simulation:** Comparing selected Wi-Fi 6 and Wi-Fi sensing simulator configurations.
+- **Future application:** Planning a laptop-hosted interface accessible from a phone on the same local network.
 
-The complete analysis notebook, including saved code outputs and plots, is available here: [Open WIFI6RECONSTRUCTION in Google Colab](https://colab.research.google.com/drive/1iFoaTazemwuRKRnVC7APWzceNzxh0OiK?usp=sharing). Access depends on the notebook share settings. The repository is intended to hold the curated scripts, results, figures and documentation rather than raw datasets or large runtime backups.
+> **Research status:** These are exploratory software and simulation experiments. Real-hardware through-wall detection, live CSI capture on the intended device, and native IEEE 802.11bf operation on consumer hardware have not been verified.
 
-## Workflow
+## Research Notebook
 
-<p align="center">
-  <img src="assets/project_pipeline.svg" alt="Project workflow from recorded CSI data through DSP, models, evaluation and reporting" width="100%">
-</p>
+The main notebook contains the experiments, saved outputs, tables and graphs.
 
-1. **Inspect data:** audit dataset labels, CSI arrays, configuration files and PCAP/CSI alignment where available.
-2. **Process signals:** convert complex CSI to amplitude, create windows, extract subcarrier statistics, and compare FIR filtering and DFT summaries.
-3. **Evaluate models:** compare Logistic Regression, Random Forest, genetic-algorithm feature selection, fuzzy rules and a scale-invariant hybrid approach.
-4. **Test transfer:** evaluate LOS/NLOS and antenna/configuration domain shifts, keeping source-domain training and target-domain testing distinct.
-5. **Compare simulator modes:** measure selected MAC-level outputs for AX-only, BF-only and mixed AX+BF in a partial ns-3.40 research implementation.
+**[Open the Wi-Fi 6 CSI Research Notebook in Google Colab](https://colab.research.google.com/drive/1iFoaTazemwuRKRnVC7APWzceNzxh0OiK?usp=sharing)**
 
-## Selected signal visualizations
+Access depends on the notebook's sharing permissions.
 
-### 20 MHz CSI traces
-
-These are saved traces from three recorded captures labelled no person, one person, and four people. The traces illustrate differences in the recorded signal; they are not standalone proof of presence-detection accuracy.
+## Project Pipeline
 
 <p align="center">
-  <img src="assets/csi_20mhz_examples.webp" alt="CSI amplitude traces from 20 MHz captures with no person, one person, and four people" width="92%">
+  <img src="assets/assets/project_pipeline.svg" alt="Project pipeline from recorded CSI data through DSP, machine learning, evaluation and reporting" width="100%">
 </p>
 
-### FIR filtering and DFT comparison
+1. **Dataset inspection:** Examine CSI arrays, configuration files, labels and available packet-capture data.
+2. **Signal processing:** Convert complex CSI to amplitude-derived features, create windows and compare FIR filtering and DFT summaries.
+3. **Model development:** Evaluate Logistic Regression, Random Forest, GA-based feature selection and fuzzy rules.
+4. **Generalization testing:** Investigate performance across recording dates, LOS/NLOS settings and antenna configurations.
+5. **Simulator comparison:** Compare selected AX-only, BF-only and mixed AX+BF simulator measurements.
+6. **Application planning:** Define the interface, data flow and future integration requirements.
 
-The recorded analysis applied a 15-tap moving-average FIR filter to median CSI amplitude over packets and compared raw and filtered traces and their DFT magnitudes.
+## 1. CSI Dataset and Processing
+
+The project uses the public [20 MHz CSI dataset on Zenodo](https://zenodo.org/records/17225694). The recorded workflow inspected 15 MATLAB captures across two recording dates.
+
+The inspected 20 MHz captures use 256 subcarriers. The baseline feature pipeline uses 256-packet windows with a 128-packet hop and four statistics per subcarrier, producing 1,024 features per window.
+
+The recorded dataset contained:
+
+- 8 captures labelled no person present.
+- 7 captures labelled person present.
+- MATLAB v7.3 data inspected using `h5py`.
+- CSI amplitude-derived features used for baseline modelling.
+
+Raw datasets and large PCAP archives are not included in this repository.
+
+## 2. CSI Signal Visualizations
+
+### 20 MHz CSI Examples
+
+The following saved plots show CSI amplitude traces from recorded captures. Signal differences are useful for exploration, but the plots alone do not prove reliable human detection.
 
 <p align="center">
-  <img src="assets/fir_filter_comparison.webp" alt="Raw and FIR-filtered CSI amplitude traces" width="92%">
+  <img src="assets/assets/csi_20mhz_examples.webp" alt="20 MHz CSI amplitude examples from recorded captures" width="92%">
 </p>
+
+### FIR Filtering
+
+A 15-tap moving-average FIR filter was evaluated on CSI amplitude traces. The results were compared against raw features to check whether filtering helped the classifiers.
 
 <p align="center">
-  <img src="assets/dft_spectrum_comparison.webp" alt="DFT magnitude comparison for raw and FIR-filtered CSI amplitude" width="92%">
+  <img src="assets/assets/fir_filter_comparison.webp" alt="Comparison of raw and FIR-filtered CSI amplitude" width="92%">
 </p>
 
-### 40 MHz CSI examples
+### DFT Analysis
+
+DFT magnitude was used to inspect frequency-domain characteristics of raw and filtered traces.
 
 <p align="center">
-  <img src="assets/csi_40mhz_examples.webp" alt="40 MHz CSI amplitude examples for no person, one person, and five people" width="92%">
+  <img src="assets/assets/dft_spectrum_comparison.webp" alt="DFT magnitude comparison of raw and FIR-filtered signals" width="92%">
 </p>
 
-These plots come from embedded outputs in the research notebook. More detailed figures and confusion matrices remain in the notebook and archived experiment artifacts.
+### 40 MHz CSI Examples
 
-## Model results: the validation split matters
+The 40 MHz dataset workflow inspected 11 MATLAB captures with 512 subcarriers and included PCAP/CSI reconciliation.
 
 <p align="center">
-  <img src="assets/validation_protocol_comparison.png"
-       alt="Comparison of capture accuracy under two validation protocols"
-       width="92%">
+  <img src="assets/assets/csi_40mhz_examples.webp" alt="40 MHz CSI amplitude examples from recorded captures" width="92%">
 </p>
 
-### 20 MHz presence baseline
+## 3. Presence Detection: Validation Matters
 
-The dataset inspection found **15 captures** across **two recording dates**: eight no-person captures and seven person-present captures. Window features use 256-packet windows with a 128-packet hop and 1,024 amplitude-derived features per window in the saved baseline workflow.
+The measured scores vary substantially depending on the validation protocol. This is important because windows from the same recording or recording conditions can be more similar than data collected on a different day.
 
-The recorded results differ substantially depending on the validation protocol:
+<p align="center">
+  <img src="assets/assets/validation_protocol_comparison.png" alt="Comparison of recorded capture accuracy under different validation protocols" width="92%">
+</p>
 
-| Evaluation | Model | Window accuracy | Capture accuracy | Capture F1 |
+### Baseline Results on 20 MHz CSI
+
+| Evaluation protocol | Model | Window accuracy | Capture accuracy | Capture F1 |
 |---|---|---:|---:|---:|
-| Stratified capture-grouped 5-fold | Logistic Regression | 0.9802 | 1.0000 | 1.0000 |
-| Stratified capture-grouped 5-fold | Random Forest | 0.9771 | 1.0000 | 1.0000 |
-| Leave-one-recording-date-out (2 dates) | Logistic Regression | — | 0.4667 | 0.6000 |
-| Leave-one-recording-date-out (2 dates) | Random Forest | — | 0.7333 | 0.7778 |
+| Capture-grouped 5-fold | Logistic Regression | 0.9802 | 1.0000 | 1.0000 |
+| Capture-grouped 5-fold | Random Forest | 0.9771 | 1.0000 | 1.0000 |
+| Leave-one-date-out, 2 dates | Logistic Regression | — | 0.4667 | 0.6000 |
+| Leave-one-date-out, 2 dates | Random Forest | — | 0.7333 | 0.7778 |
 
-**Interpretation:** the 100% capture scores came from grouped folds that kept windows from the same capture together, but did not hold out an entire date. The leave-one-date-out results are lower. Only two dates and 15 captures are available, so both evaluations are exploratory and do not establish broad generalization to new rooms, hardware, dates, or people.
+**Interpretation:** The capture-grouped evaluation reported 100% capture scores, but it did not hold out an entire recording date. When one date was held out for testing, the scores were lower.
 
-### Raw features versus FIR-filtered features
+Only two dates and 15 captures were available. These results are exploratory and do not establish generalization to new rooms, people, devices or recording conditions.
+
+### Raw Features vs FIR-Filtered Features
 
 | Features | Model | Capture accuracy | Precision | Recall | F1 |
 |---|---|---:|---:|---:|---:|
@@ -103,26 +135,47 @@ The recorded results differ substantially depending on the validation protocol:
 | FIR filtered | Logistic Regression | 0.6000 | 0.5556 | 0.7143 | 0.6250 |
 | FIR filtered | Random Forest | 0.7333 | 0.6364 | 1.0000 | 0.7778 |
 
-In this date-held-out comparison, FIR filtering did not improve Random Forest capture metrics and reduced Logistic Regression metrics. The DSP preprocessing is therefore an experiment to assess, not an assumed improvement.
+In this evaluation, FIR filtering did not improve the Random Forest metrics and reduced the Logistic Regression metrics. Filtering is therefore treated as an experiment rather than an automatic improvement.
 
-### Genetic algorithm and fuzzy-logic experiments
+## 4. Soft Computing: GA and Fuzzy Logic
 
-The recorded GA feature-selection run selected **8 features** in one outer fold and **12 features** in the other.
+### Genetic Algorithm Feature Selection
+
+The GA experiment selected 8 features in one outer fold and 12 features in the other.
 
 | Method | Capture accuracy | Macro-F1 | Presence F1 | Balanced accuracy |
 |---|---:|---:|---:|---:|
 | Raw Random Forest | 0.7333 | 0.7222 | 0.7778 | 0.7500 |
 | GA + Random Forest | 0.8000 | 0.7964 | 0.8235 | 0.8125 |
 
-The recorded fuzzy-rule experiment had capture accuracy 0.8000 and balanced accuracy 0.7857. These are preliminary results from the same small two-date dataset and should not be interpreted as a dependable estimate of out-of-domain performance.
+The recorded result suggests that feature selection helped in this specific small-data evaluation. More recordings and stricter external validation are required before drawing a general conclusion.
 
-## 40 MHz CSI: a useful caution
+### Fuzzy-Rule Experiment
 
-The notebook records **11 MATLAB captures** with 512 subcarriers, plus a PCAP/CSI reconciliation and window-quality audit. The saved capture-grouped model table reported 100% scores across threshold variants, but it explicitly cautions that presence is confounded with recording date/class distribution and only 11 captures were evaluated. An always-predict-presence reference reached 72.73% accuracy on a separate 33-capture table, with 0.50 balanced accuracy and 9 false alarms. We therefore retain the 40 MHz 100% result as **exploratory and potentially confounded**, not as a headline claim of generalization.
+| Metric | Recorded value |
+|---|---:|
+| Capture accuracy | 0.8000 |
+| Precision | 1.0000 |
+| Recall | 0.5714 |
+| Presence F1 | 0.7273 |
+| Macro-F1 | 0.7847 |
+| Balanced accuracy | 0.7857 |
 
-## LOS/NLOS and cross-domain evaluation
+These are preliminary results from a small dataset. The fuzzy-rule method did not show that it was universally better than Random Forest.
 
-Four recorded domains were evaluated:
+## 5. 40 MHz CSI: Generalization Caveat
+
+The notebook's 40 MHz workflow inspected 11 MATLAB captures and included a PCAP/CSI reconciliation process.
+
+Some recorded evaluations reported 100% scores across threshold variants. However, the experiment was small, and the recorded analysis warned that recording date and class distribution may confound the results.
+
+A separate always-predict-presence reference on a 33-capture table gave 72.73% accuracy and 0.50 balanced accuracy, with 9 false alarms.
+
+For this reason, the 100% 40 MHz result is treated as exploratory and potentially confounded, not as proof of generalization.
+
+## 6. LOS/NLOS Cross-Domain Evaluation
+
+Four feature domains were examined:
 
 | Domain | Feature matrix shape |
 |---|---:|
@@ -131,77 +184,109 @@ Four recorded domains were evaluated:
 | LOS / BQ | 460 × 208 |
 | LOS / PIFA | 465 × 208 |
 
-The workflow tested 12 directional transfers for presence and three-class activity. The scale-invariant hybrid v1 beat both comparison baselines in only **1 of 12 presence-transfer directions** and **4 of 12 activity-transfer directions**. Examples:
+Twelve directional transfers were evaluated for presence detection and three-class activity recognition.
 
-| Transfer task | Method | Accuracy | Balanced accuracy | Macro-F1 |
+The scale-invariant hybrid v1 beat both comparison baselines in only **1 of 12 presence-transfer directions** and **4 of 12 activity-transfer directions**.
+
+### Selected Presence-Transfer Results
+
+| Transfer | Method | Accuracy | Balanced accuracy | Macro-F1 |
 |---|---|---:|---:|---:|
-| NLOS/BQ → LOS/BQ, presence | Raw Logistic Regression | 0.9935 | 0.9952 | 0.9926 |
-| NLOS/BQ → LOS/BQ, presence | Hybrid v1 | 0.9109 | 0.9323 | 0.9040 |
-| NLOS/PIFA → NLOS/BQ, presence | Raw Random Forest | 0.8628 | 0.7923 | 0.8222 |
-| NLOS/PIFA → NLOS/BQ, presence | Hybrid v1 | 0.6726 | 0.5000 | 0.4021 |
+| NLOS/BQ → LOS/BQ | Raw Logistic Regression | 0.9935 | 0.9952 | 0.9926 |
+| NLOS/BQ → LOS/BQ | Hybrid v1 | 0.9109 | 0.9323 | 0.9040 |
+| NLOS/PIFA → NLOS/BQ | Raw Random Forest | 0.8628 | 0.7923 | 0.8222 |
+| NLOS/PIFA → NLOS/BQ | Hybrid v1 | 0.6726 | 0.5000 | 0.4021 |
 
-**Takeaway:** performance is domain-dependent, and the hybrid is not a universal improvement. A high score in one room/configuration should not be generalized to other environments without controlled testing.
+**Takeaway:** Model performance depends on the environment and antenna configuration. The hybrid approach was not a universal improvement, and a high score in one domain should not be assumed to transfer to another.
 
-## AX / BF simulator study
+## 7. Wi-Fi AX/BF Simulator Study
 
-The project separately compared three simulator configurations using a partial ns-3.40 research implementation, with five runs per configuration (15 valid runs in total):
+A separate experiment compared three configurations using a partial ns-3.40 research implementation, with five valid runs per configuration.
+
+<p align="center">
+  <img src="assets/assets/phase7_simulator_results.png" alt="Recorded AX throughput and BF sensing latency for three simulator configurations" width="92%">
+</p>
+
+### Mean Results Across Five Runs
 
 | Configuration | Valid runs | Mean BF sensing latency | Mean AX throughput |
 |---|---:|---:|---:|
-| AX-only | 5/5 | Not applicable (BF disabled) | 57.1744 Mbps |
+| AX-only | 5/5 | Not applicable; BF disabled | 57.1744 Mbps |
 | BF-only | 5/5 | 0.8540 ms | Not applicable |
 | Mixed AX+BF | 5/5 | 8.0313 ms | 56.5456 Mbps |
 
-<p align="center">
-  <img src="assets/phase7_simulator_results.png" alt="Recorded AX throughput and BF sensing latency means for three simulator configurations" width="92%">
-</p>
+For this tested setup:
 
-In this tested setup, mixed AX+BF had a mean reported BF sensing latency about 9.4× the BF-only value, and mean AX throughput about **1.10% lower** than AX-only. Throughput and latency are different metrics and should not be treated as a single score.
+- Mixed AX+BF throughput was approximately 1.10% lower than AX-only throughput.
+- Mixed AX+BF reported BF sensing latency was approximately 9.4 times the BF-only value.
+- Throughput and sensing latency are separate measurements and should not be treated as one combined score.
 
-**Simulator limitations**
+### Simulation Limitations
 
-- “100 successful sensing reports” is not 100% human-presence or activity-recognition accuracy.
-- BF sensing latency is not ML inference latency or end-to-end latency from a person's movement to an app prediction.
-- BF-only and AX-only do not use identical offered user-data loads.
-- The simulator is a partial research implementation, not proof of IEEE standards conformance or physical 802.11bf operation.
-- The random seed did not guarantee identical topology positions; five runs per configuration are exploratory, not perfectly paired.
-- These results do not establish through-wall detection on real hardware.
+- Successful MAC sensing reports are **not** human-presence classification accuracy.
+- BF sensing latency is **not** machine-learning inference time or end-to-end application latency.
+- The AX-only and BF-only configurations did not use identical offered user-data loads.
+- The simulator is a partial research implementation, not proof of standards conformance or physical 802.11bf operation.
+- Five runs per configuration are exploratory; the random seed did not guarantee identical topology layouts.
+- The simulation does not demonstrate through-wall sensing on real hardware.
 
-## Sensing modes planned for the application
+## 8. Planned Application Modes
 
 | Mode | Current evidence | Status |
 |---|---|---|
-| **Wi-Fi 6 / 802.11ax CSI** | Recorded CSI data, DSP pipeline, and presence-model experiments | Offline analysis available; live CSI capture unverified |
-| **802.11bf WLAN sensing** | Standards/architecture comparison and ns-3 simulation | Compatible physical hardware/firmware not verified |
-| **Proposed Adaptive Wi-Fi Sensing** | Proposed application architecture | Adapters and mode-selection logic not implemented/validated |
+| Wi-Fi 6 / 802.11ax CSI | Recorded datasets and offline model experiments | Offline analysis available; live capture unverified |
+| 802.11bf sensing | Standards research and simulator comparison | Compatible physical hardware and firmware not verified |
+| Proposed Adaptive Wi-Fi Sensing | Proposed architecture | Adapter integration and mode-selection logic not implemented or validated |
 
-The proposed application is intended to run on a laptop and be accessible from a phone on the same trusted local network. **Phase 8 UI/UX design and implementation are pending; the app is not finished.**
+The proposed application would run on a laptop and be accessible from a phone on the same trusted local network.
 
-## Repository and reproducibility
+**The application is not finished.** Requirements, navigation, UI/UX screens and the integration architecture need to be developed before implementation.
 
-The repository includes starter dataset-inspection and baseline scripts. The larger research workflow still relies on notebook cells, datasets, intermediate feature artifacts, and an ns-3 build; it is not yet one-click reproducible from a clean checkout. No raw CSI archives, PCAPs, large datasets or simulator build tree should be committed.
+## 9. Current Limitations and Next Steps
 
-Planned engineering tasks:
+The repository contains starter inspection and baseline scripts, while the larger research workflow still relies on notebook cells, datasets, intermediate artifacts and a separate ns-3 build.
 
-- Refactor notebook phases into standalone, documented scripts.
-- Add deterministic split manifests and consolidated evaluation tables.
-- Preserve model outputs, confusion matrices and experiment metadata.
-- Design the application's requirements, navigation and responsive screens before implementation.
-- Integrate only tested data/model/simulator functionality and display source/status clearly.
+Planned improvements:
 
-## Data, code and research sources
+- Refactor notebook experiments into documented, standalone scripts.
+- Add reproducible split manifests and consolidated evaluation tables.
+- Organize confusion matrices, plots and experiment metadata.
+- Collect more recordings across dates, rooms, people and configurations.
+- Audit the 40 MHz evaluation for recording and class confounding.
+- Design the application requirements, navigation and responsive UI before coding.
+- Integrate only tested data-processing, model and simulator functions.
+- Test real hardware separately before making live-sensing or through-wall claims.
 
-- **CSI dataset:** [Zenodo — 20 MHz dataset](https://zenodo.org/records/17225694)
-- **Reference implementation:** [SHARPax on GitHub](https://github.com/francescamen/SHARPax)
-- **Background paper:** Meneghello, Chen, Cordeiro & Restuccia, “Toward Integrated Sensing and Communications in IEEE 802.11bf Wi-Fi Networks,” *IEEE Communications Magazine* (July 2023). [DOI: 10.1109/MCOM.001.2200806](https://doi.org/10.1109/MCOM.001.2200806)
-- **IEEE 802.11ax:** [IEEE Standards Association](https://standards.ieee.org/ieee/802.11ax/7180/)
-- **IEEE 802.11bf:** [IEEE Standards Association](https://standards.ieee.org/ieee/802.11bf/11574/)
-- **Simulator used:** [IEEE 802.11bf ns-3 research implementation](https://github.com/idolumbantobing/IEEE_802.11bf)
+Raw CSI archives, large PCAP files, datasets and multi-gigabyte runtime backups should remain outside the repository.
 
-This project uses a dataset different from the SHARPax experimental dataset. It adapts general CSI-processing ideas rather than claiming an exact reproduction of the paper's experiments.
+## 10. Data, Code and Research Sources
+
+### Dataset
+
+- [Zenodo CSI dataset — 20 MHz](https://zenodo.org/records/17225694)
+
+### Research Paper
+
+Meneghello, Chen, Cordeiro and Restuccia, “Toward Integrated Sensing and Communications in IEEE 802.11bf Wi-Fi Networks,” *IEEE Communications Magazine*, July 2023.
+
+- [DOI: 10.1109/MCOM.001.2200806](https://doi.org/10.1109/MCOM.001.2200806)
+
+### Reference Code
+
+- [SHARPax — GitHub](https://github.com/francescamen/SHARPax)
+
+This project uses a different dataset and adapts general CSI-processing concepts. It does not claim an exact reproduction of the SHARPax experiments.
+
+### Standards and Simulator
+
+- [IEEE 802.11ax — IEEE Standards Association](https://standards.ieee.org/ieee/802.11ax/7180/)
+- [IEEE 802.11bf — IEEE Standards Association](https://standards.ieee.org/ieee/802.11bf/11574/)
+- [IEEE 802.11bf ns-3 research implementation](https://github.com/idolumbantobing/IEEE_802.11bf)
 
 ---
 
 <div align="center">
-<sub>Research-first project · Results are reported with their validation limits · No claim of verified live sensing or real-hardware through-wall detection</sub>
+
+**Research-first project · Results reported with validation limitations · Real-hardware sensing remains unverified**
+
 </div>
