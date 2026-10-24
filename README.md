@@ -73,6 +73,12 @@ These plots come from embedded outputs in the research notebook. More detailed f
 
 ## Model results: the validation split matters
 
+<p align="center">
+  <img src="assets/validation_protocol_comparison.png"
+       alt="Comparison of capture accuracy under two validation protocols"
+       width="92%">
+</p>
+
 ### 20 MHz presence baseline
 
 The dataset inspection found **15 captures** across **two recording dates**: eight no-person captures and seven person-present captures. Window features use 256-packet windows with a 128-packet hop and 1,024 amplitude-derived features per window in the saved baseline workflow.
