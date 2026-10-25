@@ -1,3 +1,9 @@
+## Orbit v1.1: saved datasets, themes and Learning Lab
+
+The app now includes saved-dataset selection, new-data drop/upload, a photo/video/audio library, four persistent themes, a quiet presentation view, single/all-classifier replay, and real phone-sharing controls. **Soft Computing** is now **Learning Lab**. Use `Start-Orbit-Server.cmd` to launch laptop + phone mode. See [the demo guide](docs/orbit_demo_guide.md).
+
+Data and trained model artifacts are stored only in the local `orbit-data/` folder. They are not committed to GitHub.
+
 ## Run the Orbit application
 
 The local **Orbit — Wi-Fi Sensing Lab** application is now included: circular workspace, local MAT/ZIP uploads, real DSP experiments, leakage-safe model training, GA/fuzzy labs, offline replay and the recorded research evidence.

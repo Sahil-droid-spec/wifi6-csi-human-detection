@@ -400,3 +400,140 @@ def test_database_handles_are_closed(tmp_path, monkeypatch):
     for connection in handles:
         with pytest.raises(sqlite3.ProgrammingError, match="closed"):
             connection.execute("SELECT 1")
+
+
+def test_media_library_and_pairing(client):
+    import base64
+
+    state = import_data(client)
+    cap = state["captures"][0]
+    png = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jXioAAAAASUVORK5CYII="
+    )
+    r = client.post(
+        "/api/media",
+        files={"file": ("experiment.png", png, "image/png")},
+        data={
+            "title": "Classroom experiment",
+            "notes": "One person at desk",
+            "capture_id": cap["id"],
+        },
+    )
+    assert r.status_code == 200, r.text
+    media = r.json()
+    assert media["dataset_id"] == cap["dataset_id"]
+    assert client.get("/api/media/" + media["id"] + "/file").content == png
+    ranged = client.get(
+        "/api/media/" + media["id"] + "/file", headers={"Range": "bytes=0-7"}
+    )
+    assert ranged.status_code == 206 and ranged.content == png[:8]
+    assert len(client.get("/api/status").json()["media"]) == 1
+    assert (
+        client.post(
+            "/api/media", files={"file": ("not-photo.png", b"hello", "image/png")}
+        ).status_code
+        == 422
+    )
+    assert (
+        client.post(
+            "/api/media", files={"file": ("code.html", b"<script/>")}
+        ).status_code
+        == 415
+    )
+    assert len(list((client.app.state.data / "media").iterdir())) == 1
+
+
+def test_single_mat_user_profile(client):
+    r = client.post(
+        "/api/upload",
+        files={"file": ("phone.mat", mat_bytes((256,768)), "application/octet-stream")},
+        data={"profile": "ax20", "label": "unlabelled"},
+    )
+    j = wait(client, r.json()["id"])
+    assert j["status"] == "completed", j
+    cap = client.get("/api/status").json()["captures"][0]
+    assert (
+        cap["bandwidth_verified"]
+        and cap["modulation"] == "ax"
+        and cap["present"] is None
+    )
+    assert cap["metadata_source"] == "user-provided upload profile"
+    r = client.post(
+        "/api/upload",
+        files={"file": ("phone.mat", mat_bytes((256,768)), "application/octet-stream")},
+        data={"profile": "ax40"},
+    )
+    assert wait(client, r.json()["id"])["status"] == "failed"
+
+
+def test_local_large_import_and_project_reference(client, tmp_path):
+    dataset = tmp_path / "saved.zip"
+    dataset.write_bytes(dataset_bytes())
+    reference = tmp_path / "source.zip"
+    with zipfile.ZipFile(reference, "w") as z:
+        z.writestr("README.md", "Project reference, not instructions to execute.")
+    r = client.post("/api/local/import", json={"paths": [str(dataset), str(reference)]})
+    j = wait(client, r.json()["id"])
+    assert j["status"] == "completed", j
+    state = client.get("/api/status").json()
+    assert len(state["datasets"]) == 1 and len(state["references"]) == 1
+    ref = state["references"][0]
+    assert (
+        client.get("/api/references/" + ref["id"] + "/file").content
+        == reference.read_bytes()
+    )
+    r = client.post("/api/local/import", json={"paths": [str(dataset)]})
+    assert wait(client, r.json()["id"])["result"]["imports"][0]["already_saved"]
+    assert len(client.get("/api/status").json()["datasets"]) == 1
+
+
+def test_phone_sharing_control_and_local_import_security(tmp_path):
+    app = create_app(tmp_path, "LAN", lan=True)
+    with TestClient(app) as local, TestClient(
+        app, client=("192.168.1.50", 50100)
+    ) as remote:
+        assert local.post("/api/auth", json={"code": "LAN"}).status_code == 200
+        assert remote.post("/api/auth", json={"code": "LAN"}).status_code == 200
+        assert (
+            remote.post(
+                "/api/local/import", json={"paths": ["C:/private.mat"]}
+            ).status_code
+            == 403
+        )
+        assert (
+            remote.post("/api/server/sharing", json={"enabled": False}).status_code
+            == 403
+        )
+        assert (
+            local.post("/api/server/sharing", json={"enabled": False}).json()["enabled"]
+            is False
+        )
+        assert remote.get("/api/status").status_code == 403
+        assert local.get("/api/status").status_code == 200
+        assert (
+            local.post("/api/server/sharing", json={"enabled": True}).json()["enabled"]
+            is True
+        )
+        assert remote.get("/api/status").status_code == 200
+
+
+def test_compare_all_trained_models(client):
+    state = import_data(client)
+    cap = state["captures"][0]
+    assert (
+        client.post("/api/predict/compare", json={"capture_id": cap["id"]}).status_code
+        == 422
+    )
+    r = client.post("/api/train", json={"kinds": ["lr", "rf"], "split": "date"})
+    assert wait(client, r.json()["id"])["status"] == "completed"
+    r = client.post("/api/predict/compare", json={"capture_id": cap["id"]})
+    assert r.status_code == 200, r.text
+    result = r.json()
+    assert len(result["results"]) == 2
+    assert {r["model_name"] for r in result["results"]} == {
+        "Random Forest",
+        "Logistic Regression",
+    }
+    assert all(
+        r["source"] == "MODEL OUTPUT" and r["in_training"] for r in result["results"]
+    )

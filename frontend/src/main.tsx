@@ -56,12 +56,13 @@ type Page =
   | "overview"
   | "data"
   | "dsp"
-  | "soft"
+  | "learning"
   | "replay"
   | "results"
   | "modes"
   | "settings"
-  | "upload";
+  | "upload"
+  | "media";
 const stages = [
   "Receive",
   "Window",
@@ -78,15 +79,16 @@ const stagePages: Page[] = [
   "dsp",
   "dsp",
   "dsp",
-  "soft",
-  "soft",
+  "learning",
+  "learning",
   "replay",
 ];
 const nav = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "data", label: "Data & captures", icon: Database },
+  { id: "media", label: "Recordings & media", icon: FolderOpen },
   { id: "dsp", label: "Signal Studio", icon: AudioLines },
-  { id: "soft", label: "Soft Computing", icon: BrainCircuit },
+  { id: "learning", label: "Learning Lab", icon: BrainCircuit },
   { id: "replay", label: "Detect & replay", icon: Play },
   { id: "results", label: "Results & evidence", icon: FlaskConical },
   { id: "modes", label: "Wi-Fi modes", icon: Radio },
@@ -106,7 +108,8 @@ async function api(path: string, body?: any, method?: string) {
   if (!r.ok) {
     const e = await r.json().catch(() => ({ detail: r.statusText }));
     throw new Error(
-      typeof e.detail === "string" ? e.detail : JSON.stringify(e.detail),
+      "Error: " +
+        (typeof e.detail === "string" ? e.detail : JSON.stringify(e.detail)),
     );
   }
   return r.json();
@@ -183,13 +186,26 @@ function Note({
   children: React.ReactNode;
   tone?: string;
 }) {
+  const text = typeof children === "string" ? children : "";
+  const essential =
+    tone === "red" ||
+    /confound|mismatch|no accepted|outside|failed|invalid|used to fit|in-training|simulator research|proposed architecture/i.test(
+      text,
+    );
+  if (essential)
+    return (
+      <div className={"note essential " + tone}>
+        <div>{children}</div>
+      </div>
+    );
   return (
-    <div className={"note " + tone}>
-      <Info size={16} />
+    <details className={"method-note " + tone}>
+      <summary>Method & data notes</summary>
       <div>{children}</div>
-    </div>
+    </details>
   );
 }
+
 function Chart({
   series,
   x,
@@ -215,6 +231,16 @@ function Chart({
   labels?: { x: any[]; y: any[] };
   exportName?: string;
 }) {
+  const [chartTheme, setChartTheme] = useState(
+    document.documentElement.dataset.theme || "light",
+  );
+  const isLight = ["light", "soft"].includes(chartTheme);
+  useEffect(() => {
+    const change = () =>
+      setChartTheme(document.documentElement.dataset.theme || "light");
+    window.addEventListener("orbit-theme", change);
+    return () => window.removeEventListener("orbit-theme", change);
+  }, []);
   const ref = useRef<HTMLDivElement>(null);
   const instance = useRef<echarts.ECharts | null>(null);
   useEffect(() => {
@@ -233,17 +259,17 @@ function Chart({
     if (!c) return;
     let option: Dict = {
       animation: false,
-      backgroundColor: "#121c2d",
+      backgroundColor: isLight ? "#ffffff" : "#121c2d",
       color,
       tooltip: {
         trigger: "axis",
-        backgroundColor: "#192940",
+        backgroundColor: isLight ? "#ffffff" : "#192940",
         borderColor: "#2b3b52",
-        textStyle: { color: "#e7edf8" },
+        textStyle: { color: isLight ? "#26364a" : "#e7edf8" },
       },
       legend: {
         top: 0,
-        textStyle: { color: "#a2b0c7" },
+        textStyle: { color: isLight ? "#586577" : "#a2b0c7" },
         itemWidth: 16,
         itemHeight: 2,
       },
@@ -253,16 +279,18 @@ function Chart({
         name: axis,
         nameLocation: "middle",
         nameGap: 32,
-        axisLabel: { color: "#8293ae" },
-        nameTextStyle: { color: "#8293ae" },
+        axisLabel: { color: isLight ? "#5c6a7c" : "#8293ae" },
+        nameTextStyle: { color: isLight ? "#5c6a7c" : "#8293ae" },
         splitLine: { show: false },
         axisLine: { lineStyle: { color: "#2b3b52" } },
       },
       yAxis: {
         type: "value",
         scale: true,
-        axisLabel: { color: "#8293ae" },
-        splitLine: { lineStyle: { color: "#233149", type: "dashed" } },
+        axisLabel: { color: isLight ? "#5c6a7c" : "#8293ae" },
+        splitLine: {
+          lineStyle: { color: isLight ? "#e1e7ee" : "#233149", type: "dashed" },
+        },
         axisLine: { show: false },
       },
       dataZoom: [{ type: "inside", filterMode: "none" }],
@@ -288,7 +316,10 @@ function Chart({
         xAxis: {
           type: "category",
           data: labels?.x,
-          axisLabel: { color: "#8293ae", interval: "auto" },
+          axisLabel: {
+            color: isLight ? "#5c6a7c" : "#8293ae",
+            interval: "auto",
+          },
           name: "Packet index",
           nameLocation: "middle",
           nameGap: 28,
@@ -296,7 +327,7 @@ function Chart({
         yAxis: {
           type: "category",
           data: labels?.y,
-          axisLabel: { color: "#8293ae" },
+          axisLabel: { color: isLight ? "#5c6a7c" : "#8293ae" },
           name: yName,
         },
         visualMap: {
@@ -306,7 +337,7 @@ function Chart({
           orient: "horizontal",
           left: "center",
           bottom: 0,
-          textStyle: { color: "#8293ae" },
+          textStyle: { color: isLight ? "#5c6a7c" : "#8293ae" },
           inRange: {
             color: ["#101b35", "#2442a1", "#209ac2", "#22d3ee", "#d9f9f4"],
           },
@@ -322,7 +353,7 @@ function Chart({
       };
     }
     c.setOption(option, true);
-  }, [series, x, axis, heatmap, labels]);
+  }, [series, x, axis, heatmap, labels, chartTheme]);
   return (
     <div className="chart-wrap">
       <div ref={ref} style={{ height }} role="img" aria-label={exportName} />
@@ -335,7 +366,7 @@ function Chart({
             instance.current?.getDataURL({
               type: "png",
               pixelRatio: 2,
-              backgroundColor: "#121c2d",
+              backgroundColor: isLight ? "#ffffff" : "#121c2d",
             }) || "";
           a.download = exportName + ".png";
           a.click();
@@ -419,7 +450,10 @@ function Ring({
 }
 function App() {
   const [page, setPage] = useState<Page>(
-    () => (location.hash.slice(2) as Page) || "intro",
+    () =>
+      ((location.hash.slice(2) === "soft"
+        ? "learning"
+        : location.hash.slice(2)) as Page) || "intro",
   );
   const [state, setState] = useState<Dict>({
     captures: [],
@@ -439,7 +473,25 @@ function App() {
   const [selected, setSelected] = useState(
     localStorage.getItem("orbit-capture") || "",
   );
-  const [mode, setMode] = useState("ax");
+  const [mode, setMode] = useState(localStorage.getItem("orbit-mode") || "ax");
+  const [theme, setTheme] = useState(
+    localStorage.getItem("orbit-theme") || "light",
+  );
+  const [quiet, setQuiet] = useState(
+    localStorage.getItem("orbit-quiet") !== "false",
+  );
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("orbit-theme", theme);
+    window.dispatchEvent(new Event("orbit-theme"));
+  }, [theme]);
+  useEffect(() => {
+    document.documentElement.dataset.quiet = String(quiet);
+    localStorage.setItem("orbit-quiet", String(quiet));
+  }, [quiet]);
+  useEffect(() => {
+    localStorage.setItem("orbit-mode", mode);
+  }, [mode]);
   const [toast, setToast] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState("");
@@ -488,6 +540,13 @@ function App() {
     ["queued", "running"].includes(j.status),
   );
   const notify = (message: string) => {
+    if (
+      localStorage.getItem("orbit-quiet") !== "false" &&
+      !/error|failed|incorrect|mismatch|outside|cannot|not match|needs|requires|invalid/i.test(
+        message,
+      )
+    )
+      return;
     setToast(message);
     window.setTimeout(() => setToast(""), 6500);
   };
@@ -495,6 +554,17 @@ function App() {
     try {
       const s = await api("status");
       setState(s);
+      setSelected((current) => {
+        if (s.captures.some((c: Dict) => c.id === current)) return current;
+        const first =
+          s.captures.find((c: Dict) => c.bandwidth === 20 && c.windows > 0) ||
+          s.captures[0];
+        if (first) {
+          localStorage.setItem("orbit-capture", first.id);
+          return first.id;
+        }
+        return "";
+      });
       setOnline(true);
       setAuthed(true);
       setAuthOpen(false);
@@ -514,7 +584,12 @@ function App() {
     return () => clearInterval(id);
   }, []);
   useEffect(() => {
-    const fn = () => setPage((location.hash.slice(2) as Page) || "intro");
+    const fn = () =>
+      setPage(
+        ((location.hash.slice(2) === "soft"
+          ? "learning"
+          : location.hash.slice(2)) as Page) || "intro",
+      );
     window.addEventListener("hashchange", fn);
     return () => window.removeEventListener("hashchange", fn);
   }, []);
@@ -645,7 +720,7 @@ function App() {
                   icon: BrainCircuit,
                   title: "Explore the decision",
                   text: "Learning models and transparent rules.",
-                  p: "soft",
+                  p: "learning",
                 },
                 {
                   n: "04",
@@ -741,7 +816,7 @@ function App() {
                     <n.icon size={19} />
                     <span>{n.label}</span>
                     {n.id === "dsp" && <i className="nav-dot orange" />}
-                    {n.id === "soft" && <i className="nav-dot violet" />}
+                    {n.id === "learning" && <i className="nav-dot violet" />}
                   </button>
                 </React.Fragment>
               ))}
@@ -783,6 +858,25 @@ function App() {
                 <strong>{activeTitle}</strong>
               </div>
               <div className="top-actions">
+                <select
+                  className="theme-picker"
+                  aria-label="Colour theme"
+                  value={theme}
+                  onChange={(e) => setTheme(e.target.value)}
+                >
+                  <option value="light">Google Light</option>
+                  <option value="soft">Soft Sage</option>
+                  <option value="midnight">Orbit Midnight</option>
+                  <option value="charcoal">Classic Dark</option>
+                </select>
+                <button
+                  className={"presentation-toggle " + (quiet ? "enabled" : "")}
+                  aria-label="Toggle presentation mode"
+                  aria-pressed={quiet}
+                  onClick={() => setQuiet(!quiet)}
+                >
+                  {quiet ? "Presentation" : "Detailed"}
+                </button>
                 <span className={"server-state " + (!online ? "offline" : "")}>
                   <i />
                   {online ? "Local server online" : "Server offline"}
@@ -810,28 +904,30 @@ function App() {
                     ORBIT /{" "}
                     {page === "dsp"
                       ? "DIGITAL SIGNAL PROCESSING"
-                      : page === "soft"
-                        ? "SOFT COMPUTING"
+                      : page === "learning"
+                        ? "LEARNING LAB"
                         : "WI-FI SENSING LAB"}
                   </span>
                   <h1>
-                    {page === "overview"
-                      ? "Your signal. Your workspace."
-                      : page === "dsp"
-                        ? "Make sense of the signal."
-                        : page === "soft"
-                          ? "Inside the decision."
-                          : page === "results"
-                            ? "Evidence, in perspective."
-                            : page === "data"
-                              ? "Every recording starts here."
-                              : page === "replay"
-                                ? "From recording to decision."
-                                : page === "modes"
-                                  ? "Know what’s possible."
-                                  : page === "upload"
-                                    ? "Send it to your laptop."
-                                    : "Your local lab, connected."}
+                    {page === "media"
+                      ? "Recordings, photos & experiment videos."
+                      : page === "overview"
+                        ? "Your signal. Your workspace."
+                        : page === "dsp"
+                          ? "Make sense of the signal."
+                          : page === "learning"
+                            ? "Inside the decision."
+                            : page === "results"
+                              ? "Evidence, in perspective."
+                              : page === "data"
+                                ? "Every recording starts here."
+                                : page === "replay"
+                                  ? "From recording to decision."
+                                  : page === "modes"
+                                    ? "Know what’s possible."
+                                    : page === "upload"
+                                      ? "Send it to your laptop."
+                                      : "Your local lab, connected."}
                   </h1>
                   <p>
                     {page === "overview"
@@ -840,7 +936,7 @@ function App() {
                         ? "Import, inspect, and keep your recordings organised in one local library."
                         : page === "dsp"
                           ? "Follow the waveform. Change one thing. See what happens."
-                          : page === "soft"
+                          : page === "learning"
                             ? "Train a model, explore a rule, and examine the evidence behind the output."
                             : page === "replay"
                               ? "Step through recorded packets. Run a compatible model when one is available."
@@ -936,7 +1032,7 @@ function App() {
                             ? "Add another recording"
                             : "Upload a recording"}
                         </strong>
-                        <span>.mat or .zip · up to 256 MiB</span>
+                        <span>.mat or .zip · up to 2 GiB</span>
                         <b>
                           Browse files <ArrowRight size={14} />
                         </b>
@@ -1035,10 +1131,10 @@ function App() {
                         tags: "WINDOW · FILTER · SPECTRUM",
                       },
                       {
-                        p: "soft",
+                        p: "learning",
                         icon: BrainCircuit,
                         color: "violet",
-                        title: "Soft Computing",
+                        title: "Learning Lab",
                         text: "Look inside the learning process.",
                         tags: "ANN · GENETIC ALGORITHMS · FUZZY",
                       },
@@ -1121,7 +1217,8 @@ function App() {
                 />
               )}
               {page === "dsp" && <DSPPage {...common} />}
-              {page === "soft" && <SoftPage {...common} />}
+              {page === "learning" && <LearningPage {...common} />}
+              {page === "media" && <MediaPage {...common} />}
               {page === "replay" && <ReplayPage {...common} />}
               {page === "results" && (
                 <ResultsPage {...common} evidence={evidence} />
@@ -1144,22 +1241,28 @@ function App() {
                   <ShieldCheck size={13} /> Local-first. Evidence-led.
                 </span>
                 <span>
-                  Orbit v1.0 <i /> Live hardware remains unverified.
+                  Orbit v1.1 <i /> Live hardware remains unverified.
                 </span>
               </footer>
             </main>
           </div>
           <nav className="mobile-bottom">
-            {nav.slice(0, 5).map((n) => (
-              <button
-                key={n.id}
-                className={page === n.id ? "active" : ""}
-                onClick={() => navigate(n.id as Page)}
-              >
-                <n.icon size={18} />
-                <span>{n.label.split(" ")[0]}</span>
-              </button>
-            ))}
+            {nav
+              .filter((n) =>
+                ["overview", "data", "dsp", "learning", "replay"].includes(
+                  n.id,
+                ),
+              )
+              .map((n) => (
+                <button
+                  key={n.id}
+                  className={page === n.id ? "active" : ""}
+                  onClick={() => navigate(n.id as Page)}
+                >
+                  <n.icon size={18} />
+                  <span>{n.label.split(" ")[0]}</span>
+                </button>
+              ))}
             <button onClick={() => setMobileMenu(!mobileMenu)}>
               <Menu size={18} />
               <span>More</span>
@@ -1297,20 +1400,56 @@ function CaptureSelect({
   selected: string;
   choose: (id: string) => void;
 }) {
+  const active = state.captures.find((c: Dict) => c.id === selected);
+  const [dataset, setDataset] = useState(active?.dataset_id || "");
+  useEffect(() => {
+    if (active) setDataset(active.dataset_id);
+  }, [selected]);
+  const captures = state.captures.filter(
+    (c: Dict) => !dataset || c.dataset_id === dataset,
+  );
   return (
-    <label className="capture-select">
-      Recording
-      <select value={selected} onChange={(e) => choose(e.target.value)}>
-        <option value="">Select a recording</option>
-        {state.captures.map((c: Dict) => (
-          <option key={c.id} value={c.id}>
-            {c.name} · {c.bandwidth} MHz
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="saved-source-picker">
+      <label>
+        Saved dataset
+        <select
+          value={dataset}
+          onChange={(e) => {
+            setDataset(e.target.value);
+            const first = state.captures.find(
+              (c: Dict) => c.dataset_id === e.target.value && c.windows > 0,
+            );
+            if (first) choose(first.id);
+          }}
+        >
+          <option value="">All saved datasets</option>
+          {state.datasets.map((d: Dict) => (
+            <option key={d.id} value={d.id}>
+              {d.name} · {d.captures} captures
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="capture-select">
+        Capture
+        <select value={selected} onChange={(e) => choose(e.target.value)}>
+          <option value="">Select a saved capture</option>
+          {captures.map((c: Dict) => (
+            <option key={c.id} value={c.id}>
+              {c.name.replaceAll("\\", "/")} ·{" "}
+              {c.present === null
+                ? "Unlabelled"
+                : c.present
+                  ? "Person present"
+                  : "No person"}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
   );
 }
+
 function DataPage({
   state,
   capture,
@@ -1323,6 +1462,10 @@ function DataPage({
   phone,
   onDelete,
 }: Common & { phone: boolean; onDelete: (s: string) => void }) {
+  const [matProfile, setMatProfile] = useState("inspect");
+  const [matLabel, setMatLabel] = useState("unlabelled");
+  const [dataTab, setDataTab] = useState(phone ? "new" : "saved");
+  const [datasetFilter, setDatasetFilter] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
   const [progress, setProgress] = useState(-1);
@@ -1354,12 +1497,14 @@ function DataPage({
       setUploadError("Choose a MATLAB .mat recording or a .zip dataset.");
       return;
     }
-    if (file.size > 256 * 1024 ** 2) {
-      setUploadError("The upload limit is 256 MiB.");
+    if (file.size > 2 * 1024 ** 3) {
+      setUploadError("The upload limit is 2 GiB.");
       return;
     }
     const form = new FormData();
     form.append("file", file);
+    form.append("profile", matProfile);
+    form.append("label", matLabel);
     const r = new XMLHttpRequest();
     xhr.current = r;
     r.open("POST", "/api/upload");
@@ -1392,131 +1537,292 @@ function DataPage({
   };
   const filtered = state.captures.filter(
     (c: Dict) =>
+      (!datasetFilter || c.dataset_id === datasetFilter) &&
       c.name.toLowerCase().includes(search.toLowerCase()) &&
       (bw === "all" || String(c.bandwidth) === bw) &&
       (label === "all" || String(c.present) === label),
   );
   return (
     <>
-      <div className="two-column data-top">
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <Badge tone="cyan">LOCAL UPLOAD</Badge>
-              <h2>
-                {phone ? "From phone to laptop." : "Bring your recordings."}
-              </h2>
-            </div>
-            <Upload size={24} />
-          </div>
-          <div
-            className={"dropzone " + (drag ? "drag" : "")}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDrag(true);
-            }}
-            onDragLeave={() => setDrag(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDrag(false);
-              if (progress < 0 && !job) upload(e.dataTransfer.files[0]);
-            }}
-          >
-            <input
-              ref={input}
-              type="file"
-              accept=".mat,.zip"
-              hidden
-              onChange={(e) => {
-                upload(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
-            <div className="upload-circle">
-              <FileUp size={26} />
-            </div>
-            <h3>
-              {progress >= 0
-                ? "Sending to your laptop…"
-                : "Drop a recording here"}
-            </h3>
-            <p>MATLAB v7.3 / HDF5 or a dataset ZIP with config.json</p>
-            {progress >= 0 ? (
-              <>
-                <progress max={100} value={progress} />
-                <span>{progress}% transferred</span>
-                <Button secondary onClick={() => xhr.current?.abort()}>
-                  Cancel upload
-                </Button>
-              </>
-            ) : (
-              <Button
-                secondary
-                disabled={!!job}
-                onClick={() => input.current?.click()}
-              >
-                Browse files <ArrowRight size={16} />
-              </Button>
-            )}
-            <small>Up to 256 MiB · private local storage</small>
-          </div>
-          {uploadError && <Note tone="red">{uploadError}</Note>}
-          {state.jobs
-            .filter((j: Dict) => j.kind === "import" && j.status === "failed")
-            .slice(0, 1)
-            .map((j: Dict) => (
-              <Note key={j.id} tone="red">
-                Import failed: {j.message}
-              </Note>
-            ))}
-        </section>
-        <section className="panel">
-          <span className="eyebrow">GOOD DATA. CLEAR CONTEXT.</span>
-          <h2>What Orbit reads.</h2>
-          <ul className="check-list">
-            <li>
-              <Check size={16} /> Complex CSI in the HDF5 <code>capture</code>{" "}
-              dataset
-            </li>
-            <li>
-              <Check size={16} /> 256 or 512 subcarriers, with orientation
-              checks
-            </li>
-            <li>
-              <Check size={16} /> Labels, dates, modulation and bandwidth from
-              config.json
-            </li>
-            <li>
-              <Check size={16} /> Invalid columns and accepted/rejected feature
-              windows
-            </li>
-          </ul>
-          <Note>
-            Single .mat uploads can be inspected. For training, import a ZIP
-            containing captures and their config.json files with verified AX
-            modulation, bandwidth and presence labels.
-          </Note>
-          <button
-            className="subtle-action"
-            onClick={() => navigate("settings")}
-          >
-            <Smartphone size={20} />
-            <span>
-              Uploading from a phone?
-              <small>Get your laptop’s LAN address and QR code.</small>
-            </span>
-            <ArrowRight size={17} />
-          </button>
-        </section>
+      <div className="tabs">
+        <button
+          aria-label="Use saved dataset"
+          className={dataTab === "saved" ? "active" : ""}
+          onClick={() => setDataTab("saved")}
+        >
+          <Database size={15} /> Saved datasets
+        </button>
+        <button
+          aria-label="Drop new data"
+          className={dataTab === "new" ? "active" : ""}
+          onClick={() => setDataTab("new")}
+        >
+          <Upload size={15} /> New data
+        </button>
+        <button onClick={() => navigate("media")}>
+          <FolderOpen size={15} /> Photos & videos
+        </button>
       </div>
+      {dataTab === "saved" && (
+        <div className="saved-dataset-grid">
+          {state.datasets.map((d: Dict) => {
+            const caps = state.captures.filter(
+              (c: Dict) => c.dataset_id === d.id,
+            );
+            return (
+              <section
+                className={
+                  "panel saved-dataset " +
+                  (datasetFilter === d.id ? "chosen" : "")
+                }
+                key={d.id}
+              >
+                <div className="panel-heading">
+                  <Database size={25} />
+                  <Badge tone="green">SAVED LOCALLY</Badge>
+                </div>
+                <h2>{d.name}</h2>
+                <p>
+                  {caps.length} captures ·{" "}
+                  {caps
+                    .reduce((n: number, c: Dict) => n + c.windows, 0)
+                    .toLocaleString()}{" "}
+                  accepted windows
+                </p>
+                <div className="dataset-chips">
+                  <span>
+                    {caps.filter((c: Dict) => c.present === true).length}{" "}
+                    presence
+                  </span>
+                  <span>
+                    {caps.filter((c: Dict) => c.present === false).length}{" "}
+                    absence
+                  </span>
+                  <span>{(d.size / 1024 ** 2).toFixed(0)} MiB</span>
+                </div>
+                <div className="button-row">
+                  <Button
+                    onClick={() => {
+                      setDatasetFilter(d.id);
+                      const c = caps.find((c: Dict) => c.windows > 0);
+                      if (c) choose(c.id);
+                    }}
+                  >
+                    Select dataset <Check size={15} />
+                  </Button>
+                  <Button
+                    secondary
+                    onClick={() => {
+                      const c = caps.find((c: Dict) => c.windows > 0);
+                      if (c) choose(c.id);
+                      navigate("replay");
+                    }}
+                  >
+                    Run recording <Play size={15} />
+                  </Button>
+                </div>
+              </section>
+            );
+          })}
+          {!state.datasets.length && (
+            <section className="panel">
+              <Empty
+                icon={Database}
+                title="Your saved datasets appear here."
+                action={
+                  <Button onClick={() => setDataTab("new")}>
+                    Drop new data
+                  </Button>
+                }
+              >
+                Import a dataset once; it remains available after restarting
+                Orbit.
+              </Empty>
+            </section>
+          )}
+        </div>
+      )}
+      {dataTab === "new" && (
+        <div className="two-column data-top">
+          <section className="panel">
+            <div className="panel-heading">
+              <div>
+                <Badge tone="cyan">LOCAL UPLOAD</Badge>
+                <h2>
+                  {phone ? "From phone to laptop." : "Bring your recordings."}
+                </h2>
+              </div>
+              <Upload size={24} />
+            </div>
+            <div className="mat-profile">
+              <label>
+                Single MAT profile
+                <select
+                  value={matProfile}
+                  onChange={(e) => setMatProfile(e.target.value)}
+                >
+                  <option value="inspect">
+                    Inspect only · metadata unknown
+                  </option>
+                  <option value="ax20">Wi-Fi 6 AX · 20 MHz</option>
+                  <option value="ax40">Wi-Fi 6 AX · 40 MHz</option>
+                </select>
+              </label>
+              <label>
+                Known label (optional)
+                <select
+                  value={matLabel}
+                  onChange={(e) => setMatLabel(e.target.value)}
+                >
+                  <option value="unlabelled">
+                    Unlabelled · inference only
+                  </option>
+                  <option value="true">Person present</option>
+                  <option value="false">No person</option>
+                </select>
+              </label>
+              <small>
+                For single MAT files, choose the actual capture profile. ZIP
+                imports use their own config.json.
+              </small>
+            </div>
+            <div
+              className={"dropzone " + (drag ? "drag" : "")}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDrag(true);
+              }}
+              onDragLeave={() => setDrag(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDrag(false);
+                if (progress < 0 && !job) upload(e.dataTransfer.files[0]);
+              }}
+            >
+              <input
+                ref={input}
+                type="file"
+                accept=".mat,.zip"
+                hidden
+                onChange={(e) => {
+                  upload(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+              <div className="upload-circle">
+                <FileUp size={26} />
+              </div>
+              <h3>
+                {progress >= 0
+                  ? "Sending to your laptop…"
+                  : "Drop a recording here"}
+              </h3>
+              <p>MATLAB v7.3 / HDF5 or a dataset ZIP with config.json</p>
+              {progress >= 0 ? (
+                <>
+                  <progress max={100} value={progress} />
+                  <span>{progress}% transferred</span>
+                  <Button secondary onClick={() => xhr.current?.abort()}>
+                    Cancel upload
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  secondary
+                  disabled={!!job}
+                  onClick={() => input.current?.click()}
+                >
+                  Browse files <ArrowRight size={16} />
+                </Button>
+              )}
+              <small>Up to 2 GiB · private local storage</small>
+            </div>
+            {uploadError && <Note tone="red">{uploadError}</Note>}
+            {state.jobs
+              .filter((j: Dict) => j.kind === "import" && j.status === "failed")
+              .slice(0, 1)
+              .map((j: Dict) => (
+                <Note key={j.id} tone="red">
+                  Import failed: {j.message}
+                </Note>
+              ))}
+          </section>
+          <section className="panel">
+            <span className="eyebrow">GOOD DATA. CLEAR CONTEXT.</span>
+            <h2>What Orbit reads.</h2>
+            <ul className="check-list">
+              <li>
+                <Check size={16} /> Complex CSI in the HDF5 <code>capture</code>{" "}
+                dataset
+              </li>
+              <li>
+                <Check size={16} /> 256 or 512 subcarriers, with orientation
+                checks
+              </li>
+              <li>
+                <Check size={16} /> Labels, dates, modulation and bandwidth from
+                config.json
+              </li>
+              <li>
+                <Check size={16} /> Invalid columns and accepted/rejected
+                feature windows
+              </li>
+            </ul>
+            <Note>
+              Single .mat uploads can be inspected. For training, import a ZIP
+              containing captures and their config.json files with verified AX
+              modulation, bandwidth and presence labels.
+            </Note>
+            <button
+              className="subtle-action"
+              onClick={() => navigate("settings")}
+            >
+              <Smartphone size={20} />
+              <span>
+                Uploading from a phone?
+                <small>Get your laptop’s LAN address and QR code.</small>
+              </span>
+              <ArrowRight size={17} />
+            </button>
+          </section>
+        </div>
+      )}
+      {state.references?.length > 0 && (
+        <section className="panel reference-shelf">
+          <span className="tiny-label">PROJECT REFERENCE FILES</span>
+          {state.references.map((r: Dict) => (
+            <a
+              key={r.id}
+              className="reference-download"
+              href={"/api/references/" + r.id + "/file"}
+            >
+              <BookOpen size={17} />
+              {r.name}
+              <Download size={15} />
+            </a>
+          ))}
+        </section>
+      )}
       <div className="section-heading">
         <h2>
           Recording library{" "}
           <span className="count">{state.captures.length}</span>
         </h2>
-        <span>Shared by connected devices · refreshes every 4 seconds</span>
+        <span>Persistent library · available on laptop and phone</span>
       </div>
       <div className="filter-bar">
+        <select
+          aria-label="Saved dataset filter"
+          value={datasetFilter}
+          onChange={(e) => setDatasetFilter(e.target.value)}
+        >
+          <option value="">All saved datasets</option>
+          {state.datasets.map((d: Dict) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </select>
         <div className="search-field">
           <Search size={17} />
           <input
@@ -2324,7 +2630,7 @@ function DSPPage({
     </>
   );
 }
-function SoftPage({
+function LearningPage({
   state,
   capture,
   selected,
@@ -2400,7 +2706,7 @@ function SoftPage({
       notify(e.message);
     }
   };
-  const models = state.models;
+  const models = state.models.filter((m: Dict) => m.contract.bandwidth === bw);
   return (
     <>
       <div className="tabs">
@@ -2995,7 +3301,8 @@ function ReplayPage({
   notify,
   refresh,
 }: Common) {
-  const [model, setModel] = useState("");
+  const [model, setModel] = useState("all");
+  const [comparison, setComparison] = useState<Dict[]>([]);
   const [result, setResult] = useState<Dict | null>(null);
   const [view, setView] = useState<Dict | null>(null);
   const [index, setIndex] = useState(0);
@@ -3005,6 +3312,7 @@ function ReplayPage({
   useEffect(() => {
     setIndex(0);
     setResult(null);
+    setComparison([]);
     setPlaying(false);
   }, [capture?.id, model]);
   const step = capture?.bandwidth === 40 ? 512 : 128;
@@ -3052,10 +3360,11 @@ function ReplayPage({
         <label>
           Available model
           <select value={model} onChange={(e) => setModel(e.target.value)}>
-            <option value="">No model selected</option>
+            <option value="all">Compare all available classifiers</option>
+            <option value="raw">Raw CSI · no classifier</option>
             {compatible.map((m: Dict) => (
               <option key={m.id} value={m.id}>
-                {m.name} · {m.id.slice(0, 6)}
+                {m.name} · {m.contract.bandwidth} MHz
               </option>
             ))}
           </select>
@@ -3065,11 +3374,29 @@ function ReplayPage({
           onClick={async () => {
             setLoading(true);
             try {
-              const r = await api("predict", {
-                capture_id: capture.id,
-                model_id: model,
-              });
-              setResult(r);
+              if (model === "raw") {
+                setResult(null);
+                setComparison([]);
+                return;
+              }
+              if (model === "all") {
+                const response = await api("predict/compare", {
+                  capture_id: capture.id,
+                });
+                setComparison(response.results);
+                setResult(
+                  response.results.find(
+                    (r: Dict) => r.model_name === "Random Forest",
+                  ) || response.results[0],
+                );
+              } else {
+                const response = await api("predict", {
+                  capture_id: capture.id,
+                  model_id: model,
+                });
+                setResult(response);
+                setComparison([]);
+              }
               await refresh();
             } catch (e: any) {
               notify(e.message);
@@ -3083,9 +3410,31 @@ function ReplayPage({
           ) : (
             <Play size={16} />
           )}{" "}
-          Run model
+          {model === "all"
+            ? "Run all classifiers"
+            : model === "raw"
+              ? "Inspect raw signal"
+              : "Run selected model"}
         </Button>
       </div>
+      {comparison.length > 0 && (
+        <div className="comparison-cards">
+          {comparison.map((r: Dict) => (
+            <button
+              key={r.id}
+              className={"panel " + (result?.id === r.id ? "chosen" : "")}
+              onClick={() => setResult(r)}
+            >
+              <span>{r.model_name}</span>
+              <strong>{r.prediction ? "Person present" : "No person"}</strong>
+              <small>Mean P(presence): {percent(r.mean_probability)}</small>
+              <Badge tone="violet">
+                {r.in_training ? "TRAINING RECORDING" : "MODEL OUTPUT"}
+              </Badge>
+            </button>
+          ))}
+        </div>
+      )}
       {!capture ? (
         <section className="panel">
           <Empty
@@ -3212,7 +3561,7 @@ function ReplayPage({
               {!compatible.length && (
                 <button
                   className="text-button"
-                  onClick={() => navigate("soft")}
+                  onClick={() => navigate("learning")}
                 >
                   Open the model bench <ArrowRight size={16} />
                 </button>
@@ -3801,6 +4150,307 @@ function ModesPage({
     </>
   );
 }
+function MediaPage({
+  state,
+  capture,
+  selected,
+  choose,
+  navigate,
+  notify,
+  refresh,
+}: Common) {
+  const input = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [title, setTitle] = useState("");
+  const [notes, setNotes] = useState("");
+  const [dataset, setDataset] = useState("");
+  const [captureId, setCaptureId] = useState("");
+  const [progress, setProgress] = useState(-1);
+  const [message, setMessage] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [drag, setDrag] = useState(false);
+  const xhr = useRef<XMLHttpRequest | null>(null);
+  const send = () => {
+    if (!file) return;
+    const data = new FormData();
+    data.append("file", file);
+    data.append("title", title || file.name);
+    data.append("notes", notes);
+    data.append("dataset_id", dataset);
+    data.append("capture_id", captureId);
+    const request = new XMLHttpRequest();
+    xhr.current = request;
+    request.open("POST", "/api/media");
+    setProgress(0);
+    setMessage("");
+    request.upload.onprogress = (e) => {
+      if (e.lengthComputable)
+        setProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    request.onload = async () => {
+      setProgress(-1);
+      if (request.status >= 200 && request.status < 300) {
+        setMessage("Saved to your recording library.");
+        setFile(null);
+        setTitle("");
+        setNotes("");
+        await refresh();
+      } else {
+        try {
+          setMessage(JSON.parse(request.responseText).detail);
+        } catch {
+          setMessage("Upload failed. Please retry.");
+        }
+      }
+    };
+    request.onerror = () => {
+      setProgress(-1);
+      setMessage("Connection interrupted. Reconnect and retry.");
+    };
+    request.onabort = () => setProgress(-1);
+    request.send(data);
+  };
+  const items = (state.media || []).filter(
+    (m: Dict) =>
+      (filter === "all" || m.type.startsWith(filter)) &&
+      (m.title + " " + m.notes).toLowerCase().includes(search.toLowerCase()),
+  );
+  return (
+    <>
+      <div className="two-column">
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <Badge tone="green">LOCAL RECORDING LIBRARY</Badge>
+              <h2>Keep the context with the signal.</h2>
+            </div>
+            <FolderOpen size={26} />
+          </div>
+          <p>
+            Store experiment videos, photos and audio alongside your CSI
+            recordings. These files are references, not radio measurements.
+          </p>
+          <div
+            className={"dropzone " + (drag ? "drag" : "")}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDrag(true);
+            }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDrag(false);
+              const next = e.dataTransfer.files[0];
+              if (next) {
+                setFile(next);
+                setTitle(next.name);
+              }
+            }}
+          >
+            <input
+              ref={input}
+              type="file"
+              hidden
+              accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm,audio/wav,audio/mpeg"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) {
+                  setFile(f);
+                  setTitle(f.name);
+                }
+                e.target.value = "";
+              }}
+            />
+            <FileUp size={30} />
+            <h3>{file ? file.name : "Drop a photo, video or audio file"}</h3>
+            <p>JPG · PNG · WebP · GIF · MP4 · MOV · WebM · WAV · MP3</p>
+            <Button
+              secondary
+              disabled={progress >= 0}
+              onClick={() => input.current?.click()}
+            >
+              Choose recording
+            </Button>
+            <small>Stored on this laptop · up to 1 GiB per file</small>
+          </div>
+        </section>
+        <section className="panel">
+          <h2>Give this recording a home.</h2>
+          <div className="control-grid">
+            <label className="wide">
+              Title
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={160}
+                placeholder="e.g. Classroom experiment — one person"
+              />
+            </label>
+            <label>
+              Dataset (optional)
+              <select
+                value={dataset}
+                onChange={(e) => {
+                  setDataset(e.target.value);
+                  setCaptureId("");
+                }}
+              >
+                <option value="">General experiment library</option>
+                {state.datasets.map((d: Dict) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              CSI capture (optional)
+              <select
+                value={captureId}
+                onChange={(e) => setCaptureId(e.target.value)}
+              >
+                <option value="">No specific capture</option>
+                {state.captures
+                  .filter((c: Dict) => !dataset || c.dataset_id === dataset)
+                  .map((c: Dict) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label className="wide">
+              Experiment notes
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                maxLength={2000}
+                rows={4}
+                placeholder="Location, people, activity, and anything useful for your presentation."
+              />
+            </label>
+          </div>
+          {progress >= 0 ? (
+            <div className="media-progress">
+              <progress value={progress} max={100} />
+              <span>{progress}% uploaded</span>
+              <Button secondary onClick={() => xhr.current?.abort()}>
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button disabled={!file} onClick={send}>
+              <Upload size={16} /> Save to recording library
+            </Button>
+          )}
+          {message && (
+            <p className="upload-feedback" role="status">
+              {message}
+            </p>
+          )}
+        </section>
+      </div>
+      <div className="section-heading">
+        <h2>
+          Your recordings{" "}
+          <span className="count">{state.media?.length || 0}</span>
+        </h2>
+        <button className="text-button" onClick={() => navigate("settings")}>
+          <Smartphone size={16} /> Send from phone
+        </button>
+      </div>
+      <div className="filter-bar">
+        <div className="search-field">
+          <Search size={16} />
+          <input
+            placeholder="Search saved recordings…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <select
+          aria-label="Media type"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        >
+          <option value="all">All recordings</option>
+          <option value="image">Photos</option>
+          <option value="video">Videos</option>
+          <option value="audio">Audio</option>
+        </select>
+      </div>
+      {items.length ? (
+        <div className="media-grid">
+          {items.map((m: Dict) => (
+            <section className="panel media-card" key={m.id}>
+              <div className="media-preview">
+                {m.type.startsWith("image") ? (
+                  <img
+                    src={"/api/media/" + m.id + "/file"}
+                    alt={m.title}
+                    loading="lazy"
+                  />
+                ) : m.type.startsWith("video") ? (
+                  <video
+                    controls
+                    playsInline
+                    preload="metadata"
+                    src={"/api/media/" + m.id + "/file"}
+                  />
+                ) : (
+                  <audio
+                    controls
+                    preload="metadata"
+                    src={"/api/media/" + m.id + "/file"}
+                  />
+                )}
+              </div>
+              <div className="media-description">
+                <Badge tone="muted">{m.type.split("/")[0].toUpperCase()}</Badge>
+                <h3>{m.title}</h3>
+                <p>{m.notes || "No notes added."}</p>
+                <small>
+                  {(m.size / 1024 ** 2).toFixed(1)} MiB ·{" "}
+                  {new Date(m.created).toLocaleString()}
+                </small>
+                <div className="button-row">
+                  {m.capture_id && (
+                    <Button
+                      secondary
+                      onClick={() => {
+                        choose(m.capture_id);
+                        navigate("replay");
+                      }}
+                    >
+                      Open paired capture <Play size={14} />
+                    </Button>
+                  )}
+                  <a
+                    className="text-button"
+                    href={"/api/media/" + m.id + "/file"}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open original <ExternalLink size={14} />
+                  </a>
+                </div>
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <section className="panel">
+          <Empty icon={FolderOpen} title="A place for the whole experiment.">
+            Your uploaded videos, images and audio recordings will stay here,
+            with optional links to their CSI dataset.
+          </Empty>
+        </section>
+      )}
+    </>
+  );
+}
+
 function SettingsPage({
   notify,
   logout,
@@ -3827,6 +4477,29 @@ function SettingsPage({
             </div>
             <Smartphone size={27} />
           </div>
+          <div className="sharing-control">
+            <span>
+              {server?.enabled ? "Phone sharing is on" : "Phone sharing is off"}
+            </span>
+            <Button
+              secondary
+              onClick={async () => {
+                try {
+                  setServer(
+                    await api("server/sharing", { enabled: !server?.enabled }),
+                  );
+                } catch (e: any) {
+                  notify(e.message);
+                }
+              }}
+            >
+              {server?.enabled ? "Switch sharing off" : "Enable phone sharing"}
+            </Button>
+          </div>
+          <p className="helper">
+            To start LAN mode after a laptop-only launch, double-click{" "}
+            <b>Start-Orbit-Server.cmd</b> in the app folder.
+          </p>
           <p>
             Connect your phone and laptop to the same trusted Wi-Fi network.
             Open the laptop’s LAN address, enter the terminal access code, and

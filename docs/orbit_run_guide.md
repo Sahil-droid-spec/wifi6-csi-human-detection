@@ -1,3 +1,9 @@
+# Orbit v1.1 update
+
+See [the classroom demo guide](orbit_demo_guide.md) for saved datasets, Learning Lab, themes, media and phone setup. CSI uploads now support up to 2 GiB and safe archive expansion is capped at 4 GiB. Media files support up to 1 GiB. The Windows `Start-Orbit-Server.cmd` launcher enables LAN binding; an authenticated laptop-only Sharing control enables/disables remote requests. Theme and presentation preferences persist in each browser. Raw datasets and generated models remain local and are not in the repository.
+
+The earlier 256 MiB/1 GiB limits and missing-input description below record the v1.0 baseline; these limits and the absence of locally supplied data were superseded by v1.1. Scientific contracts and hardware validation limits still apply.
+
 # Running Orbit
 
 Orbit is a local React/TypeScript application with a Python FastAPI analysis server. The repository includes a prebuilt frontend, so Node.js is needed only when changing the UI. Python 3.10+ is required; Python 3.11 is recommended for a clean installation.

@@ -32,3 +32,12 @@ No raw MAT recording was included in the attachments or repository. Parser and m
 A physical phone/LAN transfer, live CSI capture, physical 802.11bf hardware and through-wall detection remain unverified. Adaptive hardware selection is proposed. The fuzzy page is an educational system, not recovery/validation of the earlier trained fuzzy detector. PCA/ANOVA/clustering/SOM, physical-rate calibration and GA DSP tuning remain future extensions. See `orbit_run_guide.md` for complete scope and limitations.
 
 The packaged-release HTTP smoke check also passed for HTML, compiled assets, authentication, evidence rows and a clean capture library. A Windows cleanup check exposed unclosed SQLite connections; the final implementation explicitly closes them and a retained-handle regression test covers this lifecycle.
+
+
+## v1.1 validation and supplied-data run
+
+36 backend tests pass, covering media MIME/extension checks, paired media, file-range playback, optional user-declared MAT profiles, local-only large imports, project references, sharing on/off protection and classifier comparison, in addition to the prior numerical/security tests. TypeScript/Vite build passes.
+
+The newly supplied 20MHz.zip and 40MHz.zip were actually imported: 15/11 captures and 1,920/382 accepted windows respectively. Seven models were fitted locally (20 MHz date-held-out LR/RF/MLP/GA+RF; 40 MHz capture-held-out LR/RF/MLP). Local app results are distinct from the historical CSV records and preserve the small-date/date-class-confounding caveats. Raw recordings, media, session codes and generated models were excluded from GitHub.
+
+Browser QA exercises the saved-data flow, real-model comparison, all four themes and phone-sized saved-data navigation. Physical phone transfer still requires a device/network check. Images/videos are stored as contextual media rather than treated as CSI.
