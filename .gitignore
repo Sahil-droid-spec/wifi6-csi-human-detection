@@ -10,3 +10,10 @@ __pycache__/
 venv/
 .ipynb_checkpoints/
 .DS_Store
+
+# Orbit application
+node_modules/
+.pytest_cache/
+orbit-data/
+*.tsbuildinfo
+.env

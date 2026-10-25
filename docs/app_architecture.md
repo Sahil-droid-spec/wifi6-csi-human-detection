@@ -1,0 +1,5 @@
+# Architecture and repository audit
+
+Audited main 40e3f9c. Existing scripts are Colab-oriented; importing them executes downloads/training, so reusable functions are extracted into orbit/core.py with numerical regression tests. Stored capture is complex HDF5, subcarriers × packets. Baseline 20 MHz: 256/128, mean/std/mean absolute difference/p90-p10 per subcarrier. 40 MHz notebook has a distinct validity-aware 512-packet contract; the app uses versioned contracts and refuses cross-bandwidth inference. No trained artifact or raw dataset is committed.
+
+FastAPI serves the compiled React app and protected local API from one origin. SQLite indexes captures, jobs and runs; files/models live in ignored orbit-data. Uploads are bounded, staged and validated before atomic registration. Background work runs in a single-worker queue; analysis/training is local. JSON manifests and internally produced joblib files preserve feature schema, versions, hashes and split provenance. Arbitrary external pickle loading is unavailable.
