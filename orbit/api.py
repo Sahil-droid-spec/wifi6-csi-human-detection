@@ -3,7 +3,7 @@
 from pathlib import Path
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, closing
 from threading import Lock
 import os, json, sqlite3, secrets, hashlib, shutil, io, csv, socket, time
 from urllib.parse import urlsplit
@@ -85,20 +85,20 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     guard = Lock()
     pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="orbit")
     db = data / "orbit.sqlite3"
-    with sqlite3.connect(db) as con:
+    with closing(sqlite3.connect(db)) as con, con:
         con.execute(
             "CREATE TABLE IF NOT EXISTS records (kind TEXT, id TEXT, body TEXT, PRIMARY KEY(kind,id))"
         )
 
     def put(kind, row):
-        with sqlite3.connect(db) as con:
+        with closing(sqlite3.connect(db)) as con, con:
             con.execute(
                 "INSERT OR REPLACE INTO records VALUES (?,?,?)",
                 (kind, row["id"], json.dumps(row)),
             )
 
     def rows(kind):
-        with sqlite3.connect(db) as con:
+        with closing(sqlite3.connect(db)) as con, con:
             return [
                 json.loads(x[0])
                 for x in con.execute(
@@ -107,7 +107,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             ]
 
     def get(kind, id):
-        with sqlite3.connect(db) as con:
+        with closing(sqlite3.connect(db)) as con, con:
             row = con.execute(
                 "SELECT body FROM records WHERE kind=? AND id=?", (kind, id)
             ).fetchone()
@@ -116,7 +116,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         return json.loads(row[0])
 
     def delete(kind, id):
-        with sqlite3.connect(db) as con:
+        with closing(sqlite3.connect(db)) as con, con:
             con.execute("DELETE FROM records WHERE kind=? AND id=?", (kind, id))
 
     for job in rows("job"):
@@ -399,7 +399,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                 "size": original.stat().st_size,
             }
             # Register atomically so observers never see partial imports.
-            with sqlite3.connect(db) as con:
+            with closing(sqlite3.connect(db)) as con, con:
                 for kind, row in [("dataset", dataset)] + [
                     ("capture", c) for c in captures
                 ]:
