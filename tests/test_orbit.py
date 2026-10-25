@@ -384,6 +384,8 @@ def test_database_handles_are_closed(tmp_path, monkeypatch):
     handles = []
 
     def observed_connect(*args, **kwargs):
+        # Allow the test to inspect worker-created connections after the request.
+        kwargs["check_same_thread"] = False
         con = original(*args, **kwargs)
         handles.append(con)
         return con
