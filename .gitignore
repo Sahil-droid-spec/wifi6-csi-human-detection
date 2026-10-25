@@ -10,3 +10,17 @@ __pycache__/
 venv/
 .ipynb_checkpoints/
 .DS_Store
+
+# Orbit application
+node_modules/
+.pytest_cache/
+orbit-data/
+*.tsbuildinfo
+.env
+
+# Android generated output and local signing material
+android/build/
+*.apk
+*.jks
+*.p12
+*.keystore
