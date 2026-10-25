@@ -55,7 +55,7 @@ Therefore, the 40 MHz 100% capture scores are **exploratory and confounded**, no
 ## Quality-control counts
 
 - Total unique capture rows in the audit: 26 (20 MHz: 15; 40 MHz: 11).
-- Total windows recorded in the audit: 2322.
+- Total windows recorded in the audit: 2,322.
 - For 20 MHz, all 1,920 feature windows were accepted by the recorded audit.
 - For 40 MHz, 382 windows were accepted and 20 rejected by the saved validity checks.
 
@@ -73,3 +73,7 @@ The detailed audit CSVs preserve label sources, date, packet count, accepted/rej
 ## Claims that are not supported
 
 This experiment does not establish real-time sensing, live hardware capture, activity classification, physical through-wall detection, or standards-conforming IEEE 802.11bf operation. It is an offline binary presence experiment over a small, fixed research dataset.
+
+## Additional reproducibility note
+
+The 40 MHz scores use leave-one-MAT-capture-out, not leave-one-date-out evaluation. Because date and label are perfectly associated, this dataset does not estimate date-independent generalization. More data with both labels represented on each date/environment is needed.
