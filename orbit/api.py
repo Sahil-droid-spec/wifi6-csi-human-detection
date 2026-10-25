@@ -1060,6 +1060,51 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         ]
         return {"capture_id": body.capture_id, "results": results}
 
+    download_root = Path(os.environ.get("ORBIT_DOWNLOADS_DIR", ROOT.parent)).resolve()
+    downloads_allowed = {
+        "Orbit-Phone-Companion.apk": (
+            "Android phone app",
+            "application/vnd.android.package-archive",
+        ),
+        "Phone-Upload-Demo.zip": (
+            "Small real-CSI file for a phone upload demo",
+            "application/zip",
+        ),
+        "Orbit-Laptop-Windows-Demo.zip": (
+            "Windows laptop app with saved captures and models",
+            "application/zip",
+        ),
+        "Orbit-App.zip": (
+            "Application source and compiled interface",
+            "application/zip",
+        ),
+        "Orbit-Presentation-Runbook.md": (
+            "Step-by-step presentation script",
+            "text/markdown",
+        ),
+    }
+
+    @app.get("/api/downloads")
+    def download_catalog():
+        return [
+            {
+                "name": name,
+                "title": title,
+                "size": (download_root / name).stat().st_size,
+                "url": "/api/downloads/" + name,
+            }
+            for name, (title, mime) in downloads_allowed.items()
+            if (download_root / name).is_file()
+        ]
+
+    @app.get("/api/downloads/{name}")
+    def download_file(name: str):
+        if name not in downloads_allowed or not (download_root / name).is_file():
+            raise HTTPException(404, "Download is not available.")
+        return FileResponse(
+            download_root / name, filename=name, media_type=downloads_allowed[name][1]
+        )
+
     static = ROOT / "orbit" / "static"
     if static.exists():
         app.mount("/", StaticFiles(directory=static, html=True), name="frontend")

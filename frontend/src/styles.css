@@ -4265,3 +4265,38 @@ html[data-theme="charcoal"]
     gap: 5px;
   }
 }
+
+.download-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 13px;
+}
+.download-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px;
+  background: var(--surface);
+  min-width: 0;
+}
+.download-card:hover {
+  border-color: var(--blue);
+}
+.download-card > span {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.download-card strong {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.download-card small {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 10px;
+}

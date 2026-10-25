@@ -4459,13 +4459,51 @@ function SettingsPage({
   logout: () => void;
 }) {
   const [server, setServer] = useState<Dict | null>(null);
+  const [downloads, setDownloads] = useState<Dict[]>([]);
   useEffect(() => {
-    api("server")
-      .then(setServer)
-      .catch((e) => notify(e.message));
+    const load = async () => {
+      try {
+        const [server, catalog] = await Promise.all([
+          api("server"),
+          api("downloads"),
+        ]);
+        setServer(server);
+        setDownloads(catalog);
+      } catch {}
+    };
+    load();
+    const timer = setInterval(load, 5000);
+    return () => clearInterval(timer);
   }, []);
   return (
     <>
+      {downloads.length > 0 && (
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <Badge tone="green">PHONE & LAPTOP DOWNLOADS</Badge>
+              <h2>Take Orbit with you.</h2>
+              <p>
+                The Android companion connects to the laptop server. Use the
+                small CSI archive to rehearse a real file transfer.
+              </p>
+            </div>
+            <Download size={24} />
+          </div>
+          <div className="download-grid">
+            {downloads.map((file: Dict) => (
+              <a className="download-card" key={file.name} href={file.url}>
+                <span>{file.title}</span>
+                <strong>{file.name}</strong>
+                <small>
+                  {(file.size / 1024 ** 2).toFixed(1)} MiB{" "}
+                  <Download size={14} />
+                </small>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
       <div className="two-column">
         <section className="panel">
           <div className="panel-heading">
