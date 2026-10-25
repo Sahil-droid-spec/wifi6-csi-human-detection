@@ -1,0 +1,16 @@
+configuration,seed,valid,bf_latency_seconds,bf_latency_ms,successful_sensing_reports,unsuccessful_sensing_reports,ax_throughput_mbps
+BF-only,347,True,0.000853614,0.8536140000000001,100,0,
+BF-only,722,True,0.000854112,0.854112,100,0,
+BF-only,876,True,0.000854186,0.854186,100,0,
+BF-only,59,True,0.00085381,0.85381,100,0,
+BF-only,463,True,0.000854174,0.854174,100,0,
+AX-only,347,True,,,0,0,57.171
+AX-only,722,True,,,0,0,57.1816
+AX-only,876,True,,,0,0,57.1816
+AX-only,59,True,,,0,0,57.1659
+AX-only,463,True,,,0,0,57.1721
+Mixed AX+BF,347,True,0.00695239,6.95239,100,0,56.4609
+Mixed AX+BF,722,True,0.00812843,8.128430000000002,100,0,56.6625
+Mixed AX+BF,876,True,0.00853248,8.53248,100,0,56.4514
+Mixed AX+BF,59,True,0.00812753,8.12753,100,0,56.4967
+Mixed AX+BF,463,True,0.0084159,8.4159,100,0,56.6563

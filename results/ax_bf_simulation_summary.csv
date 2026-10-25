@@ -1,0 +1,4 @@
+configuration,runs,mean_bf_latency_ms,std_bf_latency_ms,mean_successful_sensing_reports,mean_failed_sensing_reports,mean_ax_throughput_mbps,std_ax_throughput_mbps
+AX-only,5,,,0,0,57.1744,0.0069
+BF-only,5,0.8540,0.0003,100,0,,
+Mixed AX+BF,5,8.0313,0.6289,100,0,56.5456,0.1053

@@ -1,0 +1,9 @@
+source_domain,target_domain,task,method,accuracy,balanced_accuracy,macro_f1,training_windows,test_windows,note
+NLOS/BQ,LOS/BQ,Binary presence,Raw Logistic Regression,0.993478,0.995177,0.992593,452,460,Selected recorded transfer example; performance is domain-specific
+NLOS/BQ,LOS/BQ,Binary presence,Hybrid v1,0.910870,0.932336,0.904006,452,460,Hybrid v1 is lower than raw Logistic Regression for this direction
+NLOS/PIFA,NLOS/BQ,Binary presence,Raw Random Forest,0.862832,0.792274,0.822237,440,452,Selected recorded transfer example; performance is domain-specific
+NLOS/PIFA,NLOS/BQ,Binary presence,Hybrid v1,0.672566,0.500000,0.402116,440,452,Hybrid v1 is lower than raw Random Forest for this direction
+NLOS/BQ,NLOS/PIFA,Three-class activity,Raw Random Forest,0.377273,0.373555,0.334993,452,440,Selected recorded transfer example
+NLOS/BQ,NLOS/PIFA,Three-class activity,Hybrid v1,0.320455,0.316132,0.253172,452,440,Hybrid v1 is lower than raw Random Forest for this direction
+NLOS/BQ,LOS/BQ,Three-class activity,Raw Logistic Regression,0.667391,0.675077,0.579312,452,460,Selected recorded transfer example
+NLOS/BQ,LOS/BQ,Three-class activity,Hybrid v1,0.673913,0.680588,0.633808,452,460,Hybrid v1 slightly exceeds raw Logistic Regression for this direction

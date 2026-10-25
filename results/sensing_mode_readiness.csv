@@ -1,0 +1,4 @@
+mode_id,display_name,standard_status,offline_data_status,live_hardware_status,current_demo,performance_claim,default_in_app
+ax_csi,Wi-Fi 6 / 802.11ax CSI,802.11ax published standard,Existing CSI datasets available,Not verified,Recorded CSI analysis and predictions,Report only measured dataset results,False
+bf_sensing,802.11bf WLAN Sensing,802.11bf-2025 published standard,No direct BF measurement dataset established,Compatible hardware/software not verified,Standards and architecture explanation,No direct BF hardware accuracy claim,False
+proposed_adaptive,Proposed Adaptive Wi-Fi Sensing,Our proposed software architecture,CSI-based processing can be evaluated on existing datasets,Input adapters not implemented or verified,Planned unified interface with capability reporting,Improvement over the alternatives not yet established,True

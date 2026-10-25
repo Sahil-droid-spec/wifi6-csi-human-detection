@@ -1,0 +1,7 @@
+dimension,802.11ax_CSI,802.11bf,Proposed_Adaptive,evidence_status
+Primary purpose,High-efficiency WLAN communications; CSI may be exposed for sensing,Standardized WLAN sensing enhancements,Software architecture using available sensing interfaces,Standards comparison
+Sensing coordination,"Depends on hardware, driver and capture implementation","Sensing-specific capability exchange, setup and feedback mechanisms","Selects a configured, supported input adapter",Standards comparison / proposed design
+Presence detection,Evaluated on existing recorded CSI datasets,Needs compatible sensing measurements for direct evaluation,Target capability; requires implementation and validation,CSI results available; BF and proposed mode not benchmarked
+Through-wall sensing,Evaluated using Wallhack NLOS recordings,Performance cannot be inferred from the standard alone,Must be tested using comparable through-wall conditions,NLOS dataset results available for CSI path
+Hardware support,Requires accessible CSI measurements,Requires compatible sensing hardware and software,Requires at least one working input adapter,Implementation-dependent
+Accuracy advantage,Existing CSI model results available,No direct BF hardware score available,No measured advantage established yet,No winner claimed
