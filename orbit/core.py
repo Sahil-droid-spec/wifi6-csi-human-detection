@@ -7,14 +7,14 @@ import numpy as np
 from scipy import signal
 
 MAX_ARRAY_BYTES = 256 * 1024**2
-MAX_EXPANDED = 1024 * 1024**2
+MAX_EXPANDED = 4 * 1024**3
 
 
 def safe_extract(archive, target):
     with zipfile.ZipFile(archive) as z:
         entries = z.infolist()
         if len(entries) > 2000 or sum(x.file_size for x in entries) > MAX_EXPANDED:
-            raise ValueError("Archive exceeds 2,000 entries or 1 GiB expanded size.")
+            raise ValueError("Archive exceeds 2,000 entries or 4 GiB expanded size.")
         seen = set()
         for item in entries:
             p = PurePosixPath(item.filename.replace("\\", "/"))

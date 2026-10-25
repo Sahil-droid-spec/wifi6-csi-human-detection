@@ -5,17 +5,26 @@ from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager, closing
 from threading import Lock
-import os, json, sqlite3, secrets, hashlib, shutil, io, csv, socket, time
+import os, json, sqlite3, secrets, hashlib, shutil, io, csv, socket, time, zipfile, mimetypes
+from functools import lru_cache
 from urllib.parse import urlsplit
 import numpy as np
-from fastapi import FastAPI, Request, UploadFile, File, HTTPException
+from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from . import core, models
 
 ROOT = Path(__file__).resolve().parents[1]
-MAX_UPLOAD = 256 * 1024**2
+MAX_UPLOAD = 2 * 1024**3
+
+
+def file_hash(path):
+    h = hashlib.sha256()
+    with Path(path).open("rb") as source:
+        for chunk in iter(lambda: source.read(4 * 1024**2), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 class UploadBodyLimit:
@@ -25,7 +34,10 @@ class UploadBodyLimit:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or scope.get("path") != "/api/upload":
+        if scope["type"] != "http" or scope.get("path") not in (
+            "/api/upload",
+            "/api/media",
+        ):
             return await self.app(scope, receive, send)
         from tempfile import SpooledTemporaryFile
 
@@ -37,7 +49,7 @@ class UploadBodyLimit:
             declared = limit + 1
         if declared > limit:
             return await JSONResponse(
-                {"detail": "Upload request exceeds 256 MiB plus multipart overhead."},
+                {"detail": "Upload request exceeds 2 GiB plus multipart overhead."},
                 413,
             )(scope, receive, send)
         with SpooledTemporaryFile(max_size=1024**2) as spool:
@@ -77,7 +89,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     data = Path(
         data_dir or os.environ.get("ORBIT_DATA_DIR", ROOT / "orbit-data")
     ).resolve()
-    for name in ("originals", "captures", "models", "staging"):
+    for name in ("originals", "captures", "models", "staging", "media", "references"):
         (data / name).mkdir(parents=True, exist_ok=True)
     code = access_code or secrets.token_hex(4).upper()
     sessions = set()
@@ -119,6 +131,18 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         with closing(sqlite3.connect(db)) as con, con:
             con.execute("DELETE FROM records WHERE kind=? AND id=?", (kind, id))
 
+    sharing = {"enabled": lan}
+    stored = rows("settings")
+    if stored:
+        sharing["enabled"] = bool(lan and stored[0].get("sharing", True))
+
+    def local_request(request):
+        return request.client is not None and request.client.host in (
+            "127.0.0.1",
+            "::1",
+            "testclient",
+        )
+
     for job in rows("job"):
         if job["status"] in ("queued", "running"):
             job.update(
@@ -134,7 +158,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     app = FastAPI(
         title="Orbit Wi-Fi Sensing Lab",
-        version="1.0.0",
+        version="1.1.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
@@ -150,6 +174,10 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     @app.middleware("http")
     async def protect(request, call_next):
+        if not sharing["enabled"] and not local_request(request):
+            return JSONResponse(
+                {"detail": "Phone sharing is switched off on the laptop."}, 403
+            )
         origin = request.headers.get("origin")
         if origin and urlsplit(origin).netloc != request.headers.get("host"):
             return JSONResponse(
@@ -203,7 +231,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     @app.get("/api/health")
     def health():
-        return {"status": "online", "version": "1.0.0", "local_only": True}
+        return {"status": "online", "version": "1.1.0", "local_only": True}
 
     class Auth(BaseModel):
         code: str = Field(max_length=100)
@@ -244,8 +272,10 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             "models": rows("model"),
             "runs": rows("run")[:50],
             "jobs": rows("job")[:30],
-            "lan": lan,
-            "version": "1.0.0",
+            "lan": sharing["enabled"],
+            "media": rows("media"),
+            "references": rows("reference"),
+            "version": "1.1.0",
         }
 
     def job_start(kind, fn):
@@ -291,7 +321,9 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     def job(id: str):
         return get("job", id)
 
-    def import_recording(staged, filename, did, progress):
+    def import_recording(
+        staged, filename, did, progress, profile="inspect", label="unlabelled"
+    ):
         dest = data / "captures" / did
         dest.mkdir()
         extracted = dest / "source"
@@ -301,7 +333,25 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                 core.safe_extract(staged, extracted)
             else:
                 shutil.copyfile(staged, extracted / "recording.mat")
-            mats = sorted(extracted.rglob("*.mat"))
+                if profile in ("ax20", "ax40"):
+                    (extracted / "config.json").write_text(
+                        json.dumps(
+                            {
+                                "modulation": "ax",
+                                "bandwidth": 20 if profile == "ax20" else 40,
+                                "people": {
+                                    "present": (
+                                        None
+                                        if label == "unlabelled"
+                                        else label == "true"
+                                    )
+                                },
+                                "metadata_source": "user-provided upload profile",
+                            }
+                        ),
+                        encoding="utf-8",
+                    )
+            mats = sorted(p for p in extracted.rglob("*") if p.suffix.lower() == ".mat")
             if not mats:
                 raise ValueError("No supported .mat recordings found in the archive.")
             if len(mats) > 100:
@@ -338,7 +388,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                     if not (~invalid).any():
                         raise ValueError("Capture has no valid packet columns.")
                     _, windows, audit = core.feature_windows(a, invalid, inferred)
-                    sha = hashlib.sha256(path.read_bytes()).hexdigest()
+                    sha = file_hash(path)
                     if sha in seen:
                         errors.append(
                             {
@@ -372,6 +422,9 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                             "warnings": warnings,
                             "sha256": sha,
                             "created": now(),
+                            "metadata_source": m["config"].get(
+                                "metadata_source", "recording configuration"
+                            ),
                             "source": "RECORDED DATA",
                         }
                     )
@@ -395,7 +448,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                 "created": now(),
                 "captures": len(captures),
                 "errors": errors,
-                "sha256": hashlib.sha256(original.read_bytes()).hexdigest(),
+                "sha256": file_hash(original),
                 "size": original.stat().st_size,
             }
             # Register atomically so observers never see partial imports.
@@ -415,10 +468,20 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             staged.unlink(missing_ok=True)
 
     @app.post("/api/upload")
-    async def upload(file: UploadFile = File(...)):
+    async def upload(
+        file: UploadFile = File(...),
+        profile: str = Form(default="inspect"),
+        label: str = Form(default="unlabelled"),
+    ):
         filename = Path((file.filename or "upload").replace("\\", "/")).name
         if Path(filename).suffix.lower() not in (".mat", ".zip"):
             raise HTTPException(415, "Upload a .mat recording or .zip dataset.")
+        if profile not in ("inspect", "ax20", "ax40") or label not in (
+            "unlabelled",
+            "true",
+            "false",
+        ):
+            raise ValueError("Unsupported capture profile or label.")
         did = secrets.token_hex(12)
         staged = data / "staging" / did
         count = 0
@@ -427,12 +490,15 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                 while chunk := await file.read(1024**2):
                     count += len(chunk)
                     if count > MAX_UPLOAD:
-                        raise HTTPException(413, "Upload exceeds 256 MiB.")
+                        raise HTTPException(413, "Upload exceeds 2 GiB.")
                     out.write(chunk)
             if not count:
                 raise HTTPException(422, "Empty upload.")
             return job_start(
-                "import", lambda jid, p: import_recording(staged, filename, did, p)
+                "import",
+                lambda jid, p: import_recording(
+                    staged, filename, did, p, profile, label
+                ),
             )
         except Exception:
             staged.unlink(missing_ok=True)
@@ -451,12 +517,14 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         for cap in rows("capture"):
             if cap["dataset_id"] == id:
                 delete("capture", cap["id"])
+        arrays.cache_clear()
         shutil.rmtree(data / "captures" / id, ignore_errors=True)
         for ext in (".mat", ".zip"):
             (data / "originals" / f"{id}{ext}").unlink(missing_ok=True)
         delete("dataset", id)
         return {"ok": True}
 
+    @lru_cache(maxsize=2)
     def arrays(id):
         cap = get("capture", id)
         with np.load(data / cap["cache"], allow_pickle=False) as z:
@@ -739,14 +807,15 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         except OSError:
             pass
         return {
-            "enabled": lan,
+            "enabled": sharing["enabled"],
+            "bound_for_lan": lan,
             "addresses": (
                 [f"http://{ip}:{port}/#/upload" for ip in sorted(addresses)]
-                if lan
+                if sharing["enabled"]
                 else []
             ),
             "local_url": f"http://127.0.0.1:{port}",
-            "max_upload_mib": 256,
+            "max_upload_mib": MAX_UPLOAD // 1024**2,
             "storage": str(data),
             "note": "Same trusted Wi-Fi/LAN required. Start with --lan to enable phone access. Allow Python on private networks in Windows Firewall only.",
         }
@@ -768,6 +837,228 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             addresses[0], image_factory=SvgPathImage, box_size=8, border=3
         ).save(output)
         return Response(output.getvalue(), media_type="image/svg+xml")
+
+    class LocalImportBody(BaseModel):
+        paths: list[str] = Field(min_length=1, max_length=10)
+
+    @app.post("/api/local/import")
+    def local_import(body: LocalImportBody, request: Request):
+        if not local_request(request):
+            raise HTTPException(
+                403, "Local file import is available on the laptop only."
+            )
+        paths = [Path(p).resolve() for p in body.paths]
+        if any(
+            not p.is_file()
+            or p.suffix.lower() not in (".mat", ".zip")
+            or p.stat().st_size > MAX_UPLOAD
+            for p in paths
+        ):
+            raise ValueError("Choose existing .mat or .zip files up to 2 GiB each.")
+
+        def work(jid, progress):
+            results = []
+            for i, path in enumerate(paths):
+                progress(f"Preparing {path.name}", int(i / len(paths) * 100))
+                digest = file_hash(path)
+                existing = next(
+                    (
+                        d
+                        for d in rows("dataset") + rows("reference")
+                        if d.get("sha256") == digest
+                    ),
+                    None,
+                )
+                if existing:
+                    results.append({"id": existing["id"], "already_saved": True})
+                    continue
+                if path.suffix.lower() == ".zip":
+                    with zipfile.ZipFile(path) as archive:
+                        contains_csi = any(
+                            n.lower().endswith(".mat")
+                            and "__MACOSX" not in n
+                            and not Path(n).name.startswith("._")
+                            for n in archive.namelist()
+                        )
+                    if not contains_csi:
+                        rid = secrets.token_hex(12)
+                        target = data / "references" / (rid + ".zip")
+                        shutil.copyfile(path, target)
+                        row = {
+                            "id": rid,
+                            "name": path.name,
+                            "created": now(),
+                            "sha256": digest,
+                            "size": path.stat().st_size,
+                            "path": str(target.relative_to(data)),
+                            "kind": "Project reference",
+                        }
+                        put("reference", row)
+                        results.append({"reference_id": rid})
+                        continue
+                did = secrets.token_hex(12)
+                staged = data / "staging" / did
+                shutil.copyfile(path, staged)
+                result = import_recording(
+                    staged,
+                    path.name,
+                    did,
+                    lambda message, pct: progress(
+                        f"{path.name} · {message}",
+                        int((i + pct / 100) / len(paths) * 100),
+                    ),
+                )
+                results.append(result)
+            return {"imports": results}
+
+        return job_start("import", work)
+
+    @app.get("/api/references/{id}/file")
+    def reference_file(id: str):
+        row = get("reference", id)
+        return FileResponse(
+            data / row["path"], filename=row["name"], media_type="application/zip"
+        )
+
+    @app.post("/api/media")
+    async def upload_media(
+        file: UploadFile = File(...),
+        title: str = Form(default="", max_length=160),
+        notes: str = Form(default="", max_length=2000),
+        dataset_id: str = Form(default=""),
+        capture_id: str = Form(default=""),
+    ):
+        allowed = {
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".webp": "image/webp",
+            ".gif": "image/gif",
+            ".mp4": "video/mp4",
+            ".mov": "video/quicktime",
+            ".webm": "video/webm",
+            ".wav": "audio/wav",
+            ".mp3": "audio/mpeg",
+        }
+        name = Path((file.filename or "recording").replace("\\", "/")).name
+        ext = Path(name).suffix.lower()
+        if ext not in allowed:
+            raise HTTPException(
+                415,
+                "Choose a JPG, PNG, WebP, GIF, MP4, MOV, WebM, WAV or MP3 recording.",
+            )
+        if dataset_id:
+            get("dataset", dataset_id)
+        if capture_id:
+            cap = get("capture", capture_id)
+            if dataset_id and cap["dataset_id"] != dataset_id:
+                raise ValueError("The recording and dataset do not match.")
+            dataset_id = cap["dataset_id"]
+        rid = secrets.token_hex(12)
+        target = data / "media" / (rid + ext)
+        count = 0
+        try:
+            with target.open("wb") as out:
+                while chunk := await file.read(1024**2):
+                    count += len(chunk)
+                    if count > 1024**3:
+                        raise HTTPException(413, "Media recording exceeds 1 GiB.")
+                    out.write(chunk)
+            with target.open("rb") as source:
+                header = source.read(32)
+            valid = (
+                ext in (".jpg", ".jpeg")
+                and header.startswith(b"\xff\xd8\xff")
+                or ext == ".png"
+                and header.startswith(b"\x89PNG\r\n\x1a\n")
+                or ext == ".gif"
+                and header[:6] in (b"GIF87a", b"GIF89a")
+                or ext == ".webp"
+                and header[:4] == b"RIFF"
+                and header[8:12] == b"WEBP"
+                or ext in (".mp4", ".mov")
+                and header[4:8] in (b"ftyp", b"moov", b"wide")
+                or ext == ".webm"
+                and header.startswith(b"\x1aE\xdf\xa3")
+                or ext == ".wav"
+                and header[:4] == b"RIFF"
+                and header[8:12] == b"WAVE"
+                or ext == ".mp3"
+                and (
+                    header.startswith(b"ID3")
+                    or header[:2] in (b"\xff\xfb", b"\xff\xf3", b"\xff\xf2")
+                )
+            )
+            if not valid:
+                raise ValueError(
+                    "The file content does not match its image/video/audio extension."
+                )
+            row = {
+                "id": rid,
+                "name": name,
+                "title": title.strip() or name,
+                "notes": notes,
+                "dataset_id": dataset_id or None,
+                "capture_id": capture_id or None,
+                "created": now(),
+                "size": count,
+                "type": allowed[ext],
+                "path": str(target.relative_to(data)),
+                "sha256": file_hash(target),
+            }
+            put("media", row)
+            return row
+        except Exception:
+            target.unlink(missing_ok=True)
+            raise
+        finally:
+            await file.close()
+
+    @app.get("/api/media/{id}/file")
+    def media_file(id: str):
+        row = get("media", id)
+        return FileResponse(
+            data / row["path"],
+            media_type=row["type"],
+            filename=row["name"],
+            content_disposition_type="inline",
+        )
+
+    class SharingBody(BaseModel):
+        enabled: bool
+
+    @app.post("/api/server/sharing")
+    def sharing_switch(body: SharingBody, request: Request):
+        if not local_request(request):
+            raise HTTPException(403, "Change phone sharing from the laptop workspace.")
+        if body.enabled and not lan:
+            raise HTTPException(
+                409, "Restart using Start-Orbit-Server.cmd to enable the LAN interface."
+            )
+        sharing["enabled"] = body.enabled
+        put("settings", {"id": "network", "sharing": body.enabled})
+        return lan_info()
+
+    class CompareBody(BaseModel):
+        capture_id: str
+
+    @app.post("/api/predict/compare")
+    def compare_predictions(body: CompareBody):
+        cap = get("capture", body.capture_id)
+        chosen = {}
+        for m in rows("model"):
+            if (
+                m["contract"]["bandwidth"] == cap["bandwidth"]
+                and m["name"] not in chosen
+            ):
+                chosen[m["name"]] = m
+        if not chosen:
+            raise ValueError("Train a compatible classifier in Learning Lab first.")
+        results = [
+            predict(PredictBody(capture_id=body.capture_id, model_id=m["id"]))
+            for m in chosen.values()
+        ]
+        return {"capture_id": body.capture_id, "results": results}
 
     static = ROOT / "orbit" / "static"
     if static.exists():
