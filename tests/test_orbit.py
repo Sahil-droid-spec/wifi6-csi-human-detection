@@ -374,3 +374,29 @@ def test_nested_ga_integration_and_random_baseline(client):
     for fold in ga["folds"]:
         assert not set(fold["train_capture_ids"]) & set(fold["test_capture_ids"])
         assert fold["selected_features"] and fold["convergence"]
+
+
+def test_database_handles_are_closed(tmp_path, monkeypatch):
+    import sqlite3
+    import orbit.api as service
+
+    original = sqlite3.connect
+    handles = []
+
+    def observed_connect(*args, **kwargs):
+        # Allow the test to inspect worker-created connections after the request.
+        kwargs["check_same_thread"] = False
+        con = original(*args, **kwargs)
+        handles.append(con)
+        return con
+
+    monkeypatch.setattr(service.sqlite3, "connect", observed_connect)
+    app = create_app(tmp_path, "CLOSED")
+    with TestClient(app) as c:
+        c.post("/api/auth", json={"code": "CLOSED"})
+        c.get("/api/status")
+    assert handles
+    # Retain each handle to prevent garbage collection from concealing a leak.
+    for connection in handles:
+        with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+            connection.execute("SELECT 1")
