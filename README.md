@@ -259,6 +259,25 @@ Planned improvements:
 
 Raw CSI archives, large PCAP files, datasets and multi-gigabyte runtime backups should remain outside the repository.
 
+
+## Research artifacts and model comparison
+
+The curated experiment records, validation summaries, dataset audits, and supporting figures are available in the repository:
+
+- [Research progress](docs/research_progress.md)
+- [Experiment log and limitations](docs/experiment_log.md)
+- [20 MHz / 40 MHz model comparison: Logistic Regression, Random Forest and ANN](docs/model_comparison_20mhz_40mhz.md)
+- [AX/BF simulator evaluation](docs/ax_bf_simulator_evaluation.md)
+- [Results data dictionary](docs/results_data_dictionary.md)
+- [Model metrics](results/presence_model_comparison_by_bandwidth.csv)
+- [Capture-level predictions](results/capture_level_model_predictions.csv)
+- [Data-quality audits](results/csi_capture_quality_audit.csv) and [window audit](results/csi_window_quality_audit.csv)
+- [Validation folds and fit warnings](results/model_validation_fold_details.csv)
+- [AX/BF runs](results/ax_bf_simulation_runs.csv) and [summary](results/ax_bf_simulation_summary.csv)
+- [Combined comparison notebook](notebooks/wifi_csi_bandwidth_model_comparison.ipynb)
+
+**Model evaluation caveat:** the latest 20 MHz date-held-out comparison reports 0.4667 capture accuracy for Logistic Regression and 0.6667 for both Random Forest and ANN/MLP across only two dates. The latest 40 MHz capture-held-out comparison reports 1.0000 capture accuracy for all three models, but all no-person captures are dated 2024-07-30 and person-present captures are dated 2024-08-01/02. Treat the 40 MHz scores as exploratory and confounded, not as evidence of robust generalization. See the linked report for details. These offline results do not establish live or real-hardware through-wall sensing.
+
 ## 10. Data, Code and Research Sources
 
 ### Dataset
