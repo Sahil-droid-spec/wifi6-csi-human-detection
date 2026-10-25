@@ -446,7 +446,9 @@ def test_media_library_and_pairing(client):
 def test_single_mat_user_profile(client):
     r = client.post(
         "/api/upload",
-        files={"file": ("phone.mat", mat_bytes((256,768)), "application/octet-stream")},
+        files={
+            "file": ("phone.mat", mat_bytes((256, 768)), "application/octet-stream")
+        },
         data={"profile": "ax20", "label": "unlabelled"},
     )
     j = wait(client, r.json()["id"])
@@ -460,7 +462,9 @@ def test_single_mat_user_profile(client):
     assert cap["metadata_source"] == "user-provided upload profile"
     r = client.post(
         "/api/upload",
-        files={"file": ("phone.mat", mat_bytes((256,768)), "application/octet-stream")},
+        files={
+            "file": ("phone.mat", mat_bytes((256, 768)), "application/octet-stream")
+        },
         data={"profile": "ax40"},
     )
     assert wait(client, r.json()["id"])["status"] == "failed"
@@ -537,3 +541,26 @@ def test_compare_all_trained_models(client):
     assert all(
         r["source"] == "MODEL OUTPUT" and r["in_training"] for r in result["results"]
     )
+
+
+def test_download_catalog_and_private_files(tmp_path, monkeypatch):
+    root = tmp_path / "deliverables"
+    root.mkdir()
+    apk = root / "Orbit-Phone-Companion.apk"
+    apk.write_bytes(b"PK" + b"example-apk")
+    (root / "private-secret.txt").write_text("not downloadable")
+    monkeypatch.setenv("ORBIT_DOWNLOADS_DIR", str(root))
+    with TestClient(create_app(tmp_path / "data", "DOWNLOAD")) as c:
+        assert c.get("/api/downloads").status_code == 401
+        c.post("/api/auth", json={"code": "DOWNLOAD"})
+        catalog = c.get("/api/downloads").json()
+        assert len(catalog) == 1 and catalog[0]["name"] == apk.name
+        response = c.get("/api/downloads/" + apk.name)
+        assert response.status_code == 200 and response.content == apk.read_bytes()
+        assert (
+            response.headers["content-type"]
+            == "application/vnd.android.package-archive"
+        )
+        assert c.get("/api/downloads/private-secret.txt").status_code == 404
+        response = c.get("/api/downloads/" + apk.name, headers={"Range": "bytes=0-1"})
+        assert response.status_code == 206 and response.content == b"PK"
