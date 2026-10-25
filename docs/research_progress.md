@@ -20,7 +20,7 @@ See [the model comparison report](model_comparison_20mhz_40mhz.md) and [the metr
 
 For 20 MHz, leave-one-recording-date-out capture accuracy was 0.4667 for Logistic Regression and 0.6667 for both Random Forest and ANN/MLP. Only two dates are available.
 
-For 40 MHz, all three models reported 1.0000 capture accuracy with leave-one-capture-out evaluation. This is confounded: the three no-person captures are from 2024-07-30, and the eight person-present captures are from 2024-08-01/02. These scores must not be treated as evidence of date-independent generalization.
+For 40 MHz, all three models reported 1.0000 capture accuracy with leave-one-capture-out evaluation. This is confounded: the three no-person captures are from 2024-07-30, and the eight person-present captures are from 2024-08-01/02. Leave-one-capture-out evaluation does not remove this date/class confound because other captures from the same date remain in training. These scores must not be treated as evidence of date-independent generalization.
 
 ## Next engineering steps
 
