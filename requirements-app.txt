@@ -1,0 +1,9 @@
+fastapi==0.162.0
+uvicorn==0.54.0
+numpy==2.2.6
+scipy==1.15.3
+h5py==3.14.0
+scikit-learn==1.7.2
+joblib==1.6.0
+python-multipart==0.0.32
+qrcode==8.2
