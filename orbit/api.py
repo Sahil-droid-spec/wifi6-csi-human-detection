@@ -172,7 +172,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     app = FastAPI(
         title="Orbit Wi-Fi Sensing Lab",
-        version="2.1.0",
+        version="2.2.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
@@ -242,7 +242,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     def health():
         return {
             "status": "online",
-            "version": "2.1.0",
+            "version": "2.2.0",
             "local_only": True,
             "instance_id": app.state.instance_id,
         }
@@ -298,7 +298,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             "lan": sharing["enabled"],
             "media": rows("media"),
             "references": rows("reference"),
-            "version": "2.1.0",
+            "version": "2.2.0",
         }
 
     cancelled = set()
@@ -1119,6 +1119,9 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         "Simulation-Empty.zip": ("Simulation · empty channel", "application/zip"),
         "Simulation-One-Still.zip": ("Simulation · one person still", "application/zip"),
         "Simulation-One-Moving.zip": ("Simulation · one person moving", "application/zip"),
+        "Orbit-Demo-1-Empty.zip": ("Classroom Simulation · empty · three sessions", "application/zip"),
+        "Orbit-Demo-2-Still.zip": ("Classroom Simulation · one still · three sessions", "application/zip"),
+        "Orbit-Demo-3-Moving.zip": ("Classroom Simulation · one moving · three sessions", "application/zip"),
         "Simulation-Two-People.zip": ("Simulation · two people", "application/zip"),
         "Orbit-Phone-Companion.apk": (
             "Android phone app",
