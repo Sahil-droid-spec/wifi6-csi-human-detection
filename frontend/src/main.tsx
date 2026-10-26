@@ -50,6 +50,7 @@ import {
   CircleDot,
 } from "lucide-react";
 import "./styles.css";
+import {PhoneFiles,Progression,ResearchCode,NotebookLinks} from "./Demo";
 import {BulkImport,SimulationPage,ConnectTools,InboxPage,PlanPage,GuidePage,GlossaryPage,AdvancedPage,Term} from "./Extensions";
 import {themes,lightThemes,okabeIto,applyTheme} from "./themes";
 type Dict = Record<string, any>;
@@ -112,6 +113,7 @@ async function api(path: string, body?: any, method?: string) {
     credentials: "same-origin",
     headers: body ? { "Content-Type": "application/json" } : {},
     body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(30000),
   });
   if (!r.ok) {
     const e = await r.json().catch(() => ({ detail: r.statusText }));
@@ -1233,6 +1235,11 @@ function App() {
                   )}
                 </>
               )}
+              {(page === "upload" || page === "settings") && <PhoneFiles/>}
+              {page === "learning" && <Progression state={state}/>}
+              {page === "results" && <Progression state={{...stored,simulation:false}}/>}
+              {page === "advanced" && <><div className="studio-source"><CaptureSelect {...common}/></div><p className="helper">Use the Recorded / Simulation button in the header to switch source. This selected CSI recording feeds the DSP and pipeline tools.</p></>}
+              {page === "media" && <NotebookLinks {...common}/>}
               {(page === "data" || page === "upload") && <BulkImport refresh={refresh} synthetic={simulation} onImported={setSimulation}/>}
               {(page === "data" || page === "upload") && (
                 <DataPage
@@ -1253,11 +1260,11 @@ function App() {
                 <ModesPage navigate={navigate} evidence={evidence} />
               )}
               {page === "simulation"&&<SimulationPage state={stored} evidence={evidence} refresh={refresh} open={()=>{setSimulation(true);navigate("data");}}/>}
-              {page === "inbox"&&<InboxPage state={stored}/>}
+              {page === "inbox"&&<InboxPage state={stored} open={(item:Dict,page:string)=>{setSimulation(!!item.synthetic);const cap=[...stored.captures,...(stored.simulation_captures||[])].find((c:Dict)=>c.dataset_id===item.dataset_id);if(cap)choose(cap.id);navigate(page as Page);}}/>}
               {page === "plan"&&<PlanPage/>}
               {page === "guide"&&<GuidePage/>}
               {page === "glossary"&&<GlossaryPage/>}
-              {page === "advanced"&&<AdvancedPage {...{state,capture,refresh}}/>}
+              {page === "advanced"&&<><AdvancedPage {...{state,capture,refresh}}/><ResearchCode/></>}
               {page === "settings"&&<ConnectTools/>}
               {page === "settings" && (
                 <SettingsPage
@@ -2695,11 +2702,12 @@ function LearningPage({
   const [options, setOptions] = useState<Dict[]>([]);
   const [trainError, setTrainError] = useState("");
   const [trainId, setTrainId] = useState("");
-  useEffect(() => { api("train/options?synthetic="+!!state.simulation).then(setOptions).catch(() => setOptions([])); }, [state.captures]);
+  const [optionError,setOptionError]=useState(""); const [optionRetry,setOptionRetry]=useState(0);
+  useEffect(() => { let active=true; setOptionError(""); api("train/options?synthetic="+!!state.simulation).then(r=>{if(active)setOptions(r);}).catch(e=>{if(active)setOptionError("Training choices could not load. Check Connect, then retry. "+e.message);}); return()=>{active=false;}; }, [state.simulation,state.captures.map((c:Dict)=>c.id).join(","),optionRetry]);
   useEffect(() => { setTrainError(""); setTrainId(""); }, [dataset, bw, split, modelKind, tab, pop, gen, mutation]);
   useEffect(() => { const failed = state.jobs.find((j: Dict) => j.id === trainId && j.status === "failed"); if (failed) setTrainError(failed.message); }, [state.jobs, trainId]);
   const optionFor = (kind: string, bandwidth = bw, datasetId = dataset) => options.find((o: Dict) => o.dataset_id === datasetId && o.bandwidth === bandwidth && o.split === split && o.kind === kind);
-  const check = optionFor(tab === "ga" ? "ga_rf" : modelKind === "all" ? "lr" : modelKind);
+  const check = optionFor(tab === "ga" ? "ga_rf" : modelKind === "all" ? "lr" : modelKind === "ladder" ? "ga_lr_ann" : modelKind);
 
   const [variation, setVariation] = useState(0.4);
   const [motion, setMotion] = useState(0.6);
@@ -2748,7 +2756,7 @@ function LearningPage({
             ? ["rf", "ga_rf"]
             : modelKind === "all"
               ? ["lr", "rf", "mlp"]
-              : [modelKind],
+              : modelKind === "ladder" ? ["lr","rf","mlp","ga_rf","ga_lr","ga_mlp","ga_lr_ann"] : [modelKind],
         population: pop,
         generations: gen,
         mutation,
@@ -2765,7 +2773,8 @@ function LearningPage({
   const models = state.models.filter((m: Dict) => m.contract.bandwidth === bw && m.contract.version === "orbit-amplitude-v2");
   return (
     <>
-      <p className="helper">Learning Lab contains the <Term name="SC"/> tools: <Term name="ANN"/> & model bench, <Term name="GA"/> feature selection and <Term name="Fuzzy"/> rules. Signal Studio contains DSP. Fuzzy rules are currently an educational sandbox, not a validated model-fusion or quality gate.</p>
+      <p className="helper">Learning Lab contains the <Term name="SC"/> tools: <Term name="ANN"/> & model bench, <Term name="GA"/> feature selection and <Term name="Fuzzy"/> rules. Signal Studio contains DSP. Use extended DSP & SC tools for the heuristic quality gate and fusion. The rule designer here is an educational sandbox.</p>
+      {optionError&&<section className="panel" role="alert"><p>{optionError}</p><button className="button" onClick={()=>setOptionRetry(v=>v+1)}>Retry training choices</button></section>}
       <div className="tabs">
         {[
           ["models", "ANN & model bench"],
@@ -2848,6 +2857,10 @@ function LearningPage({
                       value={modelKind}
                       onChange={(e) => setModelKind(e.target.value)}
                     >
+                      <option value="ladder" disabled={!optionFor("ga_lr_ann")?.valid}>Full progression · baseline, GA, LR, ANN and combinations</option>
+                      <option value="ga_lr" disabled={!optionFor("ga_lr")?.valid}>GA + Logistic Regression</option>
+                      <option value="ga_mlp" disabled={!optionFor("ga_mlp")?.valid}>GA + ANN</option>
+                      <option value="ga_lr_ann" disabled={!optionFor("ga_lr_ann")?.valid}>GA + LR + ANN ensemble</option>
                       <option value="all" disabled={!optionFor("lr")?.valid}>Compare LR + RF + ANN / MLP</option>
                       <option value="lr" disabled={!optionFor("lr")?.valid}>Logistic Regression</option>
                       <option value="rf" disabled={!optionFor("rf")?.valid}>Random Forest</option>
@@ -3354,7 +3367,8 @@ function ReplayPage({
   notify,
   refresh,
 }: Common) {
-  const [model, setModel] = useState("raw");
+  const [model, setModel] = useState(()=>sessionStorage.getItem("orbit-replay-model")||"all");
+  useEffect(()=>{sessionStorage.setItem("orbit-replay-model",model);},[model]);
   const [mode, setMode] = useState("held_out");
   const [comparison, setComparison] = useState<Dict[]>([]);
   const [result, setResult] = useState<Dict | null>(null);
@@ -3374,7 +3388,7 @@ function ReplayPage({
     0,
     capture
       ? Math.floor(
-          (capture.packets - (capture.bandwidth === 40 ? 256 : 256)) / step,
+          (capture.packets - (capture.bandwidth === 40 ? 512 : 256)) / step,
         ) + 1
       : 0,
   );
@@ -3407,6 +3421,7 @@ function ReplayPage({
   const compatible = state.models.filter(
     (m: Dict) => m.contract.bandwidth === capture?.bandwidth && m.contract.version === "orbit-amplitude-v2" && (mode !== "held_out" || !!m.held_out_windows?.[capture?.sha256]),
   );
+  useEffect(()=>{if(model!=="raw"&&model!=="all"&&!compatible.some((m:Dict)=>m.id===model))setModel("all");},[capture?.id,mode,compatible.map((m:Dict)=>m.id).join(",")]);
   return (
     <>
       <div className="studio-source">

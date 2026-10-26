@@ -172,7 +172,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     app = FastAPI(
         title="Orbit Wi-Fi Sensing Lab",
-        version="2.0.0",
+        version="2.1.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
@@ -242,7 +242,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     def health():
         return {
             "status": "online",
-            "version": "2.0.0",
+            "version": "2.1.0",
             "local_only": True,
             "instance_id": app.state.instance_id,
         }
@@ -280,20 +280,25 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     @app.get("/api/status")
     def status():
+        def summary(m):
+            return {**m, "held_out_windows": {h: True for h in m.get("held_out_windows", {})}}
+
         return {
             "datasets": [d for d in rows("dataset") if not d.get("synthetic")],
             "simulation_datasets": [d for d in rows("dataset") if d.get("synthetic")],
             "simulation_captures": [c for c in rows("capture") if c.get("synthetic")],
             "simulation_runs": [r for r in rows("run") if r.get("source") == "SIMULATION"],
-            "simulation_models": [m for m in rows("model") if m.get("source") == "SIMULATION"],
+            "simulation_models": [
+                summary(m) for m in rows("model") if m.get("source") == "SIMULATION"
+            ],
             "captures": [c for c in rows("capture") if not c.get("synthetic")],
-            "models": [m for m in rows("model") if m.get("source") != "SIMULATION"],
+            "models": [summary(m) for m in rows("model") if m.get("source") != "SIMULATION"],
             "runs": [r for r in rows("run") if r.get("source") != "SIMULATION"][:50],
             "jobs": rows("job")[:30],
             "lan": sharing["enabled"],
             "media": rows("media"),
             "references": rows("reference"),
-            "version": "1.1.0",
+            "version": "2.1.0",
         }
 
     cancelled = set()
@@ -674,7 +679,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         split: str = "date"
         synthetic: bool = False
         kinds: list[str] = Field(
-            default_factory=lambda: ["lr", "rf", "mlp"], min_length=1, max_length=4
+            default_factory=lambda: ["lr", "rf", "mlp"], min_length=1, max_length=7
         )
         population: int = Field(default=8, ge=4, le=16)
         generations: int = Field(default=6, ge=1, le=15)
@@ -699,7 +704,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             ]
             for bw in (20, 40)
             for split in ("date", "capture")
-            for kind in ("lr", "rf", "mlp", "ga_rf")
+            for kind in ("lr", "rf", "mlp", "ga_rf", "ga_lr", "ga_mlp", "ga_lr_ann")
         ]
 
     @app.post("/api/train")
@@ -707,7 +712,10 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         if (
             body.bandwidth not in (20, 40)
             or body.split not in ("date", "capture")
-            or any(k not in ("lr", "rf", "mlp", "ga_rf") for k in body.kinds)
+            or any(
+                k not in ("lr", "rf", "mlp", "ga_rf", "ga_lr", "ga_mlp", "ga_lr_ann")
+                for k in body.kinds
+            )
         ):
             raise ValueError("Unsupported training configuration.")
         captures = [

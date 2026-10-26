@@ -64,6 +64,7 @@ public class MainActivity extends Activity {
         if(Intent.ACTION_SEND_MULTIPLE.equals(intent.getAction())){ArrayList<Uri> values=intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);if(values!=null)for(Uri u:values)if(shared.size()<32 && "content".equals(u.getScheme()))shared.add(u);}
         if(Intent.ACTION_SEND.equals(intent.getAction())){Uri u=intent.getParcelableExtra(Intent.EXTRA_STREAM);if(u!=null && "content".equals(u.getScheme()))shared.add(u);}
         String target=intent.getData()!=null?intent.getData().toString():intent.getStringExtra(Intent.EXTRA_TEXT);
+        if(target!=null && target.startsWith("orbit://connect")) target=Uri.parse(target).getQueryParameter("url");
         String previous=getPreferences(MODE_PRIVATE).getString("server","");
         try{
             if(target!=null && target.startsWith("http://")){base=ServerAddress.normalize(target);if(!NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted(new URI(base).getHost()))throw new Exception("Laptop address changed; use the phone browser or an APK built for this LAN address.");launchUrl=target;getPreferences(MODE_PRIVATE).edit().putString("server",base).apply();showWorkspace();}
