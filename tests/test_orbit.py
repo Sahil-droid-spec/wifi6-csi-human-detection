@@ -1,10 +1,15 @@
-import io, json, time, zipfile, stat
-from pathlib import Path
+import io
+import json
+import stat
+import time
+import zipfile
+
 import h5py
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
-from scipy.signal import lfilter, firwin
+from scipy.signal import firwin, lfilter
+
 from orbit import core, models
 from orbit.api import create_app
 
@@ -12,10 +17,7 @@ from orbit.api import create_app
 def mat_bytes(shape=(256, 512), present=False, seed=4, compound=False):
     rng = np.random.default_rng(seed)
     x = (
-        1
-        + int(present) * 0.6
-        + rng.normal(0, 0.1, shape)
-        + 1j * rng.normal(0, 0.1, shape)
+        1 + int(present) * 0.6 + rng.normal(0, 0.1, shape) + 1j * rng.normal(0, 0.1, shape)
     ).astype(np.complex64)
     if compound:
         raw = np.empty(shape, dtype=[("real", "<f4"), ("imag", "<f4")])
@@ -33,7 +35,7 @@ def dataset_bytes(n=2, bw=20):
     with zipfile.ZipFile(b, "w", compression=zipfile.ZIP_DEFLATED) as z:
         for day in range(2):
             for cls in range(2):
-                folder = f"{bw}MHz/{cls}people/2024-07-{12+day:02d}"
+                folder = f"{bw}MHz/{cls}people/2024-07-{12 + day:02d}"
                 z.writestr(
                     folder + "/config.json",
                     json.dumps(
@@ -194,9 +196,7 @@ def test_dsp_numerics(operation):
             r["processed"], lfilter(firwin(15, 0.1, window="hann", fs=1), [1], x)
         )
     if operation == "fft":
-        assert (
-            r["extra"]["fft_max_error"] < 1e-10 and r["extra"]["dft_max_error"] < 1e-10
-        )
+        assert r["extra"]["fft_max_error"] < 1e-10 and r["extra"]["dft_max_error"] < 1e-10
     if operation == "convolution":
         assert r["extra"]["fft_max_error"] < 1e-10
         assert len(r["extra"]["linear"]) == 270
@@ -210,9 +210,7 @@ def test_radix_rejects_non_power():
     with pytest.raises(ValueError):
         core.radix2([1, 2, 3])
     for n in (2, 8, 64, 256):
-        np.testing.assert_allclose(
-            core.radix2(np.arange(n)), np.fft.fft(np.arange(n)), atol=1e-10
-        )
+        np.testing.assert_allclose(core.radix2(np.arange(n)), np.fft.fft(np.arange(n)), atol=1e-10)
 
 
 def test_fuzzy_actual_defuzzification():
@@ -260,10 +258,7 @@ def test_import_inspect_dsp_export_and_delete(client):
     run = client.post("/api/runs", json={"capture_id": cap["id"]}).json()
     assert client.get("/api/export/run/" + run["id"]).status_code == 200
     assert (
-        client.get(
-            "/api/export/evidence/presence_model_comparison_by_bandwidth"
-        ).status_code
-        == 200
+        client.get("/api/export/evidence/presence_model_comparison_by_bandwidth").status_code == 200
     )
     assert client.get("/api/qr").status_code == 409
     assert client.delete("/api/datasets/" + cap["dataset_id"]).status_code == 200
@@ -275,10 +270,7 @@ def test_import_rejects_invalid_and_cleans_staging(client):
     j = wait(client, r.json()["id"])
     assert j["status"] == "failed" and "No valid" in j["message"]
     assert not list((client.app.state.data / "staging").iterdir())
-    assert (
-        client.post("/api/upload", files={"file": ("bad.py", b"print(1)")}).status_code
-        == 415
-    )
+    assert client.post("/api/upload", files={"file": ("bad.py", b"print(1)")}).status_code == 415
 
 
 def test_training_grouping_manifest_predict_and_mismatch(client):
@@ -296,17 +288,22 @@ def test_training_grouping_manifest_predict_and_mismatch(client):
         "/api/predict", json={"capture_id": s["captures"][0]["id"], "model_id": m["id"]}
     )
     assert result.status_code == 200, result.text
-    assert not result.json()["in_training"] and result.json()["mode"] == "held_out" and len(result.json()["windows"]) == 5
+    assert (
+        not result.json()["in_training"]
+        and result.json()["mode"] == "held_out"
+        and len(result.json()["windows"]) == 5
+    )
     exported = client.get("/api/export/run/" + result.json()["id"]).text
     assert "validation_protocol" in exported and "saved outer-fold predictions" in exported
-    seen = client.post("/api/predict", json={"capture_id": s["captures"][0]["id"], "model_id": m["id"], "mode": "seen"}).json()
+    seen = client.post(
+        "/api/predict",
+        json={"capture_id": s["captures"][0]["id"], "model_id": m["id"], "mode": "seen"},
+    ).json()
     assert seen["in_training"] and "seen in training" in seen["validation_protocol"]
     assert client.get("/api/export/model/" + m["id"]).status_code == 200
     s40 = import_data(client, 40)
     cap40 = next(c for c in s40["captures"] if c["bandwidth"] == 40)
-    r = client.post(
-        "/api/predict", json={"capture_id": cap40["id"], "model_id": m["id"]}
-    )
+    r = client.post("/api/predict", json={"capture_id": cap40["id"], "model_id": m["id"]})
     assert r.status_code == 422 and "mismatch" in r.text
 
 
@@ -369,9 +366,7 @@ def test_nested_ga_integration_and_random_baseline(client):
     j = wait(client, r.json()["id"])
     assert j["status"] == "completed", j
     ga = next(
-        m
-        for m in client.get("/api/status").json()["models"]
-        if m["name"] == "GA + Random Forest"
+        m for m in client.get("/api/status").json()["models"] if m["name"] == "GA + Random Forest"
     )
     assert ga["selected_features"] and len(ga["folds"]) == 2
     assert ga["random_feature_baseline"]["metrics"]["support"] == 8
@@ -382,6 +377,7 @@ def test_nested_ga_integration_and_random_baseline(client):
 
 def test_database_handles_are_closed(tmp_path, monkeypatch):
     import sqlite3
+
     import orbit.api as service
 
     original = sqlite3.connect
@@ -427,9 +423,7 @@ def test_media_library_and_pairing(client):
     media = r.json()
     assert media["dataset_id"] == cap["dataset_id"]
     assert client.get("/api/media/" + media["id"] + "/file").content == png
-    ranged = client.get(
-        "/api/media/" + media["id"] + "/file", headers={"Range": "bytes=0-7"}
-    )
+    ranged = client.get("/api/media/" + media["id"] + "/file", headers={"Range": "bytes=0-7"})
     assert ranged.status_code == 206 and ranged.content == png[:8]
     assert len(client.get("/api/status").json()["media"]) == 1
     assert (
@@ -438,37 +432,24 @@ def test_media_library_and_pairing(client):
         ).status_code
         == 422
     )
-    assert (
-        client.post(
-            "/api/media", files={"file": ("code.html", b"<script/>")}
-        ).status_code
-        == 415
-    )
+    assert client.post("/api/media", files={"file": ("code.html", b"<script/>")}).status_code == 415
     assert len(list((client.app.state.data / "media").iterdir())) == 1
 
 
 def test_single_mat_user_profile(client):
     r = client.post(
         "/api/upload",
-        files={
-            "file": ("phone.mat", mat_bytes((256, 768)), "application/octet-stream")
-        },
+        files={"file": ("phone.mat", mat_bytes((256, 768)), "application/octet-stream")},
         data={"profile": "ax20", "label": "unlabelled"},
     )
     j = wait(client, r.json()["id"])
     assert j["status"] == "completed", j
     cap = client.get("/api/status").json()["captures"][0]
-    assert (
-        cap["bandwidth_verified"]
-        and cap["modulation"] == "ax"
-        and cap["present"] is None
-    )
+    assert cap["bandwidth_verified"] and cap["modulation"] == "ax" and cap["present"] is None
     assert cap["metadata_source"] == "user-provided upload profile"
     r = client.post(
         "/api/upload",
-        files={
-            "file": ("phone.mat", mat_bytes((256, 768)), "application/octet-stream")
-        },
+        files={"file": ("phone.mat", mat_bytes((256, 768)), "application/octet-stream")},
         data={"profile": "ax40"},
     )
     assert wait(client, r.json()["id"])["status"] == "failed"
@@ -486,10 +467,7 @@ def test_local_large_import_and_project_reference(client, tmp_path):
     state = client.get("/api/status").json()
     assert len(state["datasets"]) == 1 and len(state["references"]) == 1
     ref = state["references"][0]
-    assert (
-        client.get("/api/references/" + ref["id"] + "/file").content
-        == reference.read_bytes()
-    )
+    assert client.get("/api/references/" + ref["id"] + "/file").content == reference.read_bytes()
     r = client.post("/api/local/import", json={"paths": [str(dataset)]})
     assert wait(client, r.json()["id"])["result"]["imports"][0]["already_saved"]
     assert len(client.get("/api/status").json()["datasets"]) == 1
@@ -497,41 +475,24 @@ def test_local_large_import_and_project_reference(client, tmp_path):
 
 def test_phone_sharing_control_and_local_import_security(tmp_path):
     app = create_app(tmp_path, "LAN", lan=True)
-    with TestClient(app) as local, TestClient(
-        app, client=("192.168.1.50", 50100)
-    ) as remote:
+    with TestClient(app) as local, TestClient(app, client=("192.168.1.50", 50100)) as remote:
         assert local.post("/api/auth", json={"code": "LAN"}).status_code == 200
         assert remote.post("/api/auth", json={"code": "LAN"}).status_code == 200
         assert (
-            remote.post(
-                "/api/local/import", json={"paths": ["C:/private.mat"]}
-            ).status_code
-            == 403
+            remote.post("/api/local/import", json={"paths": ["C:/private.mat"]}).status_code == 403
         )
-        assert (
-            remote.post("/api/server/sharing", json={"enabled": False}).status_code
-            == 403
-        )
-        assert (
-            local.post("/api/server/sharing", json={"enabled": False}).json()["enabled"]
-            is False
-        )
+        assert remote.post("/api/server/sharing", json={"enabled": False}).status_code == 403
+        assert local.post("/api/server/sharing", json={"enabled": False}).json()["enabled"] is False
         assert remote.get("/api/status").status_code == 403
         assert local.get("/api/status").status_code == 200
-        assert (
-            local.post("/api/server/sharing", json={"enabled": True}).json()["enabled"]
-            is True
-        )
+        assert local.post("/api/server/sharing", json={"enabled": True}).json()["enabled"] is True
         assert remote.get("/api/status").status_code == 200
 
 
 def test_compare_all_trained_models(client):
     state = import_data(client)
     cap = state["captures"][0]
-    assert (
-        client.post("/api/predict/compare", json={"capture_id": cap["id"]}).status_code
-        == 422
-    )
+    assert client.post("/api/predict/compare", json={"capture_id": cap["id"]}).status_code == 422
     r = client.post("/api/train", json={"kinds": ["lr", "rf"], "split": "date"})
     assert wait(client, r.json()["id"])["status"] == "completed"
     r = client.post("/api/predict/compare", json={"capture_id": cap["id"]})
@@ -543,7 +504,8 @@ def test_compare_all_trained_models(client):
         "Logistic Regression",
     }
     assert all(
-        r["source"] == "MODEL OUTPUT" and not r["in_training"] and r["mode"] == "held_out" for r in result["results"]
+        r["source"] == "MODEL OUTPUT" and not r["in_training"] and r["mode"] == "held_out"
+        for r in result["results"]
     )
 
 
@@ -561,10 +523,7 @@ def test_download_catalog_and_private_files(tmp_path, monkeypatch):
         assert len(catalog) == 1 and catalog[0]["name"] == apk.name
         response = c.get("/api/downloads/" + apk.name)
         assert response.status_code == 200 and response.content == apk.read_bytes()
-        assert (
-            response.headers["content-type"]
-            == "application/vnd.android.package-archive"
-        )
+        assert response.headers["content-type"] == "application/vnd.android.package-archive"
         assert c.get("/api/downloads/private-secret.txt").status_code == 404
         response = c.get("/api/downloads/" + apk.name, headers={"Range": "bytes=0-1"})
         assert response.status_code == 206 and response.content == b"PK"
@@ -582,30 +541,41 @@ def test_packet_audit_and_trace_gaps(client, tmp_path):
     a, bad, zero, audit = core.read_capture(p, 20, with_audit=True)
     assert zero == 5 and audit["nonfinite_packets"] == 1
     assert audit["longest_burst"] == 5 and audit["invalid_packets"] == 6
-    r = client.post("/api/upload", files={"file": ("audit.mat", p.read_bytes())}, data={"profile": "ax20"})
+    r = client.post(
+        "/api/upload", files={"file": ("audit.mat", p.read_bytes())}, data={"profile": "ax20"}
+    )
     assert wait(client, r.json()["id"])["status"] == "completed"
     cap = client.get("/api/status").json()["captures"][0]
     v = client.get("/api/captures/" + cap["id"]).json()
     assert v["trace"][10:15] == [None] * 5 and v["trace"][30] is None
     assert v["packet_audit"]["zero_packets"] == 5
     # Differences may not bridge across an unusable sample.
-    features = core.four_features(np.array([[1., 2., 1000., 4., 5.]]), np.array([1,1,0,1,1], bool))
+    features = core.four_features(
+        np.array([[1.0, 2.0, 1000.0, 4.0, 5.0]]), np.array([1, 1, 0, 1, 1], bool)
+    )
     assert features[2] == 1
 
 
-@pytest.mark.parametrize("name", ["CON.mat", "aux/config.json", "a./x.mat", "a /x.mat", "NUL.txt", "COM1.mat"])
+@pytest.mark.parametrize(
+    "name", ["CON.mat", "aux/config.json", "a./x.mat", "a /x.mat", "NUL.txt", "COM1.mat"]
+)
 def test_zip_windows_aliases(tmp_path, name):
     p = tmp_path / "bad.zip"
-    with zipfile.ZipFile(p, "w") as z: z.writestr(name, b"x")
-    with pytest.raises(ValueError, match="Unsafe"): core.safe_extract(p, tmp_path / "dest")
+    with zipfile.ZipFile(p, "w") as z:
+        z.writestr(name, b"x")
+    with pytest.raises(ValueError, match="Unsafe"):
+        core.safe_extract(p, tmp_path / "dest")
 
 
 def test_zip_bomb_and_size_caps(tmp_path, monkeypatch):
     p = tmp_path / "bomb.zip"
-    with zipfile.ZipFile(p, "w", zipfile.ZIP_DEFLATED) as z: z.writestr("a.mat", b"0" * 2000000)
-    with pytest.raises(ValueError, match="compression-ratio"): core.safe_extract(p, tmp_path / "out")
+    with zipfile.ZipFile(p, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("a.mat", b"0" * 2000000)
+    with pytest.raises(ValueError, match="compression-ratio"):
+        core.safe_extract(p, tmp_path / "out")
     monkeypatch.setattr(core, "MAX_EXPANDED", 10)
-    with pytest.raises(ValueError, match="expanded size"): core.safe_extract(p, tmp_path / "out")
+    with pytest.raises(ValueError, match="expanded size"):
+        core.safe_extract(p, tmp_path / "out")
 
 
 def test_eligibility_explains_invalid_choices(client):
@@ -617,7 +587,8 @@ def test_eligibility_explains_invalid_choices(client):
     r = client.post("/api/train", json={"bandwidth": 20})
     assert r.status_code == 422 and "Import" in r.text
     caps = state["captures"]
-    for c in caps: c["date"] = "Day A" if not c["present"] else "Day B"
+    for c in caps:
+        c["date"] = "Day A" if not c["present"] else "Day B"
     check = models.training_check(caps, 40, "date", ["rf"])
     assert not check["valid"] and "confounding" in check["reason"]
 
@@ -626,8 +597,11 @@ def test_held_out_replay_uses_saved_fold_without_final_estimator(client, monkeyp
     state = import_data(client)
     r = client.post("/api/train", json={"kinds": ["rf"]})
     assert wait(client, r.json()["id"])["status"] == "completed"
-    state = client.get("/api/status").json(); model = state["models"][0]; cap = state["captures"][0]
+    state = client.get("/api/status").json()
+    model = state["models"][0]
+    cap = state["captures"][0]
     import joblib
+
     path = client.app.state.data / "models" / (model["id"] + ".joblib")
     bundle = joblib.load(path)
     bundle["estimator"] = None  # Held-out replay must not call the final fitted estimator.
@@ -639,16 +613,23 @@ def test_held_out_replay_uses_saved_fold_without_final_estimator(client, monkeyp
     fold = next(f for f in bundle["manifest"]["folds"] if cap["id"] in f["test_capture_ids"])
     fold["train_capture_ids"].append(cap["id"])
     joblib.dump(bundle, path)
-    assert client.post("/api/predict", json={"capture_id": cap["id"], "model_id": model["id"]}).status_code == 422
+    assert (
+        client.post(
+            "/api/predict", json={"capture_id": cap["id"], "model_id": model["id"]}
+        ).status_code
+        == 422
+    )
 
 
 def test_ga_selection_receives_only_outer_training_date(client, monkeypatch):
     state = import_data(client)
     observed = []
     original = models.genetic_select
+
     def spy(x, y, g, *args):
         observed.append(set(g.tolist()))
         return original(x, y, g, *args)
+
     monkeypatch.setattr(models, "genetic_select", spy)
     r = client.post("/api/train", json={"kinds": ["ga_rf"], "population": 4, "generations": 1})
     assert wait(client, r.json()["id"])["status"] == "completed"
@@ -657,22 +638,30 @@ def test_ga_selection_receives_only_outer_training_date(client, monkeypatch):
         assert calls == set(fold["train_capture_ids"])
         assert not calls & set(fold["test_capture_ids"])
         assert not set(fold["train_dates"]) & set(fold["test_dates"])
-    assert observed[-1] == set(c["id"] for c in state["captures"])  # Separate deployment fit only, never used for held-out metrics.
+    assert observed[-1] == set(
+        c["id"] for c in state["captures"]
+    )  # Separate deployment fit only, never used for held-out metrics.
 
 
 def test_sha256_manifest_detects_corruption(tmp_path):
     import hashlib
+
     from tools.checksums import verify_manifest
-    source = tmp_path / "data.txt"; source.write_bytes(b"actual file bytes")
+
+    source = tmp_path / "data.txt"
+    source.write_bytes(b"actual file bytes")
     manifest = tmp_path / "SHA256SUMS.txt"
     manifest.write_text(hashlib.sha256(source.read_bytes()).hexdigest() + "  data.txt\n")
     assert verify_manifest(tmp_path, manifest) == 1
     source.write_bytes(b"changed")
-    with pytest.raises(ValueError, match="Checksum mismatch"): verify_manifest(tmp_path, manifest)
+    with pytest.raises(ValueError, match="Checksum mismatch"):
+        verify_manifest(tmp_path, manifest)
 
 
 def test_zip_symlink_destination_and_member_cap(tmp_path, monkeypatch):
     p = tmp_path / "member.zip"
-    with zipfile.ZipFile(p, "w") as z: z.writestr("large.mat", b"x" * 200)
+    with zipfile.ZipFile(p, "w") as z:
+        z.writestr("large.mat", b"x" * 200)
     monkeypatch.setattr(core, "MAX_ARRAY_BYTES", 100)
-    with pytest.raises(ValueError, match="size or compression"): core.safe_extract(p, tmp_path / "out")
+    with pytest.raises(ValueError, match="size or compression"):
+        core.safe_extract(p, tmp_path / "out")

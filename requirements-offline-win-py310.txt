@@ -10,6 +10,7 @@ fastapi==0.162.0
 h11==0.16.0
 h5py==3.14.0
 idna==3.20
+ifaddr==0.2.0
 joblib==1.6.0
 numpy==2.2.6
 opentelemetry-api==1.45.1
@@ -24,3 +25,4 @@ threadpoolctl==3.7.0
 typing-inspection==0.4.4
 typing_extensions==4.16.0
 uvicorn==0.54.0
+zeroconf==0.151.5

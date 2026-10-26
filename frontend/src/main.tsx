@@ -50,6 +50,8 @@ import {
   CircleDot,
 } from "lucide-react";
 import "./styles.css";
+import {BulkImport,SimulationPage,ConnectTools,InboxPage,PlanPage,GuidePage,GlossaryPage,AdvancedPage,Term} from "./Extensions";
+import {themes,lightThemes,okabeIto,applyTheme} from "./themes";
 type Dict = Record<string, any>;
 type Page =
   | "intro"
@@ -62,7 +64,7 @@ type Page =
   | "modes"
   | "settings"
   | "upload"
-  | "media";
+  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced";
 const stages = [
   "Receive",
   "Window",
@@ -84,20 +86,26 @@ const stagePages: Page[] = [
   "replay",
 ];
 const nav = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "data", label: "Data & captures", icon: Database },
-  { id: "media", label: "Recordings & media", icon: FolderOpen },
+  { id: "overview", label: "Home", icon: LayoutDashboard },
+  { id: "data", label: "Library", icon: Database },
+  { id: "media", label: "Lab notebook", icon: FolderOpen },
   { id: "dsp", label: "Signal Studio", icon: AudioLines },
   { id: "learning", label: "Learning Lab", icon: BrainCircuit },
-  { id: "replay", label: "Detect & replay", icon: Play },
-  { id: "results", label: "Results & evidence", icon: FlaskConical },
-  { id: "modes", label: "Wi-Fi modes", icon: Radio },
-  { id: "settings", label: "Server & settings", icon: Settings2 },
+  { id: "replay", label: "Replay", icon: Play },
+  { id: "results", label: "Evidence", icon: FlaskConical },
+  { id: "modes", label: "Sensing modes", icon: Radio },
+  { id: "settings", label: "Connect", icon: Settings2 },
+  {id:"simulation",label:"Simulation",icon:Waves},
+  {id:"inbox",label:"Phone Inbox",icon:Smartphone},
+  {id:"advanced",label:"DSP & SC tools",icon:CircuitBoard},
+  {id:"plan",label:"Recording plan",icon:BookOpen},
+  {id:"guide",label:"Orbit guide",icon:CircleHelp},
+  {id:"glossary",label:"Glossary",icon:BookOpen},
 ];
 const pretty = (n: any, d = 3) =>
   typeof n === "number" ? n.toFixed(d) : String(n ?? "—");
 const percent = (n: any) => `${(Number(n) * 100).toFixed(1)}%`;
-const color = ["#22d3ee", "#fb923c", "#a78bfa", "#4f7dff", "#34d399"];
+const color = okabeIto;
 async function api(path: string, body?: any, method?: string) {
   const r = await fetch("/api/" + path, {
     method: method || (body ? "POST" : "GET"),
@@ -234,7 +242,7 @@ function Chart({
   const [chartTheme, setChartTheme] = useState(
     document.documentElement.dataset.theme || "light",
   );
-  const isLight = ["light", "soft"].includes(chartTheme);
+  const isLight = lightThemes.includes(chartTheme);
   useEffect(() => {
     const change = () =>
       setChartTheme(document.documentElement.dataset.theme || "light");
@@ -259,6 +267,7 @@ function Chart({
     if (!c) return;
     let option: Dict = {
       animation: false,
+      graphic: document.documentElement.dataset.library === "simulation" ? [{type:"text",right:8,bottom:5,style:{text:"Simulation · synthetic=true",fill:isLight?"#26364a":"#e7edf8",fontSize:11}}] : [],
       backgroundColor: isLight ? "#ffffff" : "#121c2d",
       color,
       tooltip: {
@@ -301,8 +310,8 @@ function Chart({
         sampling: "lttb",
         lineStyle: {
           width: 1.7,
-          color: s.color || color[i % 5],
-          type: s.dashed ? "dashed" : "solid",
+          color: ["paper", "graphite"].includes(chartTheme) ? (isLight ? "#222222" : "#eeeeee") : color[i % color.length],
+          type: s.dashed || (["paper", "graphite"].includes(chartTheme) && /GA|loss|fuzzy|model|fitness|neural|prediction/i.test(s.name)) ? "dashed" : "solid",
         },
         data: s.data.map((v, j) => [(s.x || x)?.[j] ?? j, v]),
       })),
@@ -368,7 +377,7 @@ function Chart({
               pixelRatio: 2,
               backgroundColor: isLight ? "#ffffff" : "#121c2d",
             }) || "";
-          a.download = exportName + ".png";
+          a.download = (document.documentElement.dataset.library === "simulation" ? "Simulation-" : "Recorded-") + exportName + ".png";
           a.click();
         }}
       >
@@ -455,13 +464,22 @@ function App() {
         ? "learning"
         : location.hash.slice(2)) as Page) || "intro",
   );
-  const [state, setState] = useState<Dict>({
+  const [stored, setState] = useState<Dict>({
     captures: [],
     datasets: [],
     models: [],
     runs: [],
     jobs: [],
   });
+  const [simulation,setSimulation] = useState(()=>localStorage.getItem("orbit-library")==="simulation"||location.hash.startsWith("#/simulation"));
+  useEffect(()=>{localStorage.setItem("orbit-library",simulation?"simulation":"recorded");document.documentElement.dataset.library=simulation?"simulation":"recorded";},[simulation]);
+  useEffect(()=>{if(page === "results")setSimulation(false);},[page]);
+  const [motion,setMotion] = useState(localStorage.getItem("orbit-motion") !== "reduced");
+  const [effects,setEffects] = useState(localStorage.getItem("orbit-effects") !== "reduced");
+  const state:Dict={...stored,simulation,runs:simulation?(stored.simulation_runs||[]):stored.runs,captures:simulation?(stored.simulation_captures||[]):stored.captures,datasets:simulation?(stored.simulation_datasets||[]):stored.datasets,models:simulation?(stored.simulation_models||[]):stored.models};
+  useEffect(()=>{if(!state.captures.some((c:Dict)=>c.id===selected))setSelected(state.captures[0]?.id||"");},[simulation,stored.captures,stored.simulation_captures]);
+  useEffect(()=>{document.documentElement.dataset.motion=motion?"full":"reduced";localStorage.setItem("orbit-motion",motion?"full":"reduced");},[motion]);
+  useEffect(()=>{document.documentElement.dataset.effects=effects?"full":"reduced";localStorage.setItem("orbit-effects",effects?"full":"reduced");},[effects]);
   const [evidence, setEvidence] = useState<Dict>({});
   const [online, setOnline] = useState(false);
   const [authed, setAuthed] = useState(false);
@@ -482,6 +500,7 @@ function App() {
   );
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    applyTheme(theme);
     localStorage.setItem("orbit-theme", theme);
     window.dispatchEvent(new Event("orbit-theme"));
   }, [theme]);
@@ -555,7 +574,7 @@ function App() {
       const s = await api("status");
       setState(s);
       setSelected((current) => {
-        if (s.captures.some((c: Dict) => c.id === current)) return current;
+        if ([...s.captures,...(s.simulation_captures||[])].some((c: Dict) => c.id === current)) return current;
         const first =
           s.captures.find((c: Dict) => c.bandwidth === 20 && c.windows > 0) ||
           s.captures[0];
@@ -597,15 +616,18 @@ function App() {
     if (page !== "intro" && !authed && online && checkedAuth) setAuthOpen(true);
   }, [page, authed, online, checkedAuth]);
   const navigate = (p: Page) => {
+    if(p === "simulation")setSimulation(true);
+    if(p === "results")setSimulation(false);
     location.hash = "/" + p;
     setPage(p);
     setMobileMenu(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: motion ? "smooth" : "auto" });
   };
   const choose = (id: string) => {
     setSelected(id);
     localStorage.setItem("orbit-capture", id);
   };
+  useEffect(()=>{if(location.hash.startsWith("#/pair?")||location.hash.startsWith("#/desktop?")){const token=new URLSearchParams(location.hash.split("?")[1]).get("token");if(token)api(location.hash.startsWith("#/desktop?")?"desktop/claim":"pair/claim",{token}).then(async()=>{await refresh();navigate(location.hash.startsWith("#/desktop?")?"overview":"upload");}).catch(()=>{setAuthError("Pairing link expired. Create a new QR on the laptop.");setAuthOpen(true);});}},[]);
   const authenticate = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -858,16 +880,15 @@ function App() {
                 <strong>{activeTitle}</strong>
               </div>
               <div className="top-actions">
+                <button className="presentation-toggle" onClick={()=>setSimulation(!simulation)}>{simulation?"Simulation":"Recorded library"}</button>
+                {simulation&&<strong className="simulation-chip">Simulation</strong>}
                 <select
                   className="theme-picker"
                   aria-label="Colour theme"
                   value={theme}
                   onChange={(e) => setTheme(e.target.value)}
                 >
-                  <option value="light">Google Light</option>
-                  <option value="soft">Soft Sage</option>
-                  <option value="midnight">Orbit Midnight</option>
-                  <option value="charcoal">Classic Dark</option>
+                  {themes.map(t=><option key={t[0]} value={t[0]}>{t[1]}</option>)}
                 </select>
                 <button
                   className={"presentation-toggle " + (quiet ? "enabled" : "")}
@@ -927,7 +948,7 @@ function App() {
                                     ? "Know what’s possible."
                                     : page === "upload"
                                       ? "Send it to your laptop."
-                                      : "Your local lab, connected."}
+                                      : (({simulation:"A channel to explore.",inbox:"From phone to your lab.",plan:"Plan a careful recording.",guide:"A little help, right here.",glossary:"Make sense of the terms.",advanced:"Experiment. Learn. Compare."} as Dict)[page] || "Your local lab, connected.")}
                   </h1>
                   <p>
                     {page === "overview"
@@ -960,12 +981,15 @@ function App() {
                     : "Adaptive mode is a proposed architecture. No automatic hardware selection or sensing switch is active."}
                 </Note>
               )}
+              <div className="access-options"><label><input type="checkbox" checked={!motion} onChange={e=>setMotion(!e.target.checked)}/>Reduce motion</label><label><input type="checkbox" checked={!effects} onChange={e=>setEffects(!e.target.checked)}/>Reduce effects</label><button className="text-button" onClick={()=>navigate("guide")}>Need a hand? Ask Orbit guide</button></div>
+              {!checkedAuth&&<section className="panel skeleton" aria-busy="true" aria-label="Loading your local workspace"><div/><div/><div/></section>}
               {job && (
                 <div className="job-banner">
                   <LoaderCircle className="spin" size={18} />
                   <span>{job.message}</span>
                   <progress value={job.progress} max={100} />
                   <b>{job.progress}%</b>
+                  <button onClick={()=>api("jobs/"+job.id+"/cancel",{}).then(()=>notify("Cancellation requested after the current fit."))}>Cancel</button>
                 </div>
               )}
               {!online && (
@@ -1209,6 +1233,7 @@ function App() {
                   )}
                 </>
               )}
+              {(page === "data" || page === "upload") && <BulkImport refresh={refresh} synthetic={simulation} onImported={setSimulation}/>}
               {(page === "data" || page === "upload") && (
                 <DataPage
                   {...common}
@@ -1216,16 +1241,24 @@ function App() {
                   onDelete={setConfirmDelete}
                 />
               )}
+              {["dsp","learning"].includes(page)&&<button className="button secondary" onClick={()=>navigate("advanced")}>Open extended DSP & SC tools</button>}
               {page === "dsp" && <DSPPage {...common} />}
               {page === "learning" && <LearningPage {...common} />}
               {page === "media" && <MediaPage {...common} />}
               {page === "replay" && <ReplayPage {...common} />}
               {page === "results" && (
-                <ResultsPage {...common} evidence={evidence} />
+                <ResultsPage {...common} state={{...stored,simulation:false}} evidence={evidence} />
               )}
               {page === "modes" && (
                 <ModesPage navigate={navigate} evidence={evidence} />
               )}
+              {page === "simulation"&&<SimulationPage state={stored} evidence={evidence} refresh={refresh} open={()=>{setSimulation(true);navigate("data");}}/>}
+              {page === "inbox"&&<InboxPage state={stored}/>}
+              {page === "plan"&&<PlanPage/>}
+              {page === "guide"&&<GuidePage/>}
+              {page === "glossary"&&<GlossaryPage/>}
+              {page === "advanced"&&<AdvancedPage {...{state,capture,refresh}}/>}
+              {page === "settings"&&<ConnectTools/>}
               {page === "settings" && (
                 <SettingsPage
                   notify={notify}
@@ -1241,7 +1274,7 @@ function App() {
                   <ShieldCheck size={13} /> Local-first. Evidence-led.
                 </span>
                 <span>
-                  Orbit v1.1 <i /> Live hardware remains unverified.
+                  Orbit v2.0 <i /> Live hardware remains unverified.
                 </span>
               </footer>
             </main>
@@ -2005,6 +2038,10 @@ function DataPage({
                   ["Shape", `${capture.subcarriers} × ${capture.packets}`],
                   ["Date", capture.date],
                   ["Modulation", capture.modulation],
+                  ["Data kind", capture.synthetic ? "Simulation" : "Recorded"],
+                  ["Activity class", capture.activity_class || "unknown"],
+                  ["Session", capture.session || "unknown"],
+                  ["Packet rate · provided", capture.packet_rate ?? "unknown"],
                   ["All-zero packets", capture.zero_packets],
                   ["Invalid packets", capture.invalid_packets],
                   ["Accepted windows", capture.windows],
@@ -2658,7 +2695,7 @@ function LearningPage({
   const [options, setOptions] = useState<Dict[]>([]);
   const [trainError, setTrainError] = useState("");
   const [trainId, setTrainId] = useState("");
-  useEffect(() => { api("train/options").then(setOptions).catch(() => setOptions([])); }, [state.captures]);
+  useEffect(() => { api("train/options?synthetic="+!!state.simulation).then(setOptions).catch(() => setOptions([])); }, [state.captures]);
   useEffect(() => { setTrainError(""); setTrainId(""); }, [dataset, bw, split, modelKind, tab, pop, gen, mutation]);
   useEffect(() => { const failed = state.jobs.find((j: Dict) => j.id === trainId && j.status === "failed"); if (failed) setTrainError(failed.message); }, [state.jobs, trainId]);
   const optionFor = (kind: string, bandwidth = bw, datasetId = dataset) => options.find((o: Dict) => o.dataset_id === datasetId && o.bandwidth === bandwidth && o.split === split && o.kind === kind);
@@ -2702,6 +2739,7 @@ function LearningPage({
     try {
       setTrainError("");
       const queued = await api("train", {
+        synthetic: !!state.simulation,
         dataset_id: dataset || null,
         bandwidth: bw,
         split,
@@ -2727,7 +2765,7 @@ function LearningPage({
   const models = state.models.filter((m: Dict) => m.contract.bandwidth === bw && m.contract.version === "orbit-amplitude-v2");
   return (
     <>
-      <p className="helper">Learning Lab contains the soft-computing tools: ANN & model bench, Genetic algorithms and Fuzzy logic. Signal Studio contains DSP. Fuzzy rules are currently an educational sandbox, not a validated model-fusion or quality gate.</p>
+      <p className="helper">Learning Lab contains the <Term name="SC"/> tools: <Term name="ANN"/> & model bench, <Term name="GA"/> feature selection and <Term name="Fuzzy"/> rules. Signal Studio contains DSP. Fuzzy rules are currently an educational sandbox, not a validated model-fusion or quality gate.</p>
       <div className="tabs">
         {[
           ["models", "ANN & model bench"],
@@ -2750,7 +2788,7 @@ function LearningPage({
             <section className="panel">
               <div className="panel-heading">
                 <div>
-                  <Badge tone="violet">RECORDED DATA EXPERIMENT</Badge>
+                  <Badge tone="violet">{state.simulation ? "SIMULATION EXPERIMENT" : "RECORDED DATA EXPERIMENT"}</Badge>
                   <h2>
                     {tab === "ga"
                       ? "Let the features compete."
@@ -3482,7 +3520,7 @@ function ReplayPage({
             <section className="panel">
               <div className="panel-heading">
                 <div>
-                  <Badge>RECORDED REPLAY</Badge>
+                  <Badge>{state.simulation?"SIMULATION REPLAY":"RECORDED REPLAY"}</Badge>
                   <h2>{capture.name.split("/").pop()}</h2>
                 </div>
                 <span className="mono">
@@ -3711,7 +3749,7 @@ function ResultsPage({
       <div className="tabs">
         {[
           ["models", "Recorded models"],
-          ["simulator", "AX / BF simulator"],
+          
           ["domains", "Domain transfer"],
           ["audit", "Quality & splits"],
           ["local", "My experiments"],
@@ -3870,95 +3908,6 @@ function ResultsPage({
           {fullTable(
             evidence.capture_level_model_predictions || [],
             "capture_level_model_predictions",
-          )}
-        </>
-      )}
-      {tab === "simulator" && (
-        <>
-          <Badge tone="amber">
-            SIMULATOR · PARTIAL NS-3.40 RESEARCH IMPLEMENTATION
-          </Badge>
-          <h2 className="standalone-title">
-            A network experiment. Its own kind of evidence.
-          </h2>
-          <Note>
-            MAC sensing reports are not human-presence accuracy. BF report
-            latency is not inference or application latency. Five runs per
-            configuration are exploratory; workloads and topology layouts are
-            not guaranteed identical.
-          </Note>
-          <div className="simulator-cards">
-            {(evidence.ax_bf_simulation_summary || []).map((r: Dict) => (
-              <section className="panel" key={r.configuration}>
-                <Badge tone="muted">{r.runs} RUNS</Badge>
-                <h2>{r.configuration}</h2>
-                <div className="sim-value">
-                  <span>BF sensing-report latency</span>
-                  <strong>
-                    {r.mean_bf_latency_ms
-                      ? Number(r.mean_bf_latency_ms).toFixed(4)
-                      : "—"}
-                    <small>{r.mean_bf_latency_ms ? "ms" : "BF disabled"}</small>
-                  </strong>
-                </div>
-                <div className="sim-value">
-                  <span>AX user-data throughput</span>
-                  <strong>
-                    {r.mean_ax_throughput_mbps
-                      ? Number(r.mean_ax_throughput_mbps).toFixed(4)
-                      : "—"}
-                    <small>
-                      {r.mean_ax_throughput_mbps ? "Mbps" : "Not measured"}
-                    </small>
-                  </strong>
-                </div>
-              </section>
-            ))}
-          </div>
-          <div className="two-column">
-            <section className="panel">
-              <h2>BF latency across configurations</h2>
-              <Chart
-                series={[
-                  {
-                    name: "BF report latency · ms",
-                    data: (evidence.ax_bf_simulation_summary || [])
-                      .filter((r: Dict) => r.mean_bf_latency_ms)
-                      .map((r: Dict) => Number(r.mean_bf_latency_ms)),
-                  },
-                ]}
-                axis="0 = BF-only · 1 = Mixed AX+BF"
-                exportName="bf-latency"
-              />
-            </section>
-            <section className="panel">
-              <h2>What changed in mixed mode?</h2>
-              <div className="metric-grid">
-                <div className="metric-card">
-                  <span>AX throughput below AX-only</span>
-                  <strong>~1.10%</strong>
-                </div>
-                <div className="metric-card">
-                  <span>BF report latency vs BF-only</span>
-                  <strong>~9.4×</strong>
-                </div>
-              </div>
-              <p>
-                These describe this simulator configuration. They do not
-                establish physical 802.11bf operation, standards conformance, or
-                through-wall sensing.
-              </p>
-              <a
-                className="button secondary"
-                href="/api/export/evidence/ax_bf_simulation_runs"
-              >
-                <Download size={16} /> Download run-level CSV
-              </a>
-            </section>
-          </div>
-          {fullTable(
-            evidence.ax_bf_simulation_summary || [],
-            "ax_bf_simulation_summary",
           )}
         </>
       )}

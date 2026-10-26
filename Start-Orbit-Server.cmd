@@ -1,5 +1,9 @@
 @echo off
 cd /d "%~dp0"
+if exist "Orbit.exe" (
+    "Orbit.exe" --server %*
+    exit /b
+)
 if exist ".venv\Scripts\python.exe" (
     ".venv\Scripts\python.exe" launch_orbit.py --lan %*
     if errorlevel 1 pause

@@ -11,6 +11,7 @@ def main():
     parser.add_argument("--output", required=True)
     parser.add_argument("--keystore", required=True)
     parser.add_argument("--lan-host", action="append", required=True, help="Exact RFC1918 laptop IPv4 allowed for HTTP; repeat per interface")
+    parser.add_argument("--demo-dir", help="Folder containing the four labelled Simulation ZIP examples to bundle for offline phone saving")
     args = parser.parse_args()
     for host in args.lan_host:
         address = ipaddress.IPv4Address(host)
@@ -76,6 +77,15 @@ def main():
             resources,
         ]
     )
+    if args.demo_dir:
+        assets = build / "assets"
+        assets.mkdir(exist_ok=True)
+        for name in ("Simulation-Empty.zip", "Simulation-One-Still.zip", "Simulation-One-Moving.zip", "Simulation-Two-People.zip"):
+            source = pathlib.Path(args.demo_dir) / name
+            if not source.is_file(): raise ValueError("Generate simulation examples before bundling the APK")
+            shutil.copy2(source, assets / name)
+        # Re-link with the same compiled resources and embedded labelled examples.
+        run([tools / ("aapt2" + suffix), "link", "-o", unsigned, "--manifest", root / "app/src/main/AndroidManifest.xml", "-I", android, "--auto-add-overlay", "-A", assets, resources])
     sources = list((root / "app/src/main/java").rglob("*.java")) + list(
         generated.rglob("*.java")
     )

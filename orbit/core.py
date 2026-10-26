@@ -1,7 +1,12 @@
 """Numerical contracts extracted from the recorded comparison notebook."""
 
-from pathlib import Path, PurePosixPath
-import json, re, stat, zipfile, time
+import json
+import re
+import stat
+import time
+import zipfile
+from pathlib import PurePosixPath
+
 import h5py
 import numpy as np
 from scipy import signal
@@ -23,9 +28,19 @@ def safe_extract(archive, target):
                 or ".." in p.parts
                 or ":" in str(p)
                 or stat.S_ISLNK(item.external_attr >> 16)
-                or any(part.rstrip(" .") != part or part.split(".")[0].upper() in
-                       {"CON", "PRN", "AUX", "NUL", *[f"COM{i}" for i in range(1, 10)],
-                        *[f"LPT{i}" for i in range(1, 10)]} for part in p.parts)
+                or any(
+                    part.rstrip(" .") != part
+                    or part.split(".")[0].upper()
+                    in {
+                        "CON",
+                        "PRN",
+                        "AUX",
+                        "NUL",
+                        *[f"COM{i}" for i in range(1, 10)],
+                        *[f"LPT{i}" for i in range(1, 10)],
+                    }
+                    for part in p.parts
+                )
             ):
                 raise ValueError("Unsafe archive path or symbolic link.")
             if str(p).lower() in seen:
@@ -35,12 +50,10 @@ def safe_extract(archive, target):
                 item.file_size > MAX_ARRAY_BYTES
                 or item.file_size / max(item.compress_size, 1) > 1000
             ):
-                raise ValueError(
-                    "Archive member exceeds size or compression-ratio limit."
-                )
+                raise ValueError("Archive member exceeds size or compression-ratio limit.")
             if item.is_dir() or "__MACOSX" in p.parts or p.name.startswith("._"):
                 continue
-            if p.suffix.lower() not in (".mat", ".json"):
+            if p.suffix.lower() not in (".mat", ".json", ".csv", ".npy", ".npz"):
                 continue
             dest = target.joinpath(*p.parts)
             if not dest.resolve().is_relative_to(target.resolve()):
@@ -60,9 +73,7 @@ def read_capture(path, bandwidth=None, with_audit=False):
         raise ValueError("Expected MATLAB v7.3 / HDF5 with a complex capture dataset.")
     with h5py.File(path, "r") as f:
         if not isinstance(f.get("capture", getlink=True), h5py.HardLink):
-            raise ValueError(
-                "capture must be a local HDF5 dataset; links are not accepted."
-            )
+            raise ValueError("capture must be a local HDF5 dataset; links are not accepted.")
         d = f["capture"]
         if not isinstance(d, h5py.Dataset) or d.is_virtual or d.external:
             raise ValueError("External or virtual HDF5 data is unsupported.")
@@ -76,17 +87,13 @@ def read_capture(path, bandwidth=None, with_audit=False):
     elif np.iscomplexobj(raw):
         real, imag = raw.real.astype(np.float32), raw.imag.astype(np.float32)
     else:
-        raise ValueError(
-            "capture must contain complex CSI or real/imag compound fields."
-        )
+        raise ValueError("capture must contain complex CSI or real/imag compound fields.")
     expected = {20: 256, 40: 512}.get(bandwidth)
     if expected:
         if real.shape[0] != expected and real.shape[1] == expected:
             real, imag = real.T, imag.T
         if real.shape[0] != expected:
-            raise ValueError(
-                f"{bandwidth} MHz requires {expected} subcarriers; got {real.shape}."
-            )
+            raise ValueError(f"{bandwidth} MHz requires {expected} subcarriers; got {real.shape}.")
     elif real.shape[0] in (256, 512):
         pass
     elif real.shape[1] in (256, 512):
@@ -117,12 +124,16 @@ def packet_audit(invalid, zero, nonfinite):
     for group in np.split(indices, np.flatnonzero(np.diff(indices) != 1) + 1):
         if len(group):
             runs.append({"start": int(group[0]), "end": int(group[-1]) + 1, "packets": len(group)})
-    return {"packets": len(invalid), "invalid_packets": int(invalid.sum()),
-            "zero_packets": int(zero.sum()), "nonfinite_packets": int(nonfinite.sum()),
-            "invalid_fraction": float(invalid.mean()), "bursts": runs,
-            "longest_burst": max((r["packets"] for r in runs), default=0),
-            "protocol": "Any nonfinite CSI or all-zero complex CSI column is unusable. Missing transmitted packets cannot be counted without sequence numbers/timestamps."}
-
+    return {
+        "packets": len(invalid),
+        "invalid_packets": int(invalid.sum()),
+        "zero_packets": int(zero.sum()),
+        "nonfinite_packets": int(nonfinite.sum()),
+        "invalid_fraction": float(invalid.mean()),
+        "bursts": runs,
+        "longest_burst": max((r["packets"] for r in runs), default=0),
+        "protocol": "Any nonfinite CSI or all-zero complex CSI column is unusable. Missing transmitted packets cannot be counted without sequence numbers/timestamps.",
+    }
 
 
 def metadata(path, root):
@@ -138,6 +149,10 @@ def metadata(path, root):
             if not isinstance(cfg, dict):
                 raise ValueError("config.json must be an object.")
             break
+    if h5py.is_hdf5(path):
+        with h5py.File(path, "r") as source:
+            if source.attrs.get("synthetic", False) == True:
+                cfg["synthetic"] = True
     people = cfg.get("people", {})
     if not isinstance(people, dict):
         people = {}
@@ -145,11 +160,13 @@ def metadata(path, root):
     bw = int(bw) if bw in ("20", "40") else None
     date = re.search(r"20\d{2}-\d{2}-\d{2}", str(path.relative_to(root)))
     return {
+        "synthetic": cfg.get("synthetic") is True,
+        "session": str(cfg.get("session", "unknown")),
+        "packet_rate": cfg.get("packet_rate"),
+        "activity_class": cfg.get("class", "unknown"),
         "bandwidth": bw,
         "modulation": str(cfg.get("modulation", "unknown")).lower(),
-        "present": (
-            people.get("present") if isinstance(people.get("present"), bool) else None
-        ),
+        "present": (people.get("present") if isinstance(people.get("present"), bool) else None),
         "people": people.get("num"),
         "moving": people.get("moving"),
         "date": date.group() if date else str(cfg.get("date", "unknown")),
@@ -189,9 +206,7 @@ def contract(bandwidth):
         "window": 256 if bandwidth == 20 else 512,
         "hop": 128 if bandwidth == 20 else 512,
         "features": ["mean", "std", "mean_abs_adjacent_difference", "p90_minus_p10"],
-        "preprocessing": (
-            "valid-packets-adjacent-pairs"
-        ),
+        "preprocessing": ("valid-packets-adjacent-pairs"),
         "min_valid_fraction": 0.90,
         "subcarriers": 256 if bandwidth == 20 else 512,
     }
@@ -225,9 +240,7 @@ def feature_windows(a, invalid, bandwidth):
             }
         )
         if not reason:
-            rows.append(
-                four_features(a[:, start:end], valid)
-            )
+            rows.append(four_features(a[:, start:end], valid))
             windows.append({"start": start, "end": end})
     return np.vstack(rows) if rows else np.empty((0, a.shape[0] * 4)), windows, audit
 
@@ -262,16 +275,23 @@ def dsp(
     cutoff=0.1,
     kind="lowpass",
     factor=2,
+    beta=8.6,
+    order=4,
+    cutoff_high=0.2,
 ):
     x = np.asarray(x, dtype=float)
     if not 3 <= taps <= 127 or not 0 < cutoff < 0.5 or not 2 <= factor <= 8:
         raise ValueError("Invalid DSP parameters.")
-    if window not in ("boxcar", "triang", "hann", "hamming", "blackman"):
+    if window not in ("boxcar", "triang", "hann", "hamming", "blackman", "kaiser"):
         raise ValueError("Unsupported window.")
+    if not 1 <= order <= 8 or not 0 <= beta <= 20:
+        raise ValueError("Use Butterworth order 1–8 and Kaiser beta 0–20.")
+    started = time.perf_counter()
+    win = ("kaiser", beta) if window == "kaiser" else window
     b, den = np.ones(taps) / taps, np.array([1.0])
     extra = {}
     if operation == "shootout":
-        fir = signal.firwin(taps, 0.1, window=window, fs=1)
+        fir = signal.firwin(taps, 0.1, window=win, fs=1)
         but_b, but_a = signal.butter(4, 0.1, fs=1)
         y = signal.lfilter(b, den, x)
         extra = {
@@ -282,14 +302,18 @@ def dsp(
     elif operation == "fir":
         if taps % 2 == 0:
             raise ValueError("Use an odd FIR tap count.")
-        b = signal.firwin(taps, cutoff, window=window, fs=1)
+        b = signal.firwin(taps, cutoff, window=win, fs=1)
         y = signal.lfilter(b, den, x)
-        note = f"Windowed FIR low-pass. Causal delay {(taps-1)/2:g} packets; startup transient included."
+        note = f"Windowed FIR low-pass. Causal delay {(taps - 1) / 2:g} packets; startup transient included."
     elif operation == "butterworth":
         if kind not in ("lowpass", "highpass", "bandpass"):
             raise ValueError("Unsupported Butterworth type.")
-        edge = [cutoff / 2, cutoff] if kind == "bandpass" else cutoff
-        b, den = signal.butter(4, edge, btype=kind, fs=1)
+        if kind == "bandpass" and not cutoff < cutoff_high < 0.5:
+            raise ValueError(
+                "Band-pass upper cutoff must be above the lower cutoff and below Nyquist."
+            )
+        edge = [cutoff, cutoff_high] if kind == "bandpass" else cutoff
+        b, den = signal.butter(order, edge, btype=kind, fs=1)
         y = signal.lfilter(b, den, x)
         note = "Fourth-order causal Butterworth; cutoff is cycles/packet, not Hz."
     elif operation == "convolution":
@@ -315,9 +339,7 @@ def dsp(
         note = "Envelope of mean-centred amplitude. This is not recovered CSI phase."
     elif operation == "stft":
         y = x.copy()
-        f, t, z = signal.stft(
-            x - x.mean(), fs=1, window=window, nperseg=min(128, len(x))
-        )
+        f, t, z = signal.stft(x - x.mean(), fs=1, window=win, nperseg=min(128, len(x)))
         extra = {
             "stft": {
                 "frequency": f.tolist(),
@@ -328,7 +350,7 @@ def dsp(
         note = "Short-time spectrum of mean-centred amplitude, in cycles/packet."
     elif operation == "fft":
         n = min(256, 2 ** int(np.log2(len(x))))
-        v = (x[:n] - x[:n].mean()) * signal.get_window(window, n)
+        v = (x[:n] - x[:n].mean()) * signal.get_window(win, n)
         t = time.perf_counter()
         direct = np.exp(-2j * np.pi * np.outer(np.arange(n), np.arange(n)) / n) @ v
         direct_ms = (time.perf_counter() - t) * 1000
@@ -342,10 +364,10 @@ def dsp(
             "dft_max_error": float(np.max(np.abs(direct - np.fft.fft(v)))),
             "compared_samples": n,
         }
-        y = x * signal.get_window(window, len(x))
+        y = x * signal.get_window(win, len(x))
         note = "Direct DFT and recursive radix-2 FFT compared with NumPy. Timings are local measurements."
     elif operation == "q15":
-        b = signal.firwin(taps, cutoff, window=window, fs=1)
+        b = signal.firwin(taps, cutoff, window=win, fs=1)
         quant = np.round(b * 32768) / 32768
         y = signal.lfilter(quant, den, x)
         extra = {
@@ -355,14 +377,23 @@ def dsp(
         note = "Q15 coefficient quantization demo; accumulation remains floating point."
     elif operation == "moving_average":
         y = signal.lfilter(b, den, x)
-        note = f"{taps}-tap causal moving average; group delay {(taps-1)/2:g} packets. Filtering does not establish improved detection."
+        note = f"{taps}-tap causal moving average; group delay {(taps - 1) / 2:g} packets. Filtering does not establish improved detection."
     else:
         raise ValueError("Unknown DSP operation.")
     n = min(len(x), len(y))
-    taper = signal.get_window(window, n)
-    spectrum = lambda v: (
-        2 / n * np.abs(np.fft.rfft((v[:n] - v[:n].mean()) * taper))
-    ).tolist()
+    taper = signal.get_window(win, n)
+    spectrum = lambda v: (2 / n * np.abs(np.fft.rfft((v[:n] - v[:n].mean()) * taper))).tolist()
+    if operation == "multirate":
+        naive = x[::factor]
+        taper_alias = signal.get_window(win, len(y))
+        extra["aliasing"] = {
+            "frequency_cycles_per_input_packet": np.fft.rfftfreq(len(y), d=factor).tolist(),
+            "naive": np.abs(np.fft.rfft((naive - naive.mean()) * taper_alias)).tolist(),
+            "anti_aliased": np.abs(np.fft.rfft((y - y.mean()) * taper_alias)).tolist(),
+        }
+    if operation == "fft":
+        extra["direct_dft_complex_multiplications"] = n * n
+        extra["radix2_complex_multiplications"] = n // 2 * int(np.log2(n))
     w, h = signal.freqz(b, den, worN=256, fs=1)
     return {
         "raw": x.tolist(),
@@ -375,7 +406,14 @@ def dsp(
         "coefficients": b.tolist(),
         "denominator": den.tolist(),
         "note": note,
-        "extra": extra,
+        "extra": {
+            **extra,
+            "zeros": [[float(z.real), float(z.imag)] for z in np.roots(b)],
+            "poles": [[float(z.real), float(z.imag)] for z in np.roots(den)],
+            "estimated_multiplications": int(len(x) * (len(b) + max(0, len(den) - 1))),
+            "computation_protocol": "Direct-form filter operation count estimate; not processor instruction count",
+            "measured_elapsed_ms": (time.perf_counter() - started) * 1000,
+        },
         "metrics": {
             "raw_std": float(x.std()),
             "processed_std": float(y.std()),
@@ -406,9 +444,7 @@ def fuzzy(variation=0.4, motion=0.6, rules=None):
     for rule in rules:
         if any(rule.get(k) not in functions for k in ("variation", "motion", "output")):
             raise ValueError("Rule labels must be low, medium or high.")
-        strength = min(
-            functions[rule["variation"]](variation), functions[rule["motion"]](motion)
-        )
+        strength = min(functions[rule["variation"]](variation), functions[rule["motion"]](motion))
         aggregate = np.maximum(aggregate, np.minimum(strength, curves[rule["output"]]))
         fired.append({**rule, "strength": strength})
     area = np.trapezoid(aggregate, u)
