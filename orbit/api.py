@@ -790,6 +790,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         records = row.get("windows") or [
             row.get("metrics", {"kind": row["kind"], "source": row["source"]})
         ]
+        records = [{**record, "validation_protocol": row.get("validation_protocol", "DSP trace transformation; not classifier validation" if row["kind"] == "DSP" else "No classifier evaluation"), "source": row["source"]} for record in records]
         writer = csv.DictWriter(buffer, fieldnames=list(records[0]))
         writer.writeheader()
         writer.writerows(records)

@@ -297,6 +297,8 @@ def test_training_grouping_manifest_predict_and_mismatch(client):
     )
     assert result.status_code == 200, result.text
     assert not result.json()["in_training"] and result.json()["mode"] == "held_out" and len(result.json()["windows"]) == 5
+    exported = client.get("/api/export/run/" + result.json()["id"]).text
+    assert "validation_protocol" in exported and "saved outer-fold predictions" in exported
     seen = client.post("/api/predict", json={"capture_id": s["captures"][0]["id"], "model_id": m["id"], "mode": "seen"}).json()
     assert seen["in_training"] and "seen in training" in seen["validation_protocol"]
     assert client.get("/api/export/model/" + m["id"]).status_code == 200
