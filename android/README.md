@@ -9,3 +9,6 @@ python android/build_apk.py --jdk PATH_TO_JDK --build-tools PATH_TO_BUILD_TOOLS 
 The script uses AAPT2, javac, D8, zipalign and apksigner. Keep signing material outside Git. The script's android password is for a disposable classroom test key, not a production signing process. Use managed private signing for a release. A different signing key cannot update an already installed app signed by the old key.
 
 Phone and laptop must share a trusted network. Start laptop LAN mode, enter its LAN URL in the APK, then enter the terminal access code. The laptop must stay running.
+
+
+Step 1: build with --lan-host for each exact RFC1918 laptop IPv4 allowed for HTTP. Default cleartext is denied; WebView subresources stay on the paired origin. Changed IP: rebuild the APK or use the browser. Physical-device policy verification: NOT EXECUTED.

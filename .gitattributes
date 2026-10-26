@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.png -text
+*.webp -text
+*.whl -text
+*.apk -text
+*.ttf -text

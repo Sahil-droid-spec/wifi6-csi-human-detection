@@ -1,26 +1,29 @@
 """Leakage-safe local training with capture/date grouping and internal artifacts."""
 
-import platform, hashlib, json
+import hashlib
+import json
+import platform
 from datetime import datetime, timezone
+
 import joblib
 import numpy as np
 import sklearn
-from sklearn.base import clone
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.neural_network import MLPClassifier
-from sklearn.model_selection import LeaveOneGroupOut, StratifiedKFold
 from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
+    confusion_matrix,
+    f1_score,
     precision_score,
     recall_score,
-    f1_score,
-    confusion_matrix,
 )
-from .core import read_capture, feature_windows, contract
+from sklearn.model_selection import LeaveOneGroupOut, StratifiedKFold
+from sklearn.neural_network import MLPClassifier
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+from .core import contract, feature_windows, read_capture
 
 
 def metrics(y, p):
@@ -37,12 +40,19 @@ def metrics(y, p):
 
 
 def estimator(kind):
-    if kind == "lr":
+    if kind == "ga_lr_ann":
+        return VotingClassifier(
+            estimators=[("lr", estimator("lr")), ("ann", estimator("mlp"))],
+            voting="soft",
+            weights=[1, 1],
+            n_jobs=1,
+        )
+    if kind in ("lr", "ga_lr"):
         return make_pipeline(
             StandardScaler(),
             LogisticRegression(max_iter=3000, class_weight="balanced", random_state=42),
         )
-    if kind == "mlp":
+    if kind in ("mlp", "ga_mlp"):
         return make_pipeline(
             StandardScaler(),
             MLPClassifier(
@@ -98,9 +108,7 @@ def genetic_select(x, y, g, population=8, generations=6, mutation=0.03):
         ).split(capture_ids, capture_y)
     ]
     if any(len(np.unique(y[a])) < 2 or len(np.unique(y[b])) < 2 for a, b in splits):
-        raise ValueError(
-            "GA inner capture splits do not contain both classes; add more captures."
-        )
+        raise ValueError("GA inner capture splits do not contain both classes; add more captures.")
     rng = np.random.default_rng(42)
     width = x.shape[1]
     pop = rng.random((population, width)) < 0.08
@@ -146,6 +154,49 @@ def genetic_select(x, y, g, population=8, generations=6, mutation=0.03):
     return np.flatnonzero(best), history
 
 
+def training_check(captures, bandwidth=20, split="date", kinds=None):
+    kinds = kinds or ["lr", "rf", "mlp"]
+    unique = {}
+    for c in captures:
+        if (
+            c.get("bandwidth_verified", True)
+            and c.get("bandwidth") == bandwidth
+            and c.get("modulation") == "ax"
+            and c.get("present") is not None
+            and c.get("windows", 0) > 0
+        ):
+            unique.setdefault(c["sha256"], c)
+    rows = list(unique.values())
+    reason = ""
+    if not rows:
+        reason = "Import labelled AX recordings with accepted windows for this bandwidth, or choose another dataset."
+    elif split == "date" and any(c.get("date", "unknown") == "unknown" for c in rows):
+        reason = (
+            "Add recording dates in config.json, or choose capture-held-out exploratory evaluation."
+        )
+    else:
+        group = lambda c: c.get("date") if split == "date" else c["id"]
+        groups = set(group(c) for c in rows)
+        if len(groups) < 2 or len(set(c["present"] for c in rows)) < 2:
+            reason = "Add both presence classes and at least two independent recording groups."
+        else:
+            for held in groups:
+                training = [c for c in rows if group(c) != held]
+                counts = [sum(int(c["present"]) == k for c in training) for k in (0, 1)]
+                if min(counts) == 0:
+                    reason = "Date/class confounding leaves a training fold with one class. Choose capture-held-out exploratory evaluation or collect both classes on each date."
+                    break
+                if any(k.startswith("ga_") for k in kinds) and min(counts) < 2:
+                    reason = "GA needs two independent training recordings per class in every outer fold. Add recordings or choose LR, RF or ANN."
+                    break
+    return {
+        "valid": not reason,
+        "reason": reason,
+        "captures": len(rows),
+        "protocol": "leave-one-recording-date-out" if split == "date" else "leave-one-capture-out",
+    }
+
+
 def train(
     captures,
     root,
@@ -165,6 +216,7 @@ def train(
     gg = []
     dd = []
     used = []
+    window_map = {}
     hashes = set()
     for cap in captures:
         if (
@@ -176,7 +228,8 @@ def train(
         if cap["sha256"] in hashes:
             continue
         a, invalid, _ = read_capture(root / cap["path"], bandwidth)
-        x, _, _ = feature_windows(a, invalid, bandwidth)
+        x, accepted_windows, _ = feature_windows(a, invalid, bandwidth)
+        window_map[cap["id"]] = accepted_windows
         if not len(x):
             continue
         hashes.add(cap["sha256"])
@@ -189,6 +242,8 @@ def train(
         raise ValueError(
             "No labelled AX captures with accepted windows. Import a ZIP with per-recording config.json."
         )
+    if len({bool(c.get("synthetic")) for c in used}) > 1:
+        raise ValueError("Train simulation and real recordings in separate libraries.")
     x = np.vstack(xx)
     y = np.array(yy)
     g = np.array(gg)
@@ -197,13 +252,9 @@ def train(
         raise ValueError("Training capped at 100,000 windows; import a smaller subset.")
     groups = dates if split == "date" else g
     if split == "date" and "unknown" in groups:
-        raise ValueError(
-            "Date-held-out training needs known recording dates for every capture."
-        )
+        raise ValueError("Date-held-out training needs known recording dates for every capture.")
     if len(np.unique(groups)) < 2 or len(np.unique(y)) < 2:
-        raise ValueError(
-            "Need both presence classes and at least two independent groups."
-        )
+        raise ValueError("Need both presence classes and at least two independent groups.")
     splits = list(LeaveOneGroupOut().split(x, y, groups))
     for tr, te in splits:
         if len(np.unique(y[tr])) < 2:
@@ -228,28 +279,36 @@ def train(
             "Only two or fewer recording dates; generalization estimates have high uncertainty."
         )
     results = []
+    selection_cache = {}
     for ki, kind in enumerate(kinds):
-        if kind not in ("lr", "rf", "mlp", "ga_rf"):
+        if kind not in ("lr", "rf", "mlp", "ga_rf", "ga_lr", "ga_mlp", "ga_lr_ann"):
             raise ValueError("Unsupported model.")
         pred = np.full(len(y), -1)
+        probability = np.full(len(y), np.nan)
         random_pred = np.full(len(y), -1)
         folds = []
-        selections = []
         for i, (tr, te) in enumerate(splits):
             progress(
-                f"{kind}: held-out fold {i+1}/{len(splits)}",
+                f"{kind}: held-out fold {i + 1}/{len(splits)}",
                 int(10 + 80 * (ki + i / len(splits)) / len(kinds)),
             )
+            assert not set(g[tr]) & set(g[te]), "Capture leakage"
+            if split == "date":
+                assert not set(dates[tr]) & set(dates[te]), "Date leakage"
             cols = np.arange(x.shape[1])
             convergence = []
-            if kind == "ga_rf":
-                cols, convergence = genetic_select(
-                    x[tr], y[tr], g[tr], population, generations, mutation
-                )
+            if kind.startswith("ga_"):
+                cache_key = tuple(tr)
+                if cache_key not in selection_cache:
+                    selection_cache[cache_key] = genetic_select(
+                        x[tr], y[tr], g[tr], population, generations, mutation
+                    )
+                cols, convergence = selection_cache[cache_key]
             m = estimator(kind)
             m.fit(x[tr][:, cols], y[tr])
             pred[te] = m.predict(x[te][:, cols])
-            if kind == "ga_rf":
+            probability[te] = m.predict_proba(x[te][:, cols])[:, list(m.classes_).index(1)]
+            if kind.startswith("ga_"):
                 random_cols = np.random.default_rng(42 + i).choice(
                     x.shape[1], len(cols), replace=False
                 )
@@ -259,9 +318,14 @@ def train(
             folds.append(
                 {
                     "held_out": np.unique(groups[te]).tolist(),
+                    "train_dates": np.unique(dates[tr]).tolist(),
+                    "test_dates": np.unique(dates[te]).tolist(),
+                    "selector_capture_ids": np.unique(g[tr]).tolist()
+                    if kind.startswith("ga_")
+                    else [],
                     "train_capture_ids": np.unique(g[tr]).tolist(),
                     "test_capture_ids": np.unique(g[te]).tolist(),
-                    "selected_features": cols.tolist() if kind == "ga_rf" else None,
+                    "selected_features": cols.tolist() if kind.startswith("ga_") else None,
                     "convergence": convergence,
                 }
             )
@@ -269,10 +333,12 @@ def train(
         mtr = metrics([r["truth"] for r in rows], [r["prediction"] for r in rows])
         cols = np.arange(x.shape[1])
         convergence = []
-        if kind == "ga_rf":
-            cols, convergence = genetic_select(
-                x, y, g, population, generations, mutation
-            )
+        if kind.startswith("ga_"):
+            if "final" not in selection_cache:
+                selection_cache["final"] = genetic_select(
+                    x, y, g, population, generations, mutation
+                )
+            cols, convergence = selection_cache["final"]
         final = estimator(kind)
         final.fit(x[:, cols], y)
         mid = f"{job_id}-{kind}"
@@ -283,18 +349,38 @@ def train(
                 "rf": "Random Forest",
                 "mlp": "ANN / MLP",
                 "ga_rf": "GA + Random Forest",
+                "ga_lr": "GA + Logistic Regression",
+                "ga_mlp": "GA + ANN",
+                "ga_lr_ann": "GA + LR + ANN ensemble",
             }[kind],
             "created": datetime.now(timezone.utc).isoformat(),
             "contract": contract(bandwidth),
-            "source": "RECORDED DATA",
+            "source": "SIMULATION" if used[0].get("synthetic") else "RECORDED DATA",
+            "synthetic": bool(used[0].get("synthetic")),
             "metrics": mtr,
             "window_metrics": metrics(y, pred),
             "capture_predictions": rows,
+            "held_out_windows": {
+                c["sha256"]: [
+                    {**w, "prediction": int(p), "probability": float(q)}
+                    for w, p, q in zip(
+                        window_map[c["id"]], pred[g == c["id"]], probability[g == c["id"]]
+                    )
+                ]
+                for c in used
+            },
+            "parameters": {
+                "kind": kind,
+                "seed": 42,
+                "population": population,
+                "generations": generations,
+                "mutation": mutation,
+                "ga_fitness": "capture balanced accuracy - 0.002 * selected_fraction",
+                "inner_validation": "capture-stratified; outer held-out rows excluded",
+            },
             "folds": folds,
             "split": (
-                "leave-one-recording-date-out"
-                if split == "date"
-                else "leave-one-capture-out"
+                "leave-one-recording-date-out" if split == "date" else "leave-one-capture-out"
             ),
             "captures": [
                 {
@@ -306,20 +392,18 @@ def train(
                 }
                 for c in used
             ],
-            "training_fingerprint": hashlib.sha256(
-                "".join(sorted(hashes)).encode()
-            ).hexdigest(),
+            "training_fingerprint": hashlib.sha256("".join(sorted(hashes)).encode()).hexdigest(),
             "versions": versions,
             "label_mapping": {"0": "No person", "1": "Person present"},
             "caveats": caveats,
-            "selected_features": cols.tolist() if kind == "ga_rf" else None,
+            "selected_features": cols.tolist() if kind.startswith("ga_") else None,
             "convergence": convergence,
-            "architecture": [int(len(cols)), 64, 32, 1] if kind == "mlp" else None,
+            "architecture": [int(len(cols)), 64, 32, 1] if kind in ("mlp", "ga_mlp") else None,
             "loss_curve": (
-                getattr(final[-1], "loss_curve_", []) if kind == "mlp" else []
+                getattr(final[-1], "loss_curve_", []) if kind in ("mlp", "ga_mlp") else []
             ),
         }
-        if kind == "ga_rf":
+        if kind.startswith("ga_"):
             random_rows = aggregate(y, random_pred, g)
             manifest["random_feature_baseline"] = {
                 "metrics": metrics(
@@ -333,43 +417,77 @@ def train(
             {"estimator": final, "columns": cols, "manifest": manifest},
             outdir / f"{mid}.joblib",
         )
-        (outdir / f"{mid}.json").write_text(
-            json.dumps(manifest, indent=2), encoding="utf-8"
-        )
+        (outdir / f"{mid}.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         results.append(manifest)
     return results
 
 
-def predict(capture, root, model_file):
+def predict(capture, root, model_file, mode="held_out"):
     bundle = joblib.load(
         model_file
     )  # Only internal artifacts generated by train(); no upload endpoint accepts pickle.
     manifest = bundle["manifest"]
     c = manifest["contract"]
     if (
-        c != contract(capture["bandwidth"])
+        bool(manifest.get("synthetic")) != bool(capture.get("synthetic"))
+        or c != contract(capture["bandwidth"])
         or capture["subcarriers"] != c["subcarriers"]
         or capture["modulation"] != "ax"
     ):
         raise ValueError(
-            "Model/recording mismatch: bandwidth, subcarriers, AX modulation and feature contract must match."
+            "Model/recording mismatch: choose the matching bandwidth and AX modulation. Retrain legacy models under quality contract v2 before replay."
         )
     a, invalid, _ = read_capture(root / capture["path"], capture["bandwidth"])
     x, windows, _ = feature_windows(a, invalid, capture["bandwidth"])
     if not len(x):
         raise ValueError("No accepted feature windows.")
-    m = bundle["estimator"]
-    columns = bundle["columns"]
-    pred = m.predict(x[:, columns])
-    probs = m.predict_proba(x[:, columns])[:, list(m.classes_).index(1)]
-    in_training = any(
-        row["sha256"] == capture["sha256"] for row in manifest["captures"]
-    )
+    in_training = any(row["sha256"] == capture["sha256"] for row in manifest["captures"])
+    if mode not in ("held_out", "seen"):
+        raise ValueError(
+            "Choose held-out replay or the explicitly labelled Seen in training option."
+        )
+    if mode == "held_out":
+        saved = manifest.get("held_out_windows", {}).get(capture["sha256"])
+        if not saved:
+            raise ValueError(
+                "No saved held-out predictions for this recording. Retrain including it with independent groups, or explicitly choose Seen in training / final model inference."
+            )
+        lookup = {c["id"]: c for c in manifest["captures"]}
+        identity = next(c["id"] for c in manifest["captures"] if c["sha256"] == capture["sha256"])
+        fold = next((f for f in manifest["folds"] if identity in f["test_capture_ids"]), None)
+        if (
+            not fold
+            or any(lookup[c]["sha256"] == capture["sha256"] for c in fold["train_capture_ids"])
+            or (
+                manifest["split"] == "leave-one-recording-date-out"
+                and capture["date"] in fold.get("train_dates", [])
+            )
+        ):
+            raise ValueError("Held-out provenance check failed. Retrain the model before replay.")
+        if [(w["start"], w["end"]) for w in saved] != [(w["start"], w["end"]) for w in windows]:
+            raise ValueError("Window contract changed. Retrain before held-out replay.")
+        pred = np.array([w["prediction"] for w in saved])
+        probs = np.array([w["probability"] for w in saved])
+        in_training = False
+        protocol = manifest["split"] + "; saved outer-fold predictions; capture majority vote"
+    else:
+        m = bundle["estimator"]
+        columns = bundle["columns"]
+        pred = m.predict(x[:, columns])
+        probs = m.predict_proba(x[:, columns])[:, list(m.classes_).index(1)]
+        protocol = (
+            "final model inference; seen in training"
+            if in_training
+            else "final model inference; unseen capture; not a validation score"
+        )
     return {
         "capture_id": capture["id"],
         "model_id": manifest["id"],
         "model_name": manifest["name"],
-        "source": "MODEL OUTPUT",
+        "mode": mode,
+        "validation_protocol": protocol,
+        "source": "SIMULATION" if capture.get("synthetic") else "MODEL OUTPUT",
+        "synthetic": bool(capture.get("synthetic")),
         "windows": [
             {**w, "prediction": int(p), "probability": float(q)}
             for w, p, q in zip(windows, pred, probs)
@@ -381,6 +499,6 @@ def predict(capture, root, model_file):
         + (
             "This capture was used to fit this model; inference is not held-out evidence."
             if in_training
-            else "This is offline inference, not verified live detection."
+            else protocol + ". Offline recorded-data replay, not verified live detection."
         ),
     }

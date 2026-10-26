@@ -24,3 +24,12 @@ android/build/
 *.jks
 *.p12
 *.keystore
+
+# Binary dependencies are shipped in the offline download, not Git history.
+wheelhouse/**/*.whl
+
+# Frozen desktop build
+build-desktop/
+dist-desktop/
+*.spec
+.ruff_cache/

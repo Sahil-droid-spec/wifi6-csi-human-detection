@@ -1,6 +1,7 @@
 package lab.orbit.companion;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.graphics.Color;
@@ -15,6 +16,9 @@ import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
+import android.webkit.WebResourceResponse;
+import android.security.NetworkSecurityPolicy;
+import java.io.ByteArrayInputStream;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -46,10 +50,28 @@ public class MainActivity extends Activity {
     private String downloadUrl;
     private String downloadCookie;
     private boolean pageError;
+    private String launchUrl;
+    private ArrayList<Uri> shared = new ArrayList<>();
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        showConnect(null);
+        handleIntent(getIntent());
+    }
+
+    @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);handleIntent(intent);}
+    private void handleIntent(Intent intent){
+        launchUrl=null;
+        if(Intent.ACTION_SEND_MULTIPLE.equals(intent.getAction())){ArrayList<Uri> values=intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);if(values!=null)for(Uri u:values)if(shared.size()<32 && "content".equals(u.getScheme()))shared.add(u);}
+        if(Intent.ACTION_SEND.equals(intent.getAction())){Uri u=intent.getParcelableExtra(Intent.EXTRA_STREAM);if(u!=null && "content".equals(u.getScheme()))shared.add(u);}
+        String target=intent.getData()!=null?intent.getData().toString():intent.getStringExtra(Intent.EXTRA_TEXT);
+        if(target!=null && target.startsWith("orbit://connect")) target=Uri.parse(target).getQueryParameter("url");
+        String previous=getPreferences(MODE_PRIVATE).getString("server","");
+        try{
+            if(target!=null && target.startsWith("http://")){base=ServerAddress.normalize(target);if(!NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted(new URI(base).getHost()))throw new Exception("Laptop address changed; use the phone browser or an APK built for this LAN address.");launchUrl=target;getPreferences(MODE_PRIVATE).edit().putString("server",base).apply();showWorkspace();}
+            else if(!previous.isEmpty()){base=ServerAddress.normalize(previous);showWorkspace();}
+            else showConnect(null);
+            if(!shared.isEmpty())Toast.makeText(this,shared.size()+" shared files ready. Open Import wizard and tap Choose files.",Toast.LENGTH_LONG).show();
+        }catch(Exception e){showConnect(e.getMessage());}
     }
 
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
@@ -89,7 +111,7 @@ public class MainActivity extends Activity {
         ImageView logo = new ImageView(this); logo.setImageResource(R.drawable.ic_orbit);
         card.addView(logo, new LinearLayout.LayoutParams(dp(76),dp(76)));
         TextView title = text("orbit",36,Color.rgb(35,52,73)); title.setTypeface(null,Typeface.BOLD); card.addView(title);
-        card.addView(text("PHONE COMPANION",11,Color.rgb(79,111,151)));
+        card.addView(text("YOUR LOCAL LAB",11,Color.rgb(79,111,151)));
         card.addView(text("One lab. Two screens.",25,Color.rgb(35,52,73)));
         card.addView(text("Start Orbit on your laptop, connect both devices to the same Wi-Fi, then enter the laptop address shown in Server & settings.",15,Color.rgb(92,110,133)));
         address = new EditText(this); address.setSingleLine(true); address.setTextSize(16);
@@ -97,13 +119,26 @@ public class MainActivity extends Activity {
         address.setHint("http://192.168.1.20:8765");
         address.setText(getPreferences(MODE_PRIVATE).getString("server", "")); card.addView(address);
         card.addView(button("Connect to my laptop", v -> connect()));
+        card.addView(button("Save Simulation examples on this phone", v -> saveExample()));
         if (message != null) card.addView(text(message,14,Color.rgb(168,63,73)));
-        card.addView(text("Then enter the access code from the laptop terminal. You can upload CSI recordings, inspect saved datasets and run the laptop's models.",14,Color.rgb(92,110,133)));
+        card.addView(text("Scan the one-time QR in Connect to pair without typing a code. The phone gets the same library, DSP tools and model workspace while the laptop server runs.",14,Color.rgb(92,110,133)));
         card.addView(text("The laptop must remain on. This app transfers files and opens the local lab; it does not capture Wi-Fi CSI directly from your phone.",13,Color.rgb(92,110,133)));
+    }
+    private void saveExample(){
+        String[] names={"Empty channel", "One person still", "One person moving", "Two people"};
+        String[] files={"Simulation-Empty.zip","Simulation-One-Still.zip","Simulation-One-Moving.zip","Simulation-Two-People.zip"};
+        new AlertDialog.Builder(this).setTitle("Generated Simulation data").setItems(names,(dialog,which)->{
+            downloadUrl="asset:"+files[which];downloadCookie=null;
+            Intent save=new Intent(Intent.ACTION_CREATE_DOCUMENT);save.addCategory(Intent.CATEGORY_OPENABLE);save.setType("application/zip");save.putExtra(Intent.EXTRA_TITLE,files[which]);
+            try{startActivityForResult(save,SAVE_FILE);}catch(ActivityNotFoundException e){Toast.makeText(this,"Open this phone's document picker to save the example.",Toast.LENGTH_LONG).show();}
+        }).show();
     }
     private void connect() {
         try {
-            base=ServerAddress.normalize(address.getText().toString());
+            String entered=address.getText().toString();
+            base=ServerAddress.normalize(entered);
+            launchUrl=entered.contains("#/pair?")?entered:null;
+            if(!NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted(new URI(base).getHost())) throw new Exception("This APK is restricted to the laptop addresses allowed at build time. Use the phone browser with the new LAN address, or rebuild the APK for that address.");
             getPreferences(MODE_PRIVATE).edit().putString("server",base).apply();
             showWorkspace();
         } catch(Exception e) { Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show(); }
@@ -118,7 +153,8 @@ public class MainActivity extends Activity {
         TextView brand=text("orbit",21,Color.rgb(35,52,73)); brand.setTypeface(null,Typeface.BOLD);
         toolbar.addView(brand,new LinearLayout.LayoutParams(0,dp(50),1));
         toolbar.addView(button("Upload",v -> web.loadUrl(base+"/#/upload")));
-        toolbar.addView(button("Laptop",v -> showConnect(null)));
+        toolbar.addView(button("Inbox",v -> web.loadUrl(base+"/#/inbox")));
+        toolbar.addView(button("Connect",v -> showConnect(null)));
         outer.addView(toolbar);
         status=text("Connecting to "+base,11,Color.rgb(92,110,133)); status.setPadding(dp(12),0,dp(12),dp(5)); outer.addView(status);
         web=new WebView(this); outer.addView(web,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,0,1));
@@ -129,6 +165,7 @@ public class MainActivity extends Activity {
         CookieManager.getInstance().setAcceptCookie(true); CookieManager.getInstance().setAcceptThirdPartyCookies(web,false);
         web.setWebChromeClient(new WebChromeClient(){
             @Override public boolean onShowFileChooser(WebView view,ValueCallback<Uri[]> callback,FileChooserParams params){
+                if(!shared.isEmpty()){callback.onReceiveValue(shared.toArray(new Uri[0]));shared.clear();return true;}
                 if(fileCallback!=null) fileCallback.onReceiveValue(null); fileCallback=callback;
                 Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);picker.addCategory(Intent.CATEGORY_OPENABLE);picker.setType("*/*");
                 ArrayList<String> types=new ArrayList<>();
@@ -142,6 +179,10 @@ public class MainActivity extends Activity {
             }
         });
         web.setWebViewClient(new WebViewClient(){
+            @Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest request){
+                if(isServerUrl(request.getUrl().toString()))return null;
+                return new WebResourceResponse("text/plain","UTF-8",403,"Blocked",java.util.Collections.emptyMap(),new ByteArrayInputStream(new byte[0]));
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
                 String url=request.getUrl().toString(); if(isServerUrl(url))return false;
                 if(request.hasGesture() && ("https".equals(request.getUrl().getScheme()) || "http".equals(request.getUrl().getScheme()))) {
@@ -162,7 +203,7 @@ public class MainActivity extends Activity {
             save.setType(mimeType==null?"application/octet-stream":mimeType);save.putExtra(Intent.EXTRA_TITLE,URLUtil.guessFileName(url,contentDisposition,mimeType));
             try{startActivityForResult(save,SAVE_FILE);}catch(ActivityNotFoundException e){Toast.makeText(this,"No document save picker is available. Open Orbit in your phone browser to download.",Toast.LENGTH_LONG).show();}
         });
-        web.loadUrl(base+"/#/upload");
+        web.loadUrl(launchUrl!=null && isServerUrl(launchUrl)?launchUrl:base+"/#/overview");
     }
     @Override protected void onActivityResult(int request,int result,Intent data){
         super.onActivityResult(request,result,data);
@@ -180,6 +221,12 @@ public class MainActivity extends Activity {
             new Thread(()->{
                 HttpURLConnection connection=null;
                 try{
+                    if(url.startsWith("asset:")){
+                        try(InputStream input=getAssets().open(url.substring(6));OutputStream output=getContentResolver().openOutputStream(target,"w")){
+                            if(output==null)throw new Exception("Cannot save this example.");byte[] buffer=new byte[65536];int read;while((read=input.read(buffer))!=-1)output.write(buffer,0,read);
+                        }
+                        runOnUiThread(()->Toast.makeText(this,"Simulation example saved on this phone. Pair with your laptop, then upload it from Import wizard.",Toast.LENGTH_LONG).show());return;
+                    }
                     connection=(HttpURLConnection)new URL(url).openConnection();connection.setInstanceFollowRedirects(false);connection.setConnectTimeout(15000);connection.setReadTimeout(60000);
                     if(cookie!=null)connection.setRequestProperty("Cookie",cookie);
                     if(connection.getResponseCode()!=200)throw new Exception("Download failed. Reconnect and enter the laptop access code first.");

@@ -92,3 +92,7 @@ Intended minimum: Android 8.0/API 26 with current Android System WebView/Chrome.
 **Is GA always best?** No; inspect this run and its baselines. Small datasets limit conclusions.
 **Does BF detect people here?** That area shows network simulation evidence. Physical BF sensing is unverified.
 **Can any phone file be classified?** Compatible CSI needs a matching model/profile. Photos/video/audio are stored as context, not classified as CSI.
+
+
+## Step 1 correction
+Use the new quality-contract v2 model shelf and held-out replay by default. The previous RF/ANN example scores are legacy results; current 20 MHz date-held-out accuracy is LR 46.67%, RF 66.67%, ANN 66.67%, GA/RF 93.33%, each with capture majority vote on 15 unique recordings. These are separate from historical notebook GA/RF 80.00% / balanced accuracy 81.25%. Offline Windows x64 Python 3.10: Start-Orbit-Offline.cmd. Python itself is not bundled. See step1_audit.md for full methods and limitations.

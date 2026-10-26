@@ -1,18 +1,30 @@
 """FastAPI service. Run with python -m orbit; private by default."""
 
-from pathlib import Path
-from datetime import datetime, timezone
+import csv
+import hashlib
+import io
+import json
+import os
+import secrets
+import shutil
+import socket
+import sqlite3
+import time
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager, closing
-from threading import Lock
-import os, json, sqlite3, secrets, hashlib, shutil, io, csv, socket, time, zipfile, mimetypes
+from datetime import datetime, timezone
 from functools import lru_cache
+from pathlib import Path
+from threading import Lock
 from urllib.parse import urlsplit
+
 import numpy as np
-from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException
-from fastapi.responses import JSONResponse, FileResponse, Response
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
 from . import core, models
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -86,9 +98,7 @@ def now():
 
 
 def create_app(data_dir=None, access_code=None, lan=False, port=8765):
-    data = Path(
-        data_dir or os.environ.get("ORBIT_DATA_DIR", ROOT / "orbit-data")
-    ).resolve()
+    data = Path(data_dir or os.environ.get("ORBIT_DATA_DIR", ROOT / "orbit-data")).resolve()
     for name in ("originals", "captures", "models", "staging", "media", "references"):
         (data / name).mkdir(parents=True, exist_ok=True)
     code = access_code or secrets.token_hex(4).upper()
@@ -153,17 +163,22 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     @asynccontextmanager
     async def lifespan(app):
+        if hasattr(app.state, "extensions_start"):
+            app.state.extensions_start()
         yield
+        if hasattr(app.state, "extensions_close"):
+            app.state.extensions_close()
         pool.shutdown(wait=True, cancel_futures=True)
 
     app = FastAPI(
         title="Orbit Wi-Fi Sensing Lab",
-        version="1.1.0",
+        version="2.2.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
     )
+    app.state.instance_id = secrets.token_hex(8)
     app.state.code = code
     app.state.data = data
     app.state.records = rows
@@ -175,48 +190,42 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     @app.middleware("http")
     async def protect(request, call_next):
         if not sharing["enabled"] and not local_request(request):
-            return JSONResponse(
-                {"detail": "Phone sharing is switched off on the laptop."}, 403
-            )
+            return JSONResponse({"detail": "Phone sharing is switched off on the laptop."}, 403)
         origin = request.headers.get("origin")
         if origin and urlsplit(origin).netloc != request.headers.get("host"):
-            return JSONResponse(
-                {"detail": "Cross-origin requests are not allowed."}, 403
-            )
+            return JSONResponse({"detail": "Cross-origin requests are not allowed."}, 403)
         host = request.url.hostname or ""
         try:
             import ipaddress
 
             private = (
-                ipaddress.ip_address(host).is_private
-                or ipaddress.ip_address(host).is_loopback
+                ipaddress.ip_address(host).is_private or ipaddress.ip_address(host).is_loopback
             )
         except ValueError:
-            private = host in ("localhost", "testserver")
+            private = host in ("localhost", "testserver") or (host == "orbit.local" and lan)
         if not private:
-            return JSONResponse(
-                {"detail": "Use the loopback or private LAN address."}, 400
-            )
+            return JSONResponse({"detail": "Use the loopback or private LAN address."}, 400)
         if request.url.path.startswith("/api/") and request.url.path not in (
             "/api/health",
             "/api/auth",
+            "/api/pair/claim",
+            "/api/desktop/claim",
         ):
             with guard:
                 allowed = request.cookies.get("orbit_session") in sessions
             if not allowed:
                 return JSONResponse(
-                    {
-                        "detail": "Enter the session access code shown in the laptop terminal."
-                    },
+                    {"detail": "Enter the session access code shown in the laptop terminal."},
                     401,
                 )
         try:
             response = await call_next(request)
         except Exception:
             # Do not send local paths or stack traces to clients.
-            return JSONResponse(
-                {"detail": "Operation failed. Check the local server log."}, 500
-            )
+            return JSONResponse({"detail": "Operation failed. Check the local server log."}, 500)
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; connect-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'"
+        )
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Frame-Options"] = "DENY"
@@ -231,7 +240,12 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     @app.get("/api/health")
     def health():
-        return {"status": "online", "version": "1.1.0", "local_only": True}
+        return {
+            "status": "online",
+            "version": "2.2.0",
+            "local_only": True,
+            "instance_id": app.state.instance_id,
+        }
 
     class Auth(BaseModel):
         code: str = Field(max_length=100)
@@ -266,24 +280,41 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     @app.get("/api/status")
     def status():
+        def summary(m):
+            return {**m, "held_out_windows": {h: True for h in m.get("held_out_windows", {})}}
+
         return {
-            "datasets": rows("dataset"),
-            "captures": rows("capture"),
-            "models": rows("model"),
-            "runs": rows("run")[:50],
+            "datasets": [d for d in rows("dataset") if not d.get("synthetic")],
+            "simulation_datasets": [d for d in rows("dataset") if d.get("synthetic")],
+            "simulation_captures": [c for c in rows("capture") if c.get("synthetic")],
+            "simulation_runs": [r for r in rows("run") if r.get("source") == "SIMULATION"],
+            "simulation_models": [
+                summary(m) for m in rows("model") if m.get("source") == "SIMULATION"
+            ],
+            "captures": [c for c in rows("capture") if not c.get("synthetic")],
+            "models": [summary(m) for m in rows("model") if m.get("source") != "SIMULATION"],
+            "runs": [r for r in rows("run") if r.get("source") != "SIMULATION"][:50],
             "jobs": rows("job")[:30],
             "lan": sharing["enabled"],
             "media": rows("media"),
             "references": rows("reference"),
-            "version": "1.1.0",
+            "version": "2.2.0",
+        }
+
+    cancelled = set()
+
+    @app.post("/api/jobs/{id}/cancel")
+    def cancel_job(id: str):
+        get("job", id)
+        cancelled.add(id)
+        return {
+            "message": "Cancellation requested; stops after the current numerical fit or chunk."
         }
 
     def job_start(kind, fn):
         with guard:
             if any(j["status"] in ("queued", "running") for j in rows("job")):
-                raise HTTPException(
-                    409, "Another operation is running. Wait for it to finish."
-                )
+                raise HTTPException(409, "Another operation is running. Wait for it to finish.")
             jid = secrets.token_hex(12)
             job = {
                 "id": jid,
@@ -296,6 +327,8 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             put("job", job)
 
         def progress(message, percent):
+            if jid in cancelled:
+                raise ValueError("Cancelled by user. Change settings and run again when ready.")
             job.update(status="running", message=message, progress=percent)
             put("job", job)
 
@@ -303,14 +336,16 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             try:
                 progress("Starting", 1)
                 result = fn(jid, progress)
-                job.update(
-                    status="completed", progress=100, message="Completed", result=result
-                )
+                if jid in cancelled:
+                    raise ValueError("Cancelled by user.")
+                job.update(status="completed", progress=100, message="Completed", result=result)
             except Exception as exc:
                 import logging
 
                 logging.exception("Orbit background operation failed")
-                job.update(status="failed", message=str(exc)[:500])
+                job.update(
+                    status="cancelled" if jid in cancelled else "failed", message=str(exc)[:500]
+                )
             finally:
                 put("job", job)
 
@@ -321,9 +356,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     def job(id: str):
         return get("job", id)
 
-    def import_recording(
-        staged, filename, did, progress, profile="inspect", label="unlabelled"
-    ):
+    def import_recording(staged, filename, did, progress, profile="inspect", label="unlabelled"):
         dest = data / "captures" / did
         dest.mkdir()
         extracted = dest / "source"
@@ -340,11 +373,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                                 "modulation": "ax",
                                 "bandwidth": 20 if profile == "ax20" else 40,
                                 "people": {
-                                    "present": (
-                                        None
-                                        if label == "unlabelled"
-                                        else label == "true"
-                                    )
+                                    "present": (None if label == "unlabelled" else label == "true")
                                 },
                                 "metadata_source": "user-provided upload profile",
                             }
@@ -361,7 +390,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             seen = set()
             for i, path in enumerate(mats):
                 progress(
-                    f"Validating recording {i+1}/{len(mats)}",
+                    f"Validating recording {i + 1}/{len(mats)}",
                     int(10 + 80 * i / len(mats)),
                 )
                 try:
@@ -378,12 +407,10 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                             "AX modulation is not verified by config; training/inference unavailable."
                         )
                     if m["present"] is None:
-                        warnings.append(
-                            "Presence label unavailable; excluded from training."
-                        )
+                        warnings.append("Presence label unavailable; excluded from training.")
                     if invalid.any():
                         warnings.append(
-                            f"{int(invalid.sum())} invalid/all-zero packet columns. 20 MHz baseline replaces nonfinite values with zero; 40 MHz uses validity-aware windows."
+                            f"{int(invalid.sum())} invalid/all-zero packet columns. Both bandwidths use validity-aware windows under contract v2."
                         )
                     if not (~invalid).any():
                         raise ValueError("Capture has no valid packet columns.")
@@ -399,9 +426,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                         continue
                     seen.add(sha)
                     cid = secrets.token_hex(12)
-                    np.savez_compressed(
-                        dest / f"{cid}.npz", amplitude=a, invalid=invalid
-                    )
+                    np.savez_compressed(dest / f"{cid}.npz", amplitude=a, invalid=invalid)
                     captures.append(
                         {
                             "id": cid,
@@ -425,7 +450,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                             "metadata_source": m["config"].get(
                                 "metadata_source", "recording configuration"
                             ),
-                            "source": "RECORDED DATA",
+                            "source": "SIMULATION" if m.get("synthetic") else "RECORDED DATA",
                         }
                     )
                 except Exception as exc:
@@ -437,9 +462,10 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                     )
             if not captures:
                 raise ValueError(
-                    "No valid CSI captures. "
-                    + "; ".join(e["error"] for e in errors[:3])
+                    "No valid CSI captures. " + "; ".join(e["error"] for e in errors[:3])
                 )
+            if len({bool(c.get("synthetic")) for c in captures}) > 1:
+                raise ValueError("Keep simulation and real recordings in separate uploads.")
             original = data / "originals" / f"{did}{Path(filename).suffix.lower()}"
             shutil.move(str(staged), original)
             dataset = {
@@ -447,15 +473,14 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                 "name": filename,
                 "created": now(),
                 "captures": len(captures),
+                "synthetic": bool(captures[0].get("synthetic")),
                 "errors": errors,
                 "sha256": file_hash(original),
                 "size": original.stat().st_size,
             }
             # Register atomically so observers never see partial imports.
             with closing(sqlite3.connect(db)) as con, con:
-                for kind, row in [("dataset", dataset)] + [
-                    ("capture", c) for c in captures
-                ]:
+                for kind, row in [("dataset", dataset)] + [("capture", c) for c in captures]:
                     con.execute(
                         "INSERT INTO records VALUES (?,?,?)",
                         (kind, row["id"], json.dumps(row)),
@@ -496,9 +521,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                 raise HTTPException(422, "Empty upload.")
             return job_start(
                 "import",
-                lambda jid, p: import_recording(
-                    staged, filename, did, p, profile, label
-                ),
+                lambda jid, p: import_recording(staged, filename, did, p, profile, label),
             )
         except Exception:
             staged.unlink(missing_ok=True)
@@ -510,19 +533,15 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     def remove_dataset(id: str):
         get("dataset", id)
         if any(j["status"] in ("queued", "running") for j in rows("job")):
-            raise HTTPException(
-                409, "Wait for the current operation before deleting data."
-            )
-        # IDs are resolved through the database, never interpreted as an arbitrary path.
-        for cap in rows("capture"):
-            if cap["dataset_id"] == id:
-                delete("capture", cap["id"])
+            raise HTTPException(409, "Wait for the current operation before deleting data.")
+        saved = [("dataset", get("dataset", id))] + [
+            ("capture", c) for c in rows("capture") if c["dataset_id"] == id
+        ]
+        put("trash", {"id": id, "created": now(), "name": saved[0][1]["name"], "records": saved})
+        for kind, row in saved:
+            delete(kind, row["id"])
         arrays.cache_clear()
-        shutil.rmtree(data / "captures" / id, ignore_errors=True)
-        for ext in (".mat", ".zip"):
-            (data / "originals" / f"{id}{ext}").unlink(missing_ok=True)
-        delete("dataset", id)
-        return {"ok": True}
+        return {"ok": True, "undo_id": id}
 
     @lru_cache(maxsize=2)
     def arrays(id):
@@ -569,7 +588,9 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         return {
             "metadata": cap,
             "packet": list(range(start, end)),
-            "trace": trace.tolist(),
+            "trace": [None if invalid[start + i] else float(v) for i, v in enumerate(trace)],
+            "packet_audit": cap.get("packet_audit")
+            or core.read_capture(data / cap["path"], cap["bandwidth"], with_audit=True)[3],
             "heatmap": segment[::scstep, ::heatstep].tolist(),
             "heatmap_packet": list(range(start, end, heatstep)),
             "heatmap_subcarrier": list(range(0, a.shape[0], scstep)),
@@ -592,6 +613,9 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         cutoff: float = Field(default=0.1, gt=0, lt=0.5)
         kind: str = "lowpass"
         factor: int = Field(default=2, ge=2, le=8)
+        beta: float = Field(default=8.6, ge=0, le=20)
+        order: int = Field(default=4, ge=1, le=8)
+        cutoff_high: float = Field(default=0.2, gt=0, lt=0.5)
         start: int = Field(default=0, ge=0)
         length: int = Field(default=1024, ge=32, le=4096)
         subcarrier: int = Field(default=-1, ge=-1)
@@ -607,12 +631,8 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             segment = a[:, body.start : body.start + body.length]
             if segment.shape[1] < 32:
                 raise ValueError("Select at least 32 packets.")
-            x = (
-                np.median(segment, axis=0)
-                if body.subcarrier < 0
-                else segment[body.subcarrier]
-            )
-            source = "RECORDED DATA"
+            x = np.median(segment, axis=0) if body.subcarrier < 0 else segment[body.subcarrier]
+            source = "SIMULATION" if cap.get("synthetic") else "RECORDED DATA"
         result = core.dsp(
             x,
             **{
@@ -657,28 +677,59 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         dataset_id: str | None = None
         bandwidth: int = 20
         split: str = "date"
+        synthetic: bool = False
         kinds: list[str] = Field(
-            default_factory=lambda: ["lr", "rf", "mlp"], min_length=1, max_length=4
+            default_factory=lambda: ["lr", "rf", "mlp"], min_length=1, max_length=7
         )
         population: int = Field(default=8, ge=4, le=16)
         generations: int = Field(default=6, ge=1, le=15)
         mutation: float = Field(default=0.03, ge=0, le=0.3)
+
+    @app.get("/api/train/options")
+    def training_options(synthetic: bool = False):
+        captures = [c for c in rows("capture") if bool(c.get("synthetic")) == synthetic]
+        return [
+            {
+                "dataset_id": did,
+                "bandwidth": bw,
+                "split": split,
+                "kind": kind,
+                **models.training_check(
+                    [c for c in captures if not did or c["dataset_id"] == did], bw, split, [kind]
+                ),
+            }
+            for did in [
+                "",
+                *[d["id"] for d in rows("dataset") if bool(d.get("synthetic")) == synthetic],
+            ]
+            for bw in (20, 40)
+            for split in ("date", "capture")
+            for kind in ("lr", "rf", "mlp", "ga_rf", "ga_lr", "ga_mlp", "ga_lr_ann")
+        ]
 
     @app.post("/api/train")
     def train(body: TrainBody):
         if (
             body.bandwidth not in (20, 40)
             or body.split not in ("date", "capture")
-            or any(k not in ("lr", "rf", "mlp", "ga_rf") for k in body.kinds)
+            or any(
+                k not in ("lr", "rf", "mlp", "ga_rf", "ga_lr", "ga_mlp", "ga_lr_ann")
+                for k in body.kinds
+            )
         ):
             raise ValueError("Unsupported training configuration.")
         captures = [
             c
             for c in rows("capture")
-            if not body.dataset_id or c["dataset_id"] == body.dataset_id
+            if (not body.dataset_id or c["dataset_id"] == body.dataset_id)
+            and bool(c.get("synthetic")) == body.synthetic
         ]
         # Inferred bandwidth is useful for plots but never sufficient evidence for training.
         captures = [c for c in captures if c.get("bandwidth_verified")]
+
+        check = models.training_check(captures, body.bandwidth, body.split, body.kinds)
+        if not check["valid"]:
+            raise ValueError(check["reason"])
 
         def work(jid, p):
             result = models.train(
@@ -700,7 +751,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                 "id": jid,
                 "kind": "training",
                 "created": now(),
-                "source": "RECORDED DATA",
+                "source": "SIMULATION" if body.synthetic else "RECORDED DATA",
                 "models": [r["id"] for r in result],
             }
             put("run", row)
@@ -711,16 +762,15 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     class PredictBody(BaseModel):
         capture_id: str
         model_id: str
+        mode: str = "held_out"
 
     @app.post("/api/predict")
     def predict(body: PredictBody):
         cap = get("capture", body.capture_id)
         get("model", body.model_id)
         if not cap.get("bandwidth_verified"):
-            raise ValueError(
-                "Bandwidth must be verified by recording config before inference."
-            )
-        result = models.predict(cap, data, data / "models" / f"{body.model_id}.joblib")
+            raise ValueError("Bandwidth must be verified by recording config before inference.")
+        result = models.predict(cap, data, data / "models" / f"{body.model_id}.joblib", body.mode)
         row = {
             "id": secrets.token_hex(12),
             "created": now(),
@@ -753,9 +803,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         ]
         out = {}
         for name in names:
-            with (ROOT / "results" / f"{name}.csv").open(
-                encoding="utf-8-sig", newline=""
-            ) as f:
+            with (ROOT / "results" / f"{name}.csv").open(encoding="utf-8-sig", newline="") as f:
                 out[name] = list(csv.DictReader(f))
         return out
 
@@ -764,9 +812,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         allowed = {p.stem: p for p in (ROOT / "results").glob("*.csv")}
         if name not in allowed:
             raise HTTPException(404, "Result not found.")
-        return FileResponse(
-            allowed[name], filename=f"{name}.csv", media_type="text/csv"
-        )
+        return FileResponse(allowed[name], filename=f"{name}.csv", media_type="text/csv")
 
     @app.get("/api/export/run/{id}")
     def export_run(id: str):
@@ -774,6 +820,20 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         buffer = io.StringIO()
         records = row.get("windows") or [
             row.get("metrics", {"kind": row["kind"], "source": row["source"]})
+        ]
+        records = [
+            {
+                **record,
+                "validation_protocol": row.get(
+                    "validation_protocol",
+                    "DSP trace transformation; not classifier validation"
+                    if row["kind"] == "DSP"
+                    else "No classifier evaluation",
+                ),
+                "source": row["source"],
+                "synthetic": row["source"] == "SIMULATION",
+            }
+            for record in records
         ]
         writer = csv.DictWriter(buffer, fieldnames=list(records[0]))
         writer.writeheader()
@@ -787,20 +847,17 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     @app.get("/api/export/model/{id}")
     def export_model(id: str):
         row = get("model", id)
+        row["synthetic"] = row.get("source") == "SIMULATION"
         return Response(
             json.dumps(row, indent=2),
             media_type="application/json",
-            headers={
-                "Content-Disposition": f'attachment; filename="orbit-model-{id}.json"'
-            },
+            headers={"Content-Disposition": f'attachment; filename="orbit-model-{id}.json"'},
         )
 
     def lan_info():
         addresses = set()
         try:
-            for result in socket.getaddrinfo(
-                socket.gethostname(), None, socket.AF_INET
-            ):
+            for result in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
                 ip = result[4][0]
                 if not ip.startswith("127."):
                     addresses.add(ip)
@@ -833,9 +890,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         from qrcode.image.svg import SvgPathImage
 
         output = io.BytesIO()
-        qrcode.make(
-            addresses[0], image_factory=SvgPathImage, box_size=8, border=3
-        ).save(output)
+        qrcode.make(addresses[0], image_factory=SvgPathImage, box_size=8, border=3).save(output)
         return Response(output.getvalue(), media_type="image/svg+xml")
 
     class LocalImportBody(BaseModel):
@@ -844,9 +899,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     @app.post("/api/local/import")
     def local_import(body: LocalImportBody, request: Request):
         if not local_request(request):
-            raise HTTPException(
-                403, "Local file import is available on the laptop only."
-            )
+            raise HTTPException(403, "Local file import is available on the laptop only.")
         paths = [Path(p).resolve() for p in body.paths]
         if any(
             not p.is_file()
@@ -862,11 +915,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                 progress(f"Preparing {path.name}", int(i / len(paths) * 100))
                 digest = file_hash(path)
                 existing = next(
-                    (
-                        d
-                        for d in rows("dataset") + rows("reference")
-                        if d.get("sha256") == digest
-                    ),
+                    (d for d in rows("dataset") + rows("reference") if d.get("sha256") == digest),
                     None,
                 )
                 if existing:
@@ -916,9 +965,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     @app.get("/api/references/{id}/file")
     def reference_file(id: str):
         row = get("reference", id)
-        return FileResponse(
-            data / row["path"], filename=row["name"], media_type="application/zip"
-        )
+        return FileResponse(data / row["path"], filename=row["name"], media_type="application/zip")
 
     @app.post("/api/media")
     async def upload_media(
@@ -990,9 +1037,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                 )
             )
             if not valid:
-                raise ValueError(
-                    "The file content does not match its image/video/audio extension."
-                )
+                raise ValueError("The file content does not match its image/video/audio extension.")
             row = {
                 "id": rid,
                 "name": name,
@@ -1041,6 +1086,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     class CompareBody(BaseModel):
         capture_id: str
+        mode: str = "held_out"
 
     @app.post("/api/predict/compare")
     def compare_predictions(body: CompareBody):
@@ -1049,19 +1095,34 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         for m in rows("model"):
             if (
                 m["contract"]["bandwidth"] == cap["bandwidth"]
+                and m["contract"] == core.contract(cap["bandwidth"])
+                and (body.mode != "held_out" or cap["sha256"] in m.get("held_out_windows", {}))
+                and bool(m.get("synthetic")) == bool(cap.get("synthetic"))
                 and m["name"] not in chosen
             ):
                 chosen[m["name"]] = m
         if not chosen:
             raise ValueError("Train a compatible classifier in Learning Lab first.")
         results = [
-            predict(PredictBody(capture_id=body.capture_id, model_id=m["id"]))
+            predict(PredictBody(capture_id=body.capture_id, model_id=m["id"], mode=body.mode))
             for m in chosen.values()
         ]
         return {"capture_id": body.capture_id, "results": results}
 
     download_root = Path(os.environ.get("ORBIT_DOWNLOADS_DIR", ROOT.parent)).resolve()
     downloads_allowed = {
+        "Orbit-Windows.zip": ("Native Windows desktop application", "application/zip"),
+        "Simulation-set-A.zip": (
+            "Simulation set A · all generated classes and sessions",
+            "application/zip",
+        ),
+        "Simulation-Empty.zip": ("Simulation · empty channel", "application/zip"),
+        "Simulation-One-Still.zip": ("Simulation · one person still", "application/zip"),
+        "Simulation-One-Moving.zip": ("Simulation · one person moving", "application/zip"),
+        "Orbit-Demo-1-Empty.zip": ("Classroom Simulation · empty · three sessions", "application/zip"),
+        "Orbit-Demo-2-Still.zip": ("Classroom Simulation · one still · three sessions", "application/zip"),
+        "Orbit-Demo-3-Moving.zip": ("Classroom Simulation · one moving · three sessions", "application/zip"),
+        "Simulation-Two-People.zip": ("Simulation · two people", "application/zip"),
         "Orbit-Phone-Companion.apk": (
             "Android phone app",
             "application/vnd.android.package-archive",
@@ -1107,6 +1168,8 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     static = ROOT / "orbit" / "static"
     if static.exists():
-        app.mount("/", StaticFiles(directory=static, html=True), name="frontend")
+        from .extensions import install
+    install(app, {**locals(), "now": now})
+    app.mount("/", StaticFiles(directory=static, html=True), name="frontend")
     app.add_middleware(UploadBodyLimit)
     return app

@@ -50,6 +50,10 @@ import {
   CircleDot,
 } from "lucide-react";
 import "./styles.css";
+import {SCShow,GraphGallery} from "./Showcase";
+import {PhoneFiles,Progression,ResearchCode,NotebookLinks} from "./Demo";
+import {BulkImport,SimulationPage,ConnectTools,InboxPage,PlanPage,GuidePage,GlossaryPage,AdvancedPage,Term} from "./Extensions";
+import {themes,lightThemes,okabeIto,applyTheme} from "./themes";
 type Dict = Record<string, any>;
 type Page =
   | "intro"
@@ -62,7 +66,7 @@ type Page =
   | "modes"
   | "settings"
   | "upload"
-  | "media";
+  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs";
 const stages = [
   "Receive",
   "Window",
@@ -84,26 +88,35 @@ const stagePages: Page[] = [
   "replay",
 ];
 const nav = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "data", label: "Data & captures", icon: Database },
-  { id: "media", label: "Recordings & media", icon: FolderOpen },
+  { id: "overview", label: "Home", icon: LayoutDashboard },
+  { id: "data", label: "Library", icon: Database },
+  { id: "media", label: "Lab notebook", icon: FolderOpen },
   { id: "dsp", label: "Signal Studio", icon: AudioLines },
   { id: "learning", label: "Learning Lab", icon: BrainCircuit },
-  { id: "replay", label: "Detect & replay", icon: Play },
-  { id: "results", label: "Results & evidence", icon: FlaskConical },
-  { id: "modes", label: "Wi-Fi modes", icon: Radio },
-  { id: "settings", label: "Server & settings", icon: Settings2 },
+  { id: "replay", label: "Replay", icon: Play },
+  { id: "results", label: "Evidence", icon: FlaskConical },
+  { id: "modes", label: "Sensing modes", icon: Radio },
+  { id: "settings", label: "Connect", icon: Settings2 },
+  {id:"simulation",label:"Simulation",icon:Waves},
+  {id:"inbox",label:"Phone Inbox",icon:Smartphone},
+  {id:"advanced",label:"DSP & SC tools",icon:CircuitBoard},
+  {id:"scshow",label:"SC presentation",icon:BrainCircuit},
+  {id:"graphs",label:"Saved graphs",icon:Activity},
+  {id:"plan",label:"Recording plan",icon:BookOpen},
+  {id:"guide",label:"Orbit guide",icon:CircleHelp},
+  {id:"glossary",label:"Glossary",icon:BookOpen},
 ];
 const pretty = (n: any, d = 3) =>
   typeof n === "number" ? n.toFixed(d) : String(n ?? "—");
 const percent = (n: any) => `${(Number(n) * 100).toFixed(1)}%`;
-const color = ["#22d3ee", "#fb923c", "#a78bfa", "#4f7dff", "#34d399"];
+const color = okabeIto;
 async function api(path: string, body?: any, method?: string) {
   const r = await fetch("/api/" + path, {
     method: method || (body ? "POST" : "GET"),
     credentials: "same-origin",
     headers: body ? { "Content-Type": "application/json" } : {},
     body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(30000),
   });
   if (!r.ok) {
     const e = await r.json().catch(() => ({ detail: r.statusText }));
@@ -215,6 +228,7 @@ function Chart({
   labels,
   yName = "Subcarrier",
   exportName = "orbit-plot",
+  yDomain,
 }: {
   series?: {
     name: string;
@@ -230,11 +244,12 @@ function Chart({
   yName?: string;
   labels?: { x: any[]; y: any[] };
   exportName?: string;
+  yDomain?: number[];
 }) {
   const [chartTheme, setChartTheme] = useState(
     document.documentElement.dataset.theme || "light",
   );
-  const isLight = ["light", "soft"].includes(chartTheme);
+  const isLight = lightThemes.includes(chartTheme);
   useEffect(() => {
     const change = () =>
       setChartTheme(document.documentElement.dataset.theme || "light");
@@ -259,6 +274,7 @@ function Chart({
     if (!c) return;
     let option: Dict = {
       animation: false,
+      graphic: document.documentElement.dataset.library === "simulation" ? [{type:"text",right:8,bottom:5,style:{text:"Simulation · synthetic=true",fill:isLight?"#26364a":"#e7edf8",fontSize:11}}] : [],
       backgroundColor: isLight ? "#ffffff" : "#121c2d",
       color,
       tooltip: {
@@ -287,6 +303,7 @@ function Chart({
       yAxis: {
         type: "value",
         scale: true,
+        ...(yDomain ? {min:yDomain[0],max:yDomain[1]} : {}),
         axisLabel: { color: isLight ? "#5c6a7c" : "#8293ae" },
         splitLine: {
           lineStyle: { color: isLight ? "#e1e7ee" : "#233149", type: "dashed" },
@@ -301,8 +318,8 @@ function Chart({
         sampling: "lttb",
         lineStyle: {
           width: 1.7,
-          color: s.color || color[i % 5],
-          type: s.dashed ? "dashed" : "solid",
+          color: ["paper", "graphite"].includes(chartTheme) ? (isLight ? "#222222" : "#eeeeee") : color[i % color.length],
+          type: s.dashed || (["paper", "graphite"].includes(chartTheme) && /GA|loss|fuzzy|model|fitness|neural|prediction/i.test(s.name)) ? "dashed" : "solid",
         },
         data: s.data.map((v, j) => [(s.x || x)?.[j] ?? j, v]),
       })),
@@ -368,7 +385,7 @@ function Chart({
               pixelRatio: 2,
               backgroundColor: isLight ? "#ffffff" : "#121c2d",
             }) || "";
-          a.download = exportName + ".png";
+          a.download = (document.documentElement.dataset.library === "simulation" ? "Simulation-" : "Recorded-") + exportName + ".png";
           a.click();
         }}
       >
@@ -455,13 +472,22 @@ function App() {
         ? "learning"
         : location.hash.slice(2)) as Page) || "intro",
   );
-  const [state, setState] = useState<Dict>({
+  const [stored, setState] = useState<Dict>({
     captures: [],
     datasets: [],
     models: [],
     runs: [],
     jobs: [],
   });
+  const [simulation,setSimulation] = useState(()=>localStorage.getItem("orbit-library")==="simulation"||location.hash.startsWith("#/simulation"));
+  useEffect(()=>{localStorage.setItem("orbit-library",simulation?"simulation":"recorded");document.documentElement.dataset.library=simulation?"simulation":"recorded";},[simulation]);
+  useEffect(()=>{if(page === "results")setSimulation(false);},[page]);
+  const [motion,setMotion] = useState(localStorage.getItem("orbit-motion") !== "reduced");
+  const [effects,setEffects] = useState(localStorage.getItem("orbit-effects") !== "reduced");
+  const state:Dict={...stored,simulation,runs:simulation?(stored.simulation_runs||[]):stored.runs,captures:simulation?(stored.simulation_captures||[]):stored.captures,datasets:simulation?(stored.simulation_datasets||[]):stored.datasets,models:simulation?(stored.simulation_models||[]):stored.models};
+  useEffect(()=>{if(!state.captures.some((c:Dict)=>c.id===selected))setSelected(state.captures[0]?.id||"");},[simulation,stored.captures,stored.simulation_captures]);
+  useEffect(()=>{document.documentElement.dataset.motion=motion?"full":"reduced";localStorage.setItem("orbit-motion",motion?"full":"reduced");},[motion]);
+  useEffect(()=>{document.documentElement.dataset.effects=effects?"full":"reduced";localStorage.setItem("orbit-effects",effects?"full":"reduced");},[effects]);
   const [evidence, setEvidence] = useState<Dict>({});
   const [online, setOnline] = useState(false);
   const [authed, setAuthed] = useState(false);
@@ -482,6 +508,7 @@ function App() {
   );
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    applyTheme(theme);
     localStorage.setItem("orbit-theme", theme);
     window.dispatchEvent(new Event("orbit-theme"));
   }, [theme]);
@@ -555,7 +582,7 @@ function App() {
       const s = await api("status");
       setState(s);
       setSelected((current) => {
-        if (s.captures.some((c: Dict) => c.id === current)) return current;
+        if ([...s.captures,...(s.simulation_captures||[])].some((c: Dict) => c.id === current)) return current;
         const first =
           s.captures.find((c: Dict) => c.bandwidth === 20 && c.windows > 0) ||
           s.captures[0];
@@ -597,15 +624,18 @@ function App() {
     if (page !== "intro" && !authed && online && checkedAuth) setAuthOpen(true);
   }, [page, authed, online, checkedAuth]);
   const navigate = (p: Page) => {
+    if(p === "simulation")setSimulation(true);
+    if(p === "results")setSimulation(false);
     location.hash = "/" + p;
     setPage(p);
     setMobileMenu(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: motion ? "smooth" : "auto" });
   };
   const choose = (id: string) => {
     setSelected(id);
     localStorage.setItem("orbit-capture", id);
   };
+  useEffect(()=>{if(location.hash.startsWith("#/pair?")||location.hash.startsWith("#/desktop?")){const token=new URLSearchParams(location.hash.split("?")[1]).get("token");if(token)api(location.hash.startsWith("#/desktop?")?"desktop/claim":"pair/claim",{token}).then(async()=>{await refresh();navigate(location.hash.startsWith("#/desktop?")?"overview":"upload");}).catch(()=>{setAuthError("Pairing link expired. Create a new QR on the laptop.");setAuthOpen(true);});}},[]);
   const authenticate = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -858,16 +888,15 @@ function App() {
                 <strong>{activeTitle}</strong>
               </div>
               <div className="top-actions">
+                <button className="presentation-toggle" onClick={()=>setSimulation(!simulation)}>{simulation?"Simulation":"Recorded library"}</button>
+                {simulation&&<strong className="simulation-chip">Simulation</strong>}
                 <select
                   className="theme-picker"
                   aria-label="Colour theme"
                   value={theme}
                   onChange={(e) => setTheme(e.target.value)}
                 >
-                  <option value="light">Google Light</option>
-                  <option value="soft">Soft Sage</option>
-                  <option value="midnight">Orbit Midnight</option>
-                  <option value="charcoal">Classic Dark</option>
+                  {themes.map(t=><option key={t[0]} value={t[0]}>{t[1]}</option>)}
                 </select>
                 <button
                   className={"presentation-toggle " + (quiet ? "enabled" : "")}
@@ -927,7 +956,7 @@ function App() {
                                     ? "Know what’s possible."
                                     : page === "upload"
                                       ? "Send it to your laptop."
-                                      : "Your local lab, connected."}
+                                      : (({simulation:"A channel to explore.",inbox:"From phone to your lab.",plan:"Plan a careful recording.",guide:"A little help, right here.",glossary:"Make sense of the terms.",advanced:"Experiment. Learn. Compare."} as Dict)[page] || "Your local lab, connected.")}
                   </h1>
                   <p>
                     {page === "overview"
@@ -960,12 +989,15 @@ function App() {
                     : "Adaptive mode is a proposed architecture. No automatic hardware selection or sensing switch is active."}
                 </Note>
               )}
+              <div className="access-options"><label><input type="checkbox" checked={!motion} onChange={e=>setMotion(!e.target.checked)}/>Reduce motion</label><label><input type="checkbox" checked={!effects} onChange={e=>setEffects(!e.target.checked)}/>Reduce effects</label><button className="text-button" onClick={()=>navigate("guide")}>Need a hand? Ask Orbit guide</button></div>
+              {!checkedAuth&&<section className="panel skeleton" aria-busy="true" aria-label="Loading your local workspace"><div/><div/><div/></section>}
               {job && (
                 <div className="job-banner">
                   <LoaderCircle className="spin" size={18} />
                   <span>{job.message}</span>
                   <progress value={job.progress} max={100} />
                   <b>{job.progress}%</b>
+                  <button onClick={()=>api("jobs/"+job.id+"/cancel",{}).then(()=>notify("Cancellation requested after the current fit."))}>Cancel</button>
                 </div>
               )}
               {!online && (
@@ -1209,6 +1241,15 @@ function App() {
                   )}
                 </>
               )}
+              {(page === "upload" || page === "settings") && <PhoneFiles/>}
+              {page === "learning" && <Progression state={state} capture={capture}/>}
+              {page === "results" && <Progression state={{...stored,simulation:false}}/>}
+              {["scshow","graphs"].includes(page)&&<div className="studio-source"><CaptureSelect {...common}/></div>}
+              {page === "scshow"&&<SCShow {...common}/>}
+              {page === "graphs"&&<GraphGallery {...common}/>}
+              {page === "advanced" && <><div className="studio-source"><CaptureSelect {...common}/></div><p className="helper">Use the Recorded / Simulation button in the header to switch source. This selected CSI recording feeds the DSP and pipeline tools.</p></>}
+              {page === "media" && <NotebookLinks {...common}/>}
+              {(page === "data" || page === "upload") && <BulkImport refresh={refresh} synthetic={simulation} onImported={setSimulation}/>}
               {(page === "data" || page === "upload") && (
                 <DataPage
                   {...common}
@@ -1216,16 +1257,24 @@ function App() {
                   onDelete={setConfirmDelete}
                 />
               )}
+              {["dsp","learning"].includes(page)&&<button className="button secondary" onClick={()=>navigate("advanced")}>Open extended DSP & SC tools</button>}
               {page === "dsp" && <DSPPage {...common} />}
               {page === "learning" && <LearningPage {...common} />}
               {page === "media" && <MediaPage {...common} />}
               {page === "replay" && <ReplayPage {...common} />}
               {page === "results" && (
-                <ResultsPage {...common} evidence={evidence} />
+                <ResultsPage {...common} state={{...stored,simulation:false}} evidence={evidence} />
               )}
               {page === "modes" && (
                 <ModesPage navigate={navigate} evidence={evidence} />
               )}
+              {page === "simulation"&&<SimulationPage state={stored} evidence={evidence} refresh={refresh} open={()=>{setSimulation(true);navigate("data");}}/>}
+              {page === "inbox"&&<InboxPage state={stored} open={(item:Dict,page:string)=>{setSimulation(!!item.synthetic);const cap=[...stored.captures,...(stored.simulation_captures||[])].find((c:Dict)=>c.dataset_id===item.dataset_id);if(cap)choose(cap.id);navigate(page as Page);}}/>}
+              {page === "plan"&&<PlanPage/>}
+              {page === "guide"&&<GuidePage/>}
+              {page === "glossary"&&<GlossaryPage/>}
+              {page === "advanced"&&<><AdvancedPage {...{state,capture,refresh}}/><ResearchCode/></>}
+              {page === "settings"&&<ConnectTools/>}
               {page === "settings" && (
                 <SettingsPage
                   notify={notify}
@@ -1241,7 +1290,7 @@ function App() {
                   <ShieldCheck size={13} /> Local-first. Evidence-led.
                 </span>
                 <span>
-                  Orbit v1.1 <i /> Live hardware remains unverified.
+                  Orbit v2.0 <i /> Live hardware remains unverified.
                 </span>
               </footer>
             </main>
@@ -2005,6 +2054,10 @@ function DataPage({
                   ["Shape", `${capture.subcarriers} × ${capture.packets}`],
                   ["Date", capture.date],
                   ["Modulation", capture.modulation],
+                  ["Data kind", capture.synthetic ? "Simulation" : "Recorded"],
+                  ["Activity class", capture.activity_class || "unknown"],
+                  ["Session", capture.session || "unknown"],
+                  ["Packet rate · provided", capture.packet_rate ?? "unknown"],
                   ["All-zero packets", capture.zero_packets],
                   ["Invalid packets", capture.invalid_packets],
                   ["Accepted windows", capture.windows],
@@ -2017,6 +2070,13 @@ function DataPage({
                   </div>
                 ))}
               </div>
+              {view.packet_audit && <div className="packet-audit">
+                <h3>Packet-loss / invalid-column audit</h3>
+                <p>{view.packet_audit.zero_packets} all-zero · {view.packet_audit.nonfinite_packets} nonfinite · {view.packet_audit.longest_burst} longest unusable burst</p>
+                <p>{view.packet_audit.protocol}</p>
+                <details><summary>Unusable packet ranges</summary><pre>{JSON.stringify(view.packet_audit.bursts, null, 2)}</pre></details>
+                <p>Invalid trace samples are gaps, not measured zero amplitude. Model quality contract v2 rejects windows below 90% validity.</p>
+              </div>}
               {capture.warnings.map((w: string) => (
                 <Note key={w}>{w}</Note>
               ))}
@@ -2648,6 +2708,16 @@ function LearningPage({
   const [pop, setPop] = useState(8);
   const [gen, setGen] = useState(6);
   const [mutation, setMutation] = useState(0.03);
+  const [options, setOptions] = useState<Dict[]>([]);
+  const [trainError, setTrainError] = useState("");
+  const [trainId, setTrainId] = useState("");
+  const [optionError,setOptionError]=useState(""); const [optionRetry,setOptionRetry]=useState(0);
+  useEffect(() => { let active=true; setOptionError(""); api("train/options?synthetic="+!!state.simulation).then(r=>{if(active)setOptions(r);}).catch(e=>{if(active)setOptionError("Training choices could not load. Check Connect, then retry. "+e.message);}); return()=>{active=false;}; }, [state.simulation,state.captures.map((c:Dict)=>c.id).join(","),optionRetry]);
+  useEffect(() => { setTrainError(""); setTrainId(""); }, [dataset, bw, split, modelKind, tab, pop, gen, mutation]);
+  useEffect(() => { const failed = state.jobs.find((j: Dict) => j.id === trainId && j.status === "failed"); if (failed) setTrainError(failed.message); }, [state.jobs, trainId]);
+  const optionFor = (kind: string, bandwidth = bw, datasetId = dataset) => options.find((o: Dict) => o.dataset_id === datasetId && o.bandwidth === bandwidth && o.split === split && o.kind === kind);
+  const check = optionFor(tab === "ga" ? "ga_rf" : modelKind === "all" ? "lr" : modelKind === "ladder" ? "ga_lr_ann" : modelKind);
+
   const [variation, setVariation] = useState(0.4);
   const [motion, setMotion] = useState(0.6);
   const [fuzzyResult, setFuzzyResult] = useState<Dict | null>(null);
@@ -2684,7 +2754,9 @@ function LearningPage({
   }, [tab, capture?.id]);
   const train = async () => {
     try {
-      await api("train", {
+      setTrainError("");
+      const queued = await api("train", {
+        synthetic: !!state.simulation,
         dataset_id: dataset || null,
         bandwidth: bw,
         split,
@@ -2693,22 +2765,25 @@ function LearningPage({
             ? ["rf", "ga_rf"]
             : modelKind === "all"
               ? ["lr", "rf", "mlp"]
-              : [modelKind],
+              : modelKind === "ladder" ? ["lr","rf","mlp","ga_rf","ga_lr","ga_mlp","ga_lr_ann"] : [modelKind],
         population: pop,
         generations: gen,
         mutation,
       });
+      setTrainId(queued.id);
       await refresh();
       notify(
         "Training queued. Progress appears above; results are saved locally.",
       );
     } catch (e: any) {
-      notify(e.message);
+      setTrainError(e.message);
     }
   };
-  const models = state.models.filter((m: Dict) => m.contract.bandwidth === bw);
+  const models = state.models.filter((m: Dict) => m.contract.bandwidth === bw && m.contract.version === "orbit-amplitude-v2");
   return (
     <>
+      <p className="helper">Learning Lab contains the <Term name="SC"/> tools: <Term name="ANN"/> & model bench, <Term name="GA"/> feature selection and <Term name="Fuzzy"/> rules. Signal Studio contains DSP. Use extended DSP & SC tools for the heuristic quality gate and fusion. The rule designer here is an educational sandbox.</p>
+      {optionError&&<section className="panel" role="alert"><p>{optionError}</p><button className="button" onClick={()=>setOptionRetry(v=>v+1)}>Retry training choices</button></section>}
       <div className="tabs">
         {[
           ["models", "ANN & model bench"],
@@ -2731,7 +2806,7 @@ function LearningPage({
             <section className="panel">
               <div className="panel-heading">
                 <div>
-                  <Badge tone="violet">RECORDED DATA EXPERIMENT</Badge>
+                  <Badge tone="violet">{state.simulation ? "SIMULATION EXPERIMENT" : "RECORDED DATA EXPERIMENT"}</Badge>
                   <h2>
                     {tab === "ga"
                       ? "Let the features compete."
@@ -2756,7 +2831,7 @@ function LearningPage({
                       All imported datasets · deduplicated by hash
                     </option>
                     {state.datasets.map((d: Dict) => (
-                      <option key={d.id} value={d.id}>
+                      <option key={d.id} value={d.id} disabled={!options.some((o: Dict) => o.dataset_id === d.id && o.valid)}>
                         {d.name}
                       </option>
                     ))}
@@ -2768,8 +2843,8 @@ function LearningPage({
                     value={bw}
                     onChange={(e) => setBw(Number(e.target.value))}
                   >
-                    <option value={20}>20 MHz / 256 subcarriers</option>
-                    <option value={40}>40 MHz / 512 subcarriers</option>
+                    <option value={20} disabled={!options.some((o: Dict) => o.dataset_id === dataset && o.bandwidth === 20 && o.valid)}>20 MHz / 256 subcarriers</option>
+                    <option value={40} disabled={!options.some((o: Dict) => o.dataset_id === dataset && o.bandwidth === 40 && o.valid)}>40 MHz / 512 subcarriers</option>
                   </select>
                 </label>
                 <label>
@@ -2791,10 +2866,14 @@ function LearningPage({
                       value={modelKind}
                       onChange={(e) => setModelKind(e.target.value)}
                     >
-                      <option value="all">Compare LR + RF + ANN / MLP</option>
-                      <option value="lr">Logistic Regression</option>
-                      <option value="rf">Random Forest</option>
-                      <option value="mlp">
+                      <option value="ladder" disabled={!optionFor("ga_lr_ann")?.valid}>Full progression · baseline, GA, LR, ANN and combinations</option>
+                      <option value="ga_lr" disabled={!optionFor("ga_lr")?.valid}>GA + Logistic Regression</option>
+                      <option value="ga_mlp" disabled={!optionFor("ga_mlp")?.valid}>GA + ANN</option>
+                      <option value="ga_lr_ann" disabled={!optionFor("ga_lr_ann")?.valid}>GA + LR + ANN ensemble</option>
+                      <option value="all" disabled={!optionFor("lr")?.valid}>Compare LR + RF + ANN / MLP</option>
+                      <option value="lr" disabled={!optionFor("lr")?.valid}>Logistic Regression</option>
+                      <option value="rf" disabled={!optionFor("rf")?.valid}>Random Forest</option>
+                      <option value="mlp" disabled={!optionFor("mlp")?.valid}>
                         ANN / MLP · 64 → 32 hidden units
                       </option>
                     </select>
@@ -2836,7 +2915,7 @@ function LearningPage({
                 )}
               </div>
               <Button
-                disabled={!!job || !state.captures.length}
+                disabled={!!job || !check?.valid}
                 onClick={train}
               >
                 {job ? (
@@ -2848,6 +2927,9 @@ function LearningPage({
                   ? "Run nested GA + RF comparison"
                   : "Train & evaluate"}
               </Button>
+              {state.datasets.filter((d: Dict) => !options.some((o: Dict) => o.dataset_id === d.id && o.valid)).map((d: Dict) => <p className="helper" key={d.id}>{d.name}: {options.find((o: Dict) => o.dataset_id === d.id)?.reason || "Checking training eligibility…"}</p>)}
+              {!check?.valid && <p className="helper" role="status">{check?.reason || "Checking compatible training choices…"}</p>}
+              {trainError && <Note tone="red">Next step: {trainError}</Note>}
               {!state.captures.length && (
                 <p className="helper">
                   Import labelled captures to enable training.
@@ -2903,7 +2985,7 @@ function LearningPage({
                   <strong>8 & 12 features</strong>
                   <p>
                     Selected in the two historical date folds. Earlier GA + RF
-                    capture accuracy: 80.0%; raw RF: 73.3%. A small-data
+                    capture accuracy: 80.0%; balanced accuracy: 81.25%; raw RF: 73.3%. Protocol: leave-one-recording-date-out, capture majority vote. A small-data
                     exploratory result, from a different run than the latest
                     comparison.
                   </p>
@@ -2911,19 +2993,11 @@ function LearningPage({
               )}
             </section>
           </div>
-          {state.jobs
-            .filter((j: Dict) => j.kind === "training" && j.status === "failed")
-            .slice(0, 1)
-            .map((j: Dict) => (
-              <Note key={j.id} tone="red">
-                Training did not complete: {j.message}
-              </Note>
-            ))}
           <div className="section-heading">
             <h2>
               Your model shelf <span className="count">{models.length}</span>
             </h2>
-            <span>Only models trained on this laptop</span>
+            <span>Quality contract v2 · legacy artifacts preserved, retraining required</span>
           </div>
           {models.length ? (
             <>
@@ -2950,6 +3024,7 @@ function LearningPage({
                       (k) => (
                         <div className="metric-card" key={k}>
                           <span>Capture {k.replaceAll("_", " ")}</span>
+                          <small>{m.split} · majority vote</small>
                           <strong>{percent(m.metrics[k])}</strong>
                         </div>
                       ),
@@ -3301,62 +3376,82 @@ function ReplayPage({
   notify,
   refresh,
 }: Common) {
-  const [model, setModel] = useState("all");
+  const [model, setModel] = useState(()=>sessionStorage.getItem("orbit-replay-model")||"all");
+  useEffect(()=>{sessionStorage.setItem("orbit-replay-model",model);},[model]);
+  const [mode, setMode] = useState("held_out");
   const [comparison, setComparison] = useState<Dict[]>([]);
   const [result, setResult] = useState<Dict | null>(null);
   const [view, setView] = useState<Dict | null>(null);
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
+  const [frames,setFrames]=useState<Record<number,Dict>>({});
+  const [frameError,setFrameError]=useState("");
+  const [frameRetry,setFrameRetry]=useState(0);
+  const [domain,setDomain]=useState<number[]|undefined>();
+  const frameScope=useRef("");
+  const pendingFrames=useRef(new Set<string>());
+  const predictionRequest=useRef(0);
+  useEffect(()=>{frameScope.current=capture?.id||"";setFrames({});setView(null);setFrameError("");setDomain(undefined);pendingFrames.current.clear();},[capture?.id]);
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     setIndex(0);
     setResult(null);
     setComparison([]);
     setPlaying(false);
-  }, [capture?.id, model]);
+    predictionRequest.current++;
+    setLoading(false);
+  }, [capture?.id, model, mode]);
   const step = capture?.bandwidth === 40 ? 512 : 128;
   const count = Math.max(
     0,
     capture
       ? Math.floor(
-          (capture.packets - (capture.bandwidth === 40 ? 256 : 256)) / step,
+          (capture.packets - (capture.bandwidth === 40 ? 512 : 256)) / step,
         ) + 1
       : 0,
   );
   const windowSize = capture?.bandwidth === 40 ? 512 : 256;
-  useEffect(() => {
-    if (capture)
-      api(`captures/${capture.id}?start=${index * step}&length=${windowSize}`)
-        .then(setView)
-        .catch((e) => notify(e.message));
-    else setView(null);
-  }, [capture?.id, index]);
-  useEffect(() => {
-    if (!playing || !count) return;
-    const timer = setInterval(
-      () =>
-        setIndex((i) => {
-          if (i >= count - 1) {
-            setPlaying(false);
-            return i;
-          }
-          return i + 1;
-        }),
-      1000 / speed,
-    );
-    return () => clearInterval(timer);
-  }, [playing, speed, count]);
+  useEffect(()=>{
+    if(!capture||!count||index>=count)return;
+    const id=capture.id;const first=Math.floor(index/16)*16;
+    const blocks=[first,...(index%16>=8&&first+16<count?[first+16]:[])];
+    for(const block of blocks){
+      const key=id+":"+block;
+      if(frames[block]?.capture_id===id||pendingFrames.current.has(key))continue;
+      pendingFrames.current.add(key);
+      api("captures/"+id+"/replay?first="+block+"&count=16").then(r=>{
+        if(frameScope.current!==id)return;
+        setFrames(old=>Object.fromEntries([...Object.entries(old).filter(([k])=>Math.abs(+k-index)<=64),...r.frames.map((f:Dict)=>[f.index,f])]));
+        const span=r.domain[1]-r.domain[0]||1;setDomain([r.domain[0]-.05*span,r.domain[1]+.05*span]);setFrameError("");
+      }).catch(e=>{if(frameScope.current===id){setFrameError("Playback paused while loading this window. Check the server and retry.");setPlaying(false);}}).finally(()=>pendingFrames.current.delete(key));
+    }
+  },[capture?.id,index,count,frames,frameRetry]);
+  useEffect(()=>{const frame=frames[index];if(frame?.capture_id===capture?.id)setView(frame);},[frames,index,capture?.id]);
+  useEffect(()=>{
+    if(!playing||!count||view?.capture_id!==capture?.id||view?.index!==index)return;
+    const timer=setTimeout(()=>{if(index>=count-1)setPlaying(false);else setIndex(index+1);},1000/speed);
+    return()=>clearTimeout(timer);
+  },[playing,speed,count,index,view?.index,capture?.id]);
+  const qualitySkipped = model !== "raw" && !!view && view.packet?.length > 0 && (view.packet.length < windowSize || view.invalid_indices.length / view.packet.length > 0.1);
   const currentPrediction = result?.windows.find(
-    (w: Dict) => w.start === index * step,
+    (w: Dict) => w.start === (view?.index ?? index) * step,
   );
   const compatible = state.models.filter(
-    (m: Dict) => m.contract.bandwidth === capture?.bandwidth,
+    (m: Dict) => m.contract.bandwidth === capture?.bandwidth && m.contract.version === "orbit-amplitude-v2" && (mode !== "held_out" || !!m.held_out_windows?.[capture?.sha256]),
   );
+  useEffect(()=>{if(model!=="raw"&&model!=="all"&&!compatible.some((m:Dict)=>m.id===model))setModel("all");},[capture?.id,mode,compatible.map((m:Dict)=>m.id).join(",")]);
   return (
     <>
       <div className="studio-source">
         <CaptureSelect {...{ state, selected, choose }} />
+        <label>
+          Prediction protocol
+          <select value={mode} onChange={(e) => setMode(e.target.value)}>
+            <option value="held_out">Held-out predictions · default</option>
+            <option value="seen">Seen in training / final model inference</option>
+          </select>
+        </label>
         <label>
           Available model
           <select value={model} onChange={(e) => setModel(e.target.value)}>
@@ -3370,9 +3465,12 @@ function ReplayPage({
           </select>
         </label>
         <Button
-          disabled={!capture || !model || loading}
+          disabled={!capture || !model || loading || (model !== "raw" && !compatible.length)}
           onClick={async () => {
+            setPlaying(false);
+            const request=++predictionRequest.current;
             setLoading(true);
+            setFrameError("");
             try {
               if (model === "raw") {
                 setResult(null);
@@ -3382,7 +3480,9 @@ function ReplayPage({
               if (model === "all") {
                 const response = await api("predict/compare", {
                   capture_id: capture.id,
+                  mode,
                 });
+                if(request!==predictionRequest.current)return;
                 setComparison(response.results);
                 setResult(
                   response.results.find(
@@ -3393,15 +3493,17 @@ function ReplayPage({
                 const response = await api("predict", {
                   capture_id: capture.id,
                   model_id: model,
+                  mode,
                 });
+                if(request!==predictionRequest.current)return;
                 setResult(response);
                 setComparison([]);
               }
               await refresh();
             } catch (e: any) {
-              notify(e.message);
+              if(request===predictionRequest.current)setFrameError(e.message);
             } finally {
-              setLoading(false);
+              if(request===predictionRequest.current)setLoading(false);
             }
           }}
         >
@@ -3417,6 +3519,8 @@ function ReplayPage({
               : "Run selected model"}
         </Button>
       </div>
+      {frameError&&<section className="panel" role="alert"><p>{frameError}</p><button className="button secondary" onClick={()=>{setFrameError("");setFrameRetry(v=>v+1);}}>Retry playback window</button></section>}
+      {capture && !compatible.length && <Note>Retrain a compatible model under the current quality contract to save held-out predictions. For a new upload, use the explicitly labelled final-model inference option.</Note>}
       {comparison.length > 0 && (
         <div className="comparison-cards">
           {comparison.map((r: Dict) => (
@@ -3428,6 +3532,7 @@ function ReplayPage({
               <span>{r.model_name}</span>
               <strong>{r.prediction ? "Person present" : "No person"}</strong>
               <small>Mean P(presence): {percent(r.mean_probability)}</small>
+              <small>{r.validation_protocol}</small>
               <Badge tone="violet">
                 {r.in_training ? "TRAINING RECORDING" : "MODEL OUTPUT"}
               </Badge>
@@ -3456,20 +3561,26 @@ function ReplayPage({
             <section className="panel">
               <div className="panel-heading">
                 <div>
-                  <Badge>RECORDED REPLAY</Badge>
+                  <Badge>{state.simulation?"SIMULATION REPLAY":"RECORDED REPLAY"}</Badge>
                   <h2>{capture.name.split("/").pop()}</h2>
                 </div>
                 <span className="mono">
-                  {String(index + 1).padStart(3, "0")} / {count} windows
+                  {String((view?.index ?? index) + 1).padStart(3, "0")} / {count} windows
                 </span>
               </div>
+              <div className="replay-chart" data-replay-frame={view?.index??-1} data-replay-capture={view?.capture_id||""} aria-busy={!view||view.index!==index}>
               {view && (
                 <Chart
                   series={[{ name: "Median CSI amplitude", data: view.trace }]}
-                  x={view.packet}
+                  x={view.packet.map((_:number,i:number)=>i)}
+                  axis="Packet offset in displayed window"
+                  yDomain={domain}
                   exportName="replay-window"
                 />
               )}
+              {!view&&<div className="skeleton" style={{height:300}} aria-label="Buffering replay windows"/>}
+              <p className="helper">{view?"Displayed packets "+view.packet[0]+"–"+view.packet[view.packet.length-1]:"Loading recording…"}{view?.index!==index?" · buffering next window":""}</p>
+              </div>
               <input
                 aria-label="Replay position"
                 type="range"
@@ -3496,7 +3607,7 @@ function ReplayPage({
                     <ChevronLeft size={20} />
                   </button>
                   <Button
-                    disabled={!count}
+                    disabled={!count||loading||!view||!!frameError}
                     onClick={() => {
                       if (index >= count - 1) setIndex(0);
                       setPlaying(!playing);
@@ -3535,21 +3646,21 @@ function ReplayPage({
               </p>
             </section>
             <section className="panel verdict-panel">
-              <span className="tiny-label">THIS WINDOW’S VERDICT</span>
+              <span className="tiny-label">{qualitySkipped ? "Window skipped (quality)" : !result ? (model === "raw" ? "No model selected" : "Model ready · run to predict") : !currentPrediction ? "Window skipped (quality)" : "Prediction"}</span>
               <div className="verdict-icon">
                 <CircleDot size={35} />
               </div>
               <h2>
-                {currentPrediction
+                {qualitySkipped ? "Window skipped (quality)" : currentPrediction
                   ? currentPrediction.prediction
                     ? "Person present"
                     : "No person"
                   : result
-                    ? "No accepted model window"
-                    : "Analysis only"}
+                    ? "Window skipped (quality)"
+                    : model === "raw" ? "No model selected" : "Run a model to predict"}
               </h2>
               <p>
-                {currentPrediction
+                {qualitySkipped ? "This window has fewer than 256 packets or less than 90% usable packets. Choose another window." : currentPrediction
                   ? `Uncalibrated P(presence): ${percent(currentPrediction.probability)}`
                   : result
                     ? "This window was not accepted by the model quality contract."
@@ -3558,6 +3669,7 @@ function ReplayPage({
               <Badge tone={currentPrediction ? "violet" : "muted"}>
                 {currentPrediction ? "MODEL OUTPUT" : "NO PREDICTION"}
               </Badge>
+              {result && <p className="helper">{result.validation_protocol}</p>}
               {!compatible.length && (
                 <button
                   className="text-button"
@@ -3571,7 +3683,7 @@ function ReplayPage({
           {result && (
             <>
               <Note tone={result.in_training ? "amber" : "cyan"}>
-                {result.caveat}
+                {result.validation_protocol}. {result.caveat}
               </Note>
               <section className="panel">
                 <div className="panel-heading">
@@ -3684,7 +3796,7 @@ function ResultsPage({
       <div className="tabs">
         {[
           ["models", "Recorded models"],
-          ["simulator", "AX / BF simulator"],
+          
           ["domains", "Domain transfer"],
           ["audit", "Quality & splits"],
           ["local", "My experiments"],
@@ -3843,95 +3955,6 @@ function ResultsPage({
           {fullTable(
             evidence.capture_level_model_predictions || [],
             "capture_level_model_predictions",
-          )}
-        </>
-      )}
-      {tab === "simulator" && (
-        <>
-          <Badge tone="amber">
-            SIMULATOR · PARTIAL NS-3.40 RESEARCH IMPLEMENTATION
-          </Badge>
-          <h2 className="standalone-title">
-            A network experiment. Its own kind of evidence.
-          </h2>
-          <Note>
-            MAC sensing reports are not human-presence accuracy. BF report
-            latency is not inference or application latency. Five runs per
-            configuration are exploratory; workloads and topology layouts are
-            not guaranteed identical.
-          </Note>
-          <div className="simulator-cards">
-            {(evidence.ax_bf_simulation_summary || []).map((r: Dict) => (
-              <section className="panel" key={r.configuration}>
-                <Badge tone="muted">{r.runs} RUNS</Badge>
-                <h2>{r.configuration}</h2>
-                <div className="sim-value">
-                  <span>BF sensing-report latency</span>
-                  <strong>
-                    {r.mean_bf_latency_ms
-                      ? Number(r.mean_bf_latency_ms).toFixed(4)
-                      : "—"}
-                    <small>{r.mean_bf_latency_ms ? "ms" : "BF disabled"}</small>
-                  </strong>
-                </div>
-                <div className="sim-value">
-                  <span>AX user-data throughput</span>
-                  <strong>
-                    {r.mean_ax_throughput_mbps
-                      ? Number(r.mean_ax_throughput_mbps).toFixed(4)
-                      : "—"}
-                    <small>
-                      {r.mean_ax_throughput_mbps ? "Mbps" : "Not measured"}
-                    </small>
-                  </strong>
-                </div>
-              </section>
-            ))}
-          </div>
-          <div className="two-column">
-            <section className="panel">
-              <h2>BF latency across configurations</h2>
-              <Chart
-                series={[
-                  {
-                    name: "BF report latency · ms",
-                    data: (evidence.ax_bf_simulation_summary || [])
-                      .filter((r: Dict) => r.mean_bf_latency_ms)
-                      .map((r: Dict) => Number(r.mean_bf_latency_ms)),
-                  },
-                ]}
-                axis="0 = BF-only · 1 = Mixed AX+BF"
-                exportName="bf-latency"
-              />
-            </section>
-            <section className="panel">
-              <h2>What changed in mixed mode?</h2>
-              <div className="metric-grid">
-                <div className="metric-card">
-                  <span>AX throughput below AX-only</span>
-                  <strong>~1.10%</strong>
-                </div>
-                <div className="metric-card">
-                  <span>BF report latency vs BF-only</span>
-                  <strong>~9.4×</strong>
-                </div>
-              </div>
-              <p>
-                These describe this simulator configuration. They do not
-                establish physical 802.11bf operation, standards conformance, or
-                through-wall sensing.
-              </p>
-              <a
-                className="button secondary"
-                href="/api/export/evidence/ax_bf_simulation_runs"
-              >
-                <Download size={16} /> Download run-level CSV
-              </a>
-            </section>
-          </div>
-          {fullTable(
-            evidence.ax_bf_simulation_summary || [],
-            "ax_bf_simulation_summary",
           )}
         </>
       )}
