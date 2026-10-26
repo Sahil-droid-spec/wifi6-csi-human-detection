@@ -2017,6 +2017,13 @@ function DataPage({
                   </div>
                 ))}
               </div>
+              {view.packet_audit && <div className="packet-audit">
+                <h3>Packet-loss / invalid-column audit</h3>
+                <p>{view.packet_audit.zero_packets} all-zero · {view.packet_audit.nonfinite_packets} nonfinite · {view.packet_audit.longest_burst} longest unusable burst</p>
+                <p>{view.packet_audit.protocol}</p>
+                <details><summary>Unusable packet ranges</summary><pre>{JSON.stringify(view.packet_audit.bursts, null, 2)}</pre></details>
+                <p>Invalid trace samples are gaps, not measured zero amplitude. Model quality contract v2 rejects windows below 90% validity.</p>
+              </div>}
               {capture.warnings.map((w: string) => (
                 <Note key={w}>{w}</Note>
               ))}
@@ -2648,6 +2655,15 @@ function LearningPage({
   const [pop, setPop] = useState(8);
   const [gen, setGen] = useState(6);
   const [mutation, setMutation] = useState(0.03);
+  const [options, setOptions] = useState<Dict[]>([]);
+  const [trainError, setTrainError] = useState("");
+  const [trainId, setTrainId] = useState("");
+  useEffect(() => { api("train/options").then(setOptions).catch(() => setOptions([])); }, [state.captures]);
+  useEffect(() => { setTrainError(""); setTrainId(""); }, [dataset, bw, split, modelKind, tab, pop, gen, mutation]);
+  useEffect(() => { const failed = state.jobs.find((j: Dict) => j.id === trainId && j.status === "failed"); if (failed) setTrainError(failed.message); }, [state.jobs, trainId]);
+  const optionFor = (kind: string, bandwidth = bw, datasetId = dataset) => options.find((o: Dict) => o.dataset_id === datasetId && o.bandwidth === bandwidth && o.split === split && o.kind === kind);
+  const check = optionFor(tab === "ga" ? "ga_rf" : modelKind === "all" ? "lr" : modelKind);
+
   const [variation, setVariation] = useState(0.4);
   const [motion, setMotion] = useState(0.6);
   const [fuzzyResult, setFuzzyResult] = useState<Dict | null>(null);
@@ -2684,7 +2700,8 @@ function LearningPage({
   }, [tab, capture?.id]);
   const train = async () => {
     try {
-      await api("train", {
+      setTrainError("");
+      const queued = await api("train", {
         dataset_id: dataset || null,
         bandwidth: bw,
         split,
@@ -2698,17 +2715,19 @@ function LearningPage({
         generations: gen,
         mutation,
       });
+      setTrainId(queued.id);
       await refresh();
       notify(
         "Training queued. Progress appears above; results are saved locally.",
       );
     } catch (e: any) {
-      notify(e.message);
+      setTrainError(e.message);
     }
   };
-  const models = state.models.filter((m: Dict) => m.contract.bandwidth === bw);
+  const models = state.models.filter((m: Dict) => m.contract.bandwidth === bw && m.contract.version === "orbit-amplitude-v2");
   return (
     <>
+      <p className="helper">Learning Lab contains the soft-computing tools: ANN & model bench, Genetic algorithms and Fuzzy logic. Signal Studio contains DSP. Fuzzy rules are currently an educational sandbox, not a validated model-fusion or quality gate.</p>
       <div className="tabs">
         {[
           ["models", "ANN & model bench"],
@@ -2756,7 +2775,7 @@ function LearningPage({
                       All imported datasets · deduplicated by hash
                     </option>
                     {state.datasets.map((d: Dict) => (
-                      <option key={d.id} value={d.id}>
+                      <option key={d.id} value={d.id} disabled={!options.some((o: Dict) => o.dataset_id === d.id && o.valid)}>
                         {d.name}
                       </option>
                     ))}
@@ -2768,8 +2787,8 @@ function LearningPage({
                     value={bw}
                     onChange={(e) => setBw(Number(e.target.value))}
                   >
-                    <option value={20}>20 MHz / 256 subcarriers</option>
-                    <option value={40}>40 MHz / 512 subcarriers</option>
+                    <option value={20} disabled={!options.some((o: Dict) => o.dataset_id === dataset && o.bandwidth === 20 && o.valid)}>20 MHz / 256 subcarriers</option>
+                    <option value={40} disabled={!options.some((o: Dict) => o.dataset_id === dataset && o.bandwidth === 40 && o.valid)}>40 MHz / 512 subcarriers</option>
                   </select>
                 </label>
                 <label>
@@ -2791,10 +2810,10 @@ function LearningPage({
                       value={modelKind}
                       onChange={(e) => setModelKind(e.target.value)}
                     >
-                      <option value="all">Compare LR + RF + ANN / MLP</option>
-                      <option value="lr">Logistic Regression</option>
-                      <option value="rf">Random Forest</option>
-                      <option value="mlp">
+                      <option value="all" disabled={!optionFor("lr")?.valid}>Compare LR + RF + ANN / MLP</option>
+                      <option value="lr" disabled={!optionFor("lr")?.valid}>Logistic Regression</option>
+                      <option value="rf" disabled={!optionFor("rf")?.valid}>Random Forest</option>
+                      <option value="mlp" disabled={!optionFor("mlp")?.valid}>
                         ANN / MLP · 64 → 32 hidden units
                       </option>
                     </select>
@@ -2836,7 +2855,7 @@ function LearningPage({
                 )}
               </div>
               <Button
-                disabled={!!job || !state.captures.length}
+                disabled={!!job || !check?.valid}
                 onClick={train}
               >
                 {job ? (
@@ -2848,6 +2867,9 @@ function LearningPage({
                   ? "Run nested GA + RF comparison"
                   : "Train & evaluate"}
               </Button>
+              {state.datasets.filter((d: Dict) => !options.some((o: Dict) => o.dataset_id === d.id && o.valid)).map((d: Dict) => <p className="helper" key={d.id}>{d.name}: {options.find((o: Dict) => o.dataset_id === d.id)?.reason || "Checking training eligibility…"}</p>)}
+              {!check?.valid && <p className="helper" role="status">{check?.reason || "Checking compatible training choices…"}</p>}
+              {trainError && <Note tone="red">Next step: {trainError}</Note>}
               {!state.captures.length && (
                 <p className="helper">
                   Import labelled captures to enable training.
@@ -2903,7 +2925,7 @@ function LearningPage({
                   <strong>8 & 12 features</strong>
                   <p>
                     Selected in the two historical date folds. Earlier GA + RF
-                    capture accuracy: 80.0%; raw RF: 73.3%. A small-data
+                    capture accuracy: 80.0%; balanced accuracy: 81.25%; raw RF: 73.3%. Protocol: leave-one-recording-date-out, capture majority vote. A small-data
                     exploratory result, from a different run than the latest
                     comparison.
                   </p>
@@ -2911,19 +2933,11 @@ function LearningPage({
               )}
             </section>
           </div>
-          {state.jobs
-            .filter((j: Dict) => j.kind === "training" && j.status === "failed")
-            .slice(0, 1)
-            .map((j: Dict) => (
-              <Note key={j.id} tone="red">
-                Training did not complete: {j.message}
-              </Note>
-            ))}
           <div className="section-heading">
             <h2>
               Your model shelf <span className="count">{models.length}</span>
             </h2>
-            <span>Only models trained on this laptop</span>
+            <span>Quality contract v2 · legacy artifacts preserved, retraining required</span>
           </div>
           {models.length ? (
             <>
@@ -2950,6 +2964,7 @@ function LearningPage({
                       (k) => (
                         <div className="metric-card" key={k}>
                           <span>Capture {k.replaceAll("_", " ")}</span>
+                          <small>{m.split} · majority vote</small>
                           <strong>{percent(m.metrics[k])}</strong>
                         </div>
                       ),
@@ -3301,7 +3316,8 @@ function ReplayPage({
   notify,
   refresh,
 }: Common) {
-  const [model, setModel] = useState("all");
+  const [model, setModel] = useState("raw");
+  const [mode, setMode] = useState("held_out");
   const [comparison, setComparison] = useState<Dict[]>([]);
   const [result, setResult] = useState<Dict | null>(null);
   const [view, setView] = useState<Dict | null>(null);
@@ -3314,7 +3330,7 @@ function ReplayPage({
     setResult(null);
     setComparison([]);
     setPlaying(false);
-  }, [capture?.id, model]);
+  }, [capture?.id, model, mode]);
   const step = capture?.bandwidth === 40 ? 512 : 128;
   const count = Math.max(
     0,
@@ -3326,11 +3342,10 @@ function ReplayPage({
   );
   const windowSize = capture?.bandwidth === 40 ? 512 : 256;
   useEffect(() => {
-    if (capture)
-      api(`captures/${capture.id}?start=${index * step}&length=${windowSize}`)
-        .then(setView)
-        .catch((e) => notify(e.message));
-    else setView(null);
+    let active = true; setView(null);
+    if (capture) api(`captures/${capture.id}?start=${index * step}&length=${windowSize}`)
+      .then((v) => { if (active) setView(v); }).catch((e) => { if (active) notify(e.message); });
+    return () => { active = false; };
   }, [capture?.id, index]);
   useEffect(() => {
     if (!playing || !count) return;
@@ -3347,16 +3362,24 @@ function ReplayPage({
     );
     return () => clearInterval(timer);
   }, [playing, speed, count]);
+  const qualitySkipped = model !== "raw" && !!view && view.packet?.length > 0 && (view.packet.length < 256 || view.invalid_indices.length / view.packet.length > 0.1);
   const currentPrediction = result?.windows.find(
     (w: Dict) => w.start === index * step,
   );
   const compatible = state.models.filter(
-    (m: Dict) => m.contract.bandwidth === capture?.bandwidth,
+    (m: Dict) => m.contract.bandwidth === capture?.bandwidth && m.contract.version === "orbit-amplitude-v2" && (mode !== "held_out" || !!m.held_out_windows?.[capture?.sha256]),
   );
   return (
     <>
       <div className="studio-source">
         <CaptureSelect {...{ state, selected, choose }} />
+        <label>
+          Prediction protocol
+          <select value={mode} onChange={(e) => setMode(e.target.value)}>
+            <option value="held_out">Held-out predictions · default</option>
+            <option value="seen">Seen in training / final model inference</option>
+          </select>
+        </label>
         <label>
           Available model
           <select value={model} onChange={(e) => setModel(e.target.value)}>
@@ -3370,7 +3393,7 @@ function ReplayPage({
           </select>
         </label>
         <Button
-          disabled={!capture || !model || loading}
+          disabled={!capture || !model || loading || (model !== "raw" && !compatible.length)}
           onClick={async () => {
             setLoading(true);
             try {
@@ -3382,6 +3405,7 @@ function ReplayPage({
               if (model === "all") {
                 const response = await api("predict/compare", {
                   capture_id: capture.id,
+                  mode,
                 });
                 setComparison(response.results);
                 setResult(
@@ -3417,6 +3441,7 @@ function ReplayPage({
               : "Run selected model"}
         </Button>
       </div>
+      {capture && !compatible.length && <Note>Retrain a compatible model under the current quality contract to save held-out predictions. For a new upload, use the explicitly labelled final-model inference option.</Note>}
       {comparison.length > 0 && (
         <div className="comparison-cards">
           {comparison.map((r: Dict) => (
@@ -3428,6 +3453,7 @@ function ReplayPage({
               <span>{r.model_name}</span>
               <strong>{r.prediction ? "Person present" : "No person"}</strong>
               <small>Mean P(presence): {percent(r.mean_probability)}</small>
+              <small>{r.validation_protocol}</small>
               <Badge tone="violet">
                 {r.in_training ? "TRAINING RECORDING" : "MODEL OUTPUT"}
               </Badge>
@@ -3535,21 +3561,21 @@ function ReplayPage({
               </p>
             </section>
             <section className="panel verdict-panel">
-              <span className="tiny-label">THIS WINDOW’S VERDICT</span>
+              <span className="tiny-label">{qualitySkipped ? "Window skipped (quality)" : !result ? (model === "raw" ? "No model selected" : "Model ready · run to predict") : !currentPrediction ? "Window skipped (quality)" : "Prediction"}</span>
               <div className="verdict-icon">
                 <CircleDot size={35} />
               </div>
               <h2>
-                {currentPrediction
+                {qualitySkipped ? "Window skipped (quality)" : currentPrediction
                   ? currentPrediction.prediction
                     ? "Person present"
                     : "No person"
                   : result
-                    ? "No accepted model window"
-                    : "Analysis only"}
+                    ? "Window skipped (quality)"
+                    : model === "raw" ? "No model selected" : "Run a model to predict"}
               </h2>
               <p>
-                {currentPrediction
+                {qualitySkipped ? "This window has fewer than 256 packets or less than 90% usable packets. Choose another window." : currentPrediction
                   ? `Uncalibrated P(presence): ${percent(currentPrediction.probability)}`
                   : result
                     ? "This window was not accepted by the model quality contract."
@@ -3558,6 +3584,7 @@ function ReplayPage({
               <Badge tone={currentPrediction ? "violet" : "muted"}>
                 {currentPrediction ? "MODEL OUTPUT" : "NO PREDICTION"}
               </Badge>
+              {result && <p className="helper">{result.validation_protocol}</p>}
               {!compatible.length && (
                 <button
                   className="text-button"
@@ -3571,7 +3598,7 @@ function ReplayPage({
           {result && (
             <>
               <Note tone={result.in_training ? "amber" : "cyan"}>
-                {result.caveat}
+                {result.validation_protocol}. {result.caveat}
               </Note>
               <section className="panel">
                 <div className="panel-heading">

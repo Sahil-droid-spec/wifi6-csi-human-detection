@@ -15,6 +15,9 @@ import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
+import android.webkit.WebResourceResponse;
+import android.security.NetworkSecurityPolicy;
+import java.io.ByteArrayInputStream;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -104,6 +107,7 @@ public class MainActivity extends Activity {
     private void connect() {
         try {
             base=ServerAddress.normalize(address.getText().toString());
+            if(!NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted(new URI(base).getHost())) throw new Exception("This APK is restricted to the laptop addresses allowed at build time. Use the phone browser with the new LAN address, or rebuild the APK for that address.");
             getPreferences(MODE_PRIVATE).edit().putString("server",base).apply();
             showWorkspace();
         } catch(Exception e) { Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show(); }
@@ -142,6 +146,10 @@ public class MainActivity extends Activity {
             }
         });
         web.setWebViewClient(new WebViewClient(){
+            @Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest request){
+                if(isServerUrl(request.getUrl().toString()))return null;
+                return new WebResourceResponse("text/plain","UTF-8",403,"Blocked",java.util.Collections.emptyMap(),new ByteArrayInputStream(new byte[0]));
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
                 String url=request.getUrl().toString(); if(isServerUrl(url))return false;
                 if(request.hasGesture() && ("https".equals(request.getUrl().getScheme()) || "http".equals(request.getUrl().getScheme()))) {

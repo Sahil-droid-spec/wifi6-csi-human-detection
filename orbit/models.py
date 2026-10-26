@@ -146,6 +146,34 @@ def genetic_select(x, y, g, population=8, generations=6, mutation=0.03):
     return np.flatnonzero(best), history
 
 
+def training_check(captures, bandwidth=20, split="date", kinds=None):
+    kinds = kinds or ["lr", "rf", "mlp"]
+    unique = {}
+    for c in captures:
+        if c.get("bandwidth_verified", True) and c.get("bandwidth") == bandwidth and c.get("modulation") == "ax" and c.get("present") is not None and c.get("windows", 0) > 0:
+            unique.setdefault(c["sha256"], c)
+    rows = list(unique.values())
+    reason = ""
+    if not rows:
+        reason = "Import labelled AX recordings with accepted windows for this bandwidth, or choose another dataset."
+    elif split == "date" and any(c.get("date", "unknown") == "unknown" for c in rows):
+        reason = "Add recording dates in config.json, or choose capture-held-out exploratory evaluation."
+    else:
+        group = lambda c: c.get("date") if split == "date" else c["id"]
+        groups = set(group(c) for c in rows)
+        if len(groups) < 2 or len(set(c["present"] for c in rows)) < 2:
+            reason = "Add both presence classes and at least two independent recording groups."
+        else:
+            for held in groups:
+                training = [c for c in rows if group(c) != held]
+                counts = [sum(int(c["present"]) == k for c in training) for k in (0, 1)]
+                if min(counts) == 0:
+                    reason = "Date/class confounding leaves a training fold with one class. Choose capture-held-out exploratory evaluation or collect both classes on each date."; break
+                if "ga_rf" in kinds and min(counts) < 2:
+                    reason = "GA needs two independent training recordings per class in every outer fold. Add recordings or choose LR, RF or ANN."; break
+    return {"valid": not reason, "reason": reason, "captures": len(rows), "protocol": "leave-one-recording-date-out" if split == "date" else "leave-one-capture-out"}
+
+
 def train(
     captures,
     root,
@@ -165,6 +193,7 @@ def train(
     gg = []
     dd = []
     used = []
+    window_map = {}
     hashes = set()
     for cap in captures:
         if (
@@ -176,7 +205,8 @@ def train(
         if cap["sha256"] in hashes:
             continue
         a, invalid, _ = read_capture(root / cap["path"], bandwidth)
-        x, _, _ = feature_windows(a, invalid, bandwidth)
+        x, accepted_windows, _ = feature_windows(a, invalid, bandwidth)
+        window_map[cap["id"]] = accepted_windows
         if not len(x):
             continue
         hashes.add(cap["sha256"])
@@ -232,6 +262,7 @@ def train(
         if kind not in ("lr", "rf", "mlp", "ga_rf"):
             raise ValueError("Unsupported model.")
         pred = np.full(len(y), -1)
+        probability = np.full(len(y), np.nan)
         random_pred = np.full(len(y), -1)
         folds = []
         selections = []
@@ -240,6 +271,9 @@ def train(
                 f"{kind}: held-out fold {i+1}/{len(splits)}",
                 int(10 + 80 * (ki + i / len(splits)) / len(kinds)),
             )
+            assert not set(g[tr]) & set(g[te]), "Capture leakage"
+            if split == "date":
+                assert not set(dates[tr]) & set(dates[te]), "Date leakage"
             cols = np.arange(x.shape[1])
             convergence = []
             if kind == "ga_rf":
@@ -249,6 +283,7 @@ def train(
             m = estimator(kind)
             m.fit(x[tr][:, cols], y[tr])
             pred[te] = m.predict(x[te][:, cols])
+            probability[te] = m.predict_proba(x[te][:, cols])[:, list(m.classes_).index(1)]
             if kind == "ga_rf":
                 random_cols = np.random.default_rng(42 + i).choice(
                     x.shape[1], len(cols), replace=False
@@ -259,6 +294,9 @@ def train(
             folds.append(
                 {
                     "held_out": np.unique(groups[te]).tolist(),
+                    "train_dates": np.unique(dates[tr]).tolist(),
+                    "test_dates": np.unique(dates[te]).tolist(),
+                    "selector_capture_ids": np.unique(g[tr]).tolist() if kind == "ga_rf" else [],
                     "train_capture_ids": np.unique(g[tr]).tolist(),
                     "test_capture_ids": np.unique(g[te]).tolist(),
                     "selected_features": cols.tolist() if kind == "ga_rf" else None,
@@ -290,6 +328,8 @@ def train(
             "metrics": mtr,
             "window_metrics": metrics(y, pred),
             "capture_predictions": rows,
+            "held_out_windows": {c["sha256"]: [{**w, "prediction": int(p), "probability": float(q)} for w, p, q in zip(window_map[c["id"]], pred[g == c["id"]], probability[g == c["id"]])] for c in used},
+            "parameters": {"kind": kind, "seed": 42, "population": population, "generations": generations, "mutation": mutation, "ga_fitness": "capture balanced accuracy - 0.002 * selected_fraction", "inner_validation": "capture-stratified; outer held-out rows excluded"},
             "folds": folds,
             "split": (
                 "leave-one-recording-date-out"
@@ -340,7 +380,7 @@ def train(
     return results
 
 
-def predict(capture, root, model_file):
+def predict(capture, root, model_file, mode="held_out"):
     bundle = joblib.load(
         model_file
     )  # Only internal artifacts generated by train(); no upload endpoint accepts pickle.
@@ -352,23 +392,42 @@ def predict(capture, root, model_file):
         or capture["modulation"] != "ax"
     ):
         raise ValueError(
-            "Model/recording mismatch: bandwidth, subcarriers, AX modulation and feature contract must match."
+            "Model/recording mismatch: choose the matching bandwidth and AX modulation. Retrain legacy models under quality contract v2 before replay."
         )
     a, invalid, _ = read_capture(root / capture["path"], capture["bandwidth"])
     x, windows, _ = feature_windows(a, invalid, capture["bandwidth"])
     if not len(x):
         raise ValueError("No accepted feature windows.")
-    m = bundle["estimator"]
-    columns = bundle["columns"]
-    pred = m.predict(x[:, columns])
-    probs = m.predict_proba(x[:, columns])[:, list(m.classes_).index(1)]
-    in_training = any(
-        row["sha256"] == capture["sha256"] for row in manifest["captures"]
-    )
+    in_training = any(row["sha256"] == capture["sha256"] for row in manifest["captures"])
+    if mode not in ("held_out", "seen"):
+        raise ValueError("Choose held-out replay or the explicitly labelled Seen in training option.")
+    if mode == "held_out":
+        saved = manifest.get("held_out_windows", {}).get(capture["sha256"])
+        if not saved:
+            raise ValueError("No saved held-out predictions for this recording. Retrain including it with independent groups, or explicitly choose Seen in training / final model inference.")
+        lookup = {c["id"]: c for c in manifest["captures"]}
+        identity = next(c["id"] for c in manifest["captures"] if c["sha256"] == capture["sha256"])
+        fold = next((f for f in manifest["folds"] if identity in f["test_capture_ids"]), None)
+        if not fold or any(lookup[c]["sha256"] == capture["sha256"] for c in fold["train_capture_ids"]) or (manifest["split"] == "leave-one-recording-date-out" and capture["date"] in fold.get("train_dates", [])):
+            raise ValueError("Held-out provenance check failed. Retrain the model before replay.")
+        if [(w["start"], w["end"]) for w in saved] != [(w["start"], w["end"]) for w in windows]:
+            raise ValueError("Window contract changed. Retrain before held-out replay.")
+        pred = np.array([w["prediction"] for w in saved])
+        probs = np.array([w["probability"] for w in saved])
+        in_training = False
+        protocol = manifest["split"] + "; saved outer-fold predictions; capture majority vote"
+    else:
+        m = bundle["estimator"]
+        columns = bundle["columns"]
+        pred = m.predict(x[:, columns])
+        probs = m.predict_proba(x[:, columns])[:, list(m.classes_).index(1)]
+        protocol = "final model inference; seen in training" if in_training else "final model inference; unseen capture; not a validation score"
     return {
         "capture_id": capture["id"],
         "model_id": manifest["id"],
         "model_name": manifest["name"],
+        "mode": mode,
+        "validation_protocol": protocol,
         "source": "MODEL OUTPUT",
         "windows": [
             {**w, "prediction": int(p), "probability": float(q)}
@@ -381,6 +440,6 @@ def predict(capture, root, model_file):
         + (
             "This capture was used to fit this model; inference is not held-out evidence."
             if in_training
-            else "This is offline inference, not verified live detection."
+            else protocol + ". Offline recorded-data replay, not verified live detection."
         ),
     }

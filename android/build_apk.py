@@ -1,6 +1,6 @@
 """Build Orbit's small Android companion with official Android SDK tools and JDK 17+."""
 
-import argparse, os, pathlib, subprocess, zipfile, json
+import argparse, os, pathlib, subprocess, zipfile, json, shutil, ipaddress
 
 
 def main():
@@ -10,7 +10,12 @@ def main():
     parser.add_argument("--android-jar", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--keystore", required=True)
+    parser.add_argument("--lan-host", action="append", required=True, help="Exact RFC1918 laptop IPv4 allowed for HTTP; repeat per interface")
     args = parser.parse_args()
+    for host in args.lan_host:
+        address = ipaddress.IPv4Address(host)
+        if not any(address in ipaddress.IPv4Network(net) for net in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")):
+            parser.error("--lan-host must be an RFC1918 numeric address")
     root = pathlib.Path(__file__).resolve().parent
     build = root / "build"
     build.mkdir(exist_ok=True)
@@ -37,6 +42,10 @@ def main():
         )
         subprocess.run([str(v) for v in parts], check=True, cwd=root)
 
+    res = build / "res"
+    shutil.copytree(root / "app/src/main/res", res, dirs_exist_ok=True)
+    domains = "".join("<domain>" + str(ipaddress.IPv4Address(host)) + "</domain>" for host in args.lan_host)
+    (res / "xml/network_security_config.xml").write_text('<network-security-config><base-config cleartextTrafficPermitted="false"/><domain-config cleartextTrafficPermitted="true">' + domains + '</domain-config></network-security-config>', encoding="utf-8")
     # SDK package: no Gradle daemon or system-wide tool installation needed.
     resources = build / "resources.zip"
     unsigned = build / "unsigned.apk"
@@ -46,7 +55,7 @@ def main():
             tools / ("aapt2" + suffix),
             "compile",
             "--dir",
-            root / "app/src/main/res",
+            res,
             "-o",
             resources,
         ]
@@ -184,6 +193,11 @@ def main():
     )
     print(manifest.stdout[:2000])
     (build / "package-badging.txt").write_text(manifest.stdout, encoding="utf-8")
+    policy = subprocess.run([str(tools / ("aapt2" + suffix)), "dump", "xmltree", str(output), "--file", "res/xml/network_security_config.xml"], check=True, text=True, capture_output=True).stdout
+    assert "cleartextTrafficPermitted=false" in policy
+    for host in args.lan_host:
+        assert "'" + str(ipaddress.IPv4Address(host)) + "'" in policy, "APK missing allowed LAN address"
+    print("APK network policy verified: default deny; exact private IP exemptions")
     # Validate private-network address parsing independently of Android's framework.
     checks = build / "ServerAddressChecks.java"
     checks.write_text(

@@ -331,3 +331,10 @@ This project uses a different dataset and adapts general CSI-processing concepts
 **Research-first project · Results reported with validation limitations · Real-hardware sensing remains unverified**
 
 </div>
+
+
+## Step 1 audit update
+
+See docs/step1_audit.md for GA experiment differences, held-out replay provenance and the validity-aware v2 feature contract. Legacy models require retraining. Learning Lab contains ANN, GA and fuzzy tools; Signal Studio contains DSP.
+
+Windows x64 / Python 3.10 offline download: extract fully and run Start-Orbit-Offline.cmd, or python launch_orbit.py --offline --lan. Python itself is not bundled. Source checkout: run python tools/prepare_offline.py once online first. --check-install verifies the private environment without launching. Offline wheels are shipped in the download and excluded from Git. Use python tools/checksums.py --verify to verify source file SHA-256 bytes.
