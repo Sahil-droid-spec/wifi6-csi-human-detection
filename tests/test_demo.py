@@ -83,3 +83,62 @@ def test_ga_ladder_excludes_outer_group(tmp_path, monkeypatch):
             assert not set(fold["train_dates"]) & set(fold["test_dates"])
             assert not set(fold["selector_capture_ids"]) & set(fold["test_capture_ids"])
         assert set(result["held_out_windows"]) == set(str(i) for i in range(12))
+
+
+def insert_trace_fixture(client, bandwidth=20):
+    import sqlite3
+
+    root = client.app.state.data
+    n = 1100 if bandwidth == 40 else 1024
+    amplitude = np.ones((512 if bandwidth == 40 else 256, n), dtype=np.float32)
+    amplitude[:, 260] = 0
+    invalid = np.zeros(n, dtype=bool)
+    invalid[260] = True
+    cache = "captures/replay-fixture.npz"
+    np.savez(root / cache, amplitude=amplitude, invalid=invalid)
+    cap = {
+        "id": "frame-fixture",
+        "cache": cache,
+        "bandwidth": bandwidth,
+        "synthetic": False,
+        "packets": n,
+        "subcarriers": amplitude.shape[0],
+    }
+    with sqlite3.connect(root / "orbit.sqlite3") as db:
+        db.execute("insert into records values(?,?,?)", ("capture", cap["id"], json.dumps(cap)))
+    return cap
+
+
+def test_replay_frames_use_exact_window_contract_and_gaps(tmp_path, monkeypatch):
+    monkeypatch.setenv("ORBIT_DISABLE_MDNS", "1")
+    with TestClient(create_app(tmp_path, "FRAMES")) as c:
+        c.post("/api/auth", json={"code": "FRAMES"})
+        cap = insert_trace_fixture(c)
+        r = c.get("/api/captures/" + cap["id"] + "/replay?first=1&count=2")
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["count"] == 7 and body["window"] == 256 and body["hop"] == 128
+        assert [f["index"] for f in body["frames"]] == [1, 2]
+        assert body["frames"][1]["packet"][0] == 256
+        assert body["frames"][1]["trace"][4] is None
+        assert body["frames"][1]["valid_fraction"] == 255 / 256
+        assert body["domain"] == [1.0, 1.0]
+        assert c.get("/api/captures/" + cap["id"] + "/replay?count=33").status_code == 422
+        assert c.get("/api/captures/" + cap["id"] + "/replay?first=10").status_code == 422
+        fuzzy = c.get("/api/captures/" + cap["id"] + "/sc-demo?index=2").json()
+        assert fuzzy["coefficient_of_variation"] == 0 and fuzzy["normalized_adjacent_change"] == 0
+        assert abs(fuzzy["fuzzy"]["value"] - 1 / 6) < 0.001
+        assert "accuracy" not in fuzzy and "probability" not in fuzzy
+        assert len(fuzzy["fuzzy"]["rules"]) == 5
+
+
+def test_40mhz_replay_frames_use_512_packet_windows(tmp_path, monkeypatch):
+    monkeypatch.setenv("ORBIT_DISABLE_MDNS", "1")
+    with TestClient(create_app(tmp_path, "FRAMES")) as c:
+        c.post("/api/auth", json={"code": "FRAMES"})
+        cap = insert_trace_fixture(c, 40)
+        body = c.get("/api/captures/" + cap["id"] + "/replay").json()
+        assert body["count"] == 2 and body["hop"] == 512 and body["window"] == 512
+        assert body["frames"][1]["packet"] == list(range(512, 1024))
+        assert len(body["frames"][1]["trace"]) == 512
+        assert c.get("/api/research/figure/not-a-hash.png").status_code == 404

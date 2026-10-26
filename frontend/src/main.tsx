@@ -50,6 +50,7 @@ import {
   CircleDot,
 } from "lucide-react";
 import "./styles.css";
+import {SCShow,GraphGallery} from "./Showcase";
 import {PhoneFiles,Progression,ResearchCode,NotebookLinks} from "./Demo";
 import {BulkImport,SimulationPage,ConnectTools,InboxPage,PlanPage,GuidePage,GlossaryPage,AdvancedPage,Term} from "./Extensions";
 import {themes,lightThemes,okabeIto,applyTheme} from "./themes";
@@ -65,7 +66,7 @@ type Page =
   | "modes"
   | "settings"
   | "upload"
-  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced";
+  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs";
 const stages = [
   "Receive",
   "Window",
@@ -99,6 +100,8 @@ const nav = [
   {id:"simulation",label:"Simulation",icon:Waves},
   {id:"inbox",label:"Phone Inbox",icon:Smartphone},
   {id:"advanced",label:"DSP & SC tools",icon:CircuitBoard},
+  {id:"scshow",label:"SC presentation",icon:BrainCircuit},
+  {id:"graphs",label:"Saved graphs",icon:Activity},
   {id:"plan",label:"Recording plan",icon:BookOpen},
   {id:"guide",label:"Orbit guide",icon:CircleHelp},
   {id:"glossary",label:"Glossary",icon:BookOpen},
@@ -225,6 +228,7 @@ function Chart({
   labels,
   yName = "Subcarrier",
   exportName = "orbit-plot",
+  yDomain,
 }: {
   series?: {
     name: string;
@@ -240,6 +244,7 @@ function Chart({
   yName?: string;
   labels?: { x: any[]; y: any[] };
   exportName?: string;
+  yDomain?: number[];
 }) {
   const [chartTheme, setChartTheme] = useState(
     document.documentElement.dataset.theme || "light",
@@ -298,6 +303,7 @@ function Chart({
       yAxis: {
         type: "value",
         scale: true,
+        ...(yDomain ? {min:yDomain[0],max:yDomain[1]} : {}),
         axisLabel: { color: isLight ? "#5c6a7c" : "#8293ae" },
         splitLine: {
           lineStyle: { color: isLight ? "#e1e7ee" : "#233149", type: "dashed" },
@@ -1236,8 +1242,11 @@ function App() {
                 </>
               )}
               {(page === "upload" || page === "settings") && <PhoneFiles/>}
-              {page === "learning" && <Progression state={state}/>}
+              {page === "learning" && <Progression state={state} capture={capture}/>}
               {page === "results" && <Progression state={{...stored,simulation:false}}/>}
+              {["scshow","graphs"].includes(page)&&<div className="studio-source"><CaptureSelect {...common}/></div>}
+              {page === "scshow"&&<SCShow {...common}/>}
+              {page === "graphs"&&<GraphGallery {...common}/>}
               {page === "advanced" && <><div className="studio-source"><CaptureSelect {...common}/></div><p className="helper">Use the Recorded / Simulation button in the header to switch source. This selected CSI recording feeds the DSP and pipeline tools.</p></>}
               {page === "media" && <NotebookLinks {...common}/>}
               {(page === "data" || page === "upload") && <BulkImport refresh={refresh} synthetic={simulation} onImported={setSimulation}/>}
@@ -3376,12 +3385,22 @@ function ReplayPage({
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
+  const [frames,setFrames]=useState<Record<number,Dict>>({});
+  const [frameError,setFrameError]=useState("");
+  const [frameRetry,setFrameRetry]=useState(0);
+  const [domain,setDomain]=useState<number[]|undefined>();
+  const frameScope=useRef("");
+  const pendingFrames=useRef(new Set<string>());
+  const predictionRequest=useRef(0);
+  useEffect(()=>{frameScope.current=capture?.id||"";setFrames({});setView(null);setFrameError("");setDomain(undefined);pendingFrames.current.clear();},[capture?.id]);
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     setIndex(0);
     setResult(null);
     setComparison([]);
     setPlaying(false);
+    predictionRequest.current++;
+    setLoading(false);
   }, [capture?.id, model, mode]);
   const step = capture?.bandwidth === 40 ? 512 : 128;
   const count = Math.max(
@@ -3393,30 +3412,30 @@ function ReplayPage({
       : 0,
   );
   const windowSize = capture?.bandwidth === 40 ? 512 : 256;
-  useEffect(() => {
-    let active = true; setView(null);
-    if (capture) api(`captures/${capture.id}?start=${index * step}&length=${windowSize}`)
-      .then((v) => { if (active) setView(v); }).catch((e) => { if (active) notify(e.message); });
-    return () => { active = false; };
-  }, [capture?.id, index]);
-  useEffect(() => {
-    if (!playing || !count) return;
-    const timer = setInterval(
-      () =>
-        setIndex((i) => {
-          if (i >= count - 1) {
-            setPlaying(false);
-            return i;
-          }
-          return i + 1;
-        }),
-      1000 / speed,
-    );
-    return () => clearInterval(timer);
-  }, [playing, speed, count]);
-  const qualitySkipped = model !== "raw" && !!view && view.packet?.length > 0 && (view.packet.length < 256 || view.invalid_indices.length / view.packet.length > 0.1);
+  useEffect(()=>{
+    if(!capture||!count||index>=count)return;
+    const id=capture.id;const first=Math.floor(index/16)*16;
+    const blocks=[first,...(index%16>=8&&first+16<count?[first+16]:[])];
+    for(const block of blocks){
+      const key=id+":"+block;
+      if(frames[block]?.capture_id===id||pendingFrames.current.has(key))continue;
+      pendingFrames.current.add(key);
+      api("captures/"+id+"/replay?first="+block+"&count=16").then(r=>{
+        if(frameScope.current!==id)return;
+        setFrames(old=>Object.fromEntries([...Object.entries(old).filter(([k])=>Math.abs(+k-index)<=64),...r.frames.map((f:Dict)=>[f.index,f])]));
+        const span=r.domain[1]-r.domain[0]||1;setDomain([r.domain[0]-.05*span,r.domain[1]+.05*span]);setFrameError("");
+      }).catch(e=>{if(frameScope.current===id){setFrameError("Playback paused while loading this window. Check the server and retry.");setPlaying(false);}}).finally(()=>pendingFrames.current.delete(key));
+    }
+  },[capture?.id,index,count,frames,frameRetry]);
+  useEffect(()=>{const frame=frames[index];if(frame?.capture_id===capture?.id)setView(frame);},[frames,index,capture?.id]);
+  useEffect(()=>{
+    if(!playing||!count||view?.capture_id!==capture?.id||view?.index!==index)return;
+    const timer=setTimeout(()=>{if(index>=count-1)setPlaying(false);else setIndex(index+1);},1000/speed);
+    return()=>clearTimeout(timer);
+  },[playing,speed,count,index,view?.index,capture?.id]);
+  const qualitySkipped = model !== "raw" && !!view && view.packet?.length > 0 && (view.packet.length < windowSize || view.invalid_indices.length / view.packet.length > 0.1);
   const currentPrediction = result?.windows.find(
-    (w: Dict) => w.start === index * step,
+    (w: Dict) => w.start === (view?.index ?? index) * step,
   );
   const compatible = state.models.filter(
     (m: Dict) => m.contract.bandwidth === capture?.bandwidth && m.contract.version === "orbit-amplitude-v2" && (mode !== "held_out" || !!m.held_out_windows?.[capture?.sha256]),
@@ -3448,7 +3467,10 @@ function ReplayPage({
         <Button
           disabled={!capture || !model || loading || (model !== "raw" && !compatible.length)}
           onClick={async () => {
+            setPlaying(false);
+            const request=++predictionRequest.current;
             setLoading(true);
+            setFrameError("");
             try {
               if (model === "raw") {
                 setResult(null);
@@ -3460,6 +3482,7 @@ function ReplayPage({
                   capture_id: capture.id,
                   mode,
                 });
+                if(request!==predictionRequest.current)return;
                 setComparison(response.results);
                 setResult(
                   response.results.find(
@@ -3470,15 +3493,17 @@ function ReplayPage({
                 const response = await api("predict", {
                   capture_id: capture.id,
                   model_id: model,
+                  mode,
                 });
+                if(request!==predictionRequest.current)return;
                 setResult(response);
                 setComparison([]);
               }
               await refresh();
             } catch (e: any) {
-              notify(e.message);
+              if(request===predictionRequest.current)setFrameError(e.message);
             } finally {
-              setLoading(false);
+              if(request===predictionRequest.current)setLoading(false);
             }
           }}
         >
@@ -3494,6 +3519,7 @@ function ReplayPage({
               : "Run selected model"}
         </Button>
       </div>
+      {frameError&&<section className="panel" role="alert"><p>{frameError}</p><button className="button secondary" onClick={()=>{setFrameError("");setFrameRetry(v=>v+1);}}>Retry playback window</button></section>}
       {capture && !compatible.length && <Note>Retrain a compatible model under the current quality contract to save held-out predictions. For a new upload, use the explicitly labelled final-model inference option.</Note>}
       {comparison.length > 0 && (
         <div className="comparison-cards">
@@ -3539,16 +3565,22 @@ function ReplayPage({
                   <h2>{capture.name.split("/").pop()}</h2>
                 </div>
                 <span className="mono">
-                  {String(index + 1).padStart(3, "0")} / {count} windows
+                  {String((view?.index ?? index) + 1).padStart(3, "0")} / {count} windows
                 </span>
               </div>
+              <div className="replay-chart" data-replay-frame={view?.index??-1} data-replay-capture={view?.capture_id||""} aria-busy={!view||view.index!==index}>
               {view && (
                 <Chart
                   series={[{ name: "Median CSI amplitude", data: view.trace }]}
-                  x={view.packet}
+                  x={view.packet.map((_:number,i:number)=>i)}
+                  axis="Packet offset in displayed window"
+                  yDomain={domain}
                   exportName="replay-window"
                 />
               )}
+              {!view&&<div className="skeleton" style={{height:300}} aria-label="Buffering replay windows"/>}
+              <p className="helper">{view?"Displayed packets "+view.packet[0]+"–"+view.packet[view.packet.length-1]:"Loading recording…"}{view?.index!==index?" · buffering next window":""}</p>
+              </div>
               <input
                 aria-label="Replay position"
                 type="range"
@@ -3575,7 +3607,7 @@ function ReplayPage({
                     <ChevronLeft size={20} />
                   </button>
                   <Button
-                    disabled={!count}
+                    disabled={!count||loading||!view||!!frameError}
                     onClick={() => {
                       if (index >= count - 1) setIndex(0);
                       setPlaying(!playing);

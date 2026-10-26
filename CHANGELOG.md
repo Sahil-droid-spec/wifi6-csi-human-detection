@@ -19,3 +19,8 @@
 - Add exact-cohort GA/LR/ANN progression and confusion matrices; retain negative outcomes.
 - Add phone sample downloads/APK handoff, original Colab archive, explicit DSP sources and notebook CSI links.
 - Preserve the existing Downloads installation and its uploaded files.
+
+## 2.2
+- Buffer Replay windows, preserve the chart instance, align traces with verdicts and ignore stale inference responses.
+- Add SC presentation and Saved graphs with labelled historical Colab figures.
+- Add three classroom Simulation upload sets with evaluated model coverage.
