@@ -3,3 +3,4 @@
 *.webp -text
 *.whl -text
 *.apk -text
+*.ttf -text

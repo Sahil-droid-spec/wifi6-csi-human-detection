@@ -9,6 +9,7 @@ a7a39a3bd276781e98394987d3a5701d0c4edffb633bb7a5144577f82c773598  wheelhouse/win
 63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86  wheelhouse/windows-x64-py310/h11-0.16.0-py3-none-any.whl
 852b81f71df4bb9e27d407b43071d1da330d6a7094a588efa50ef02553fa7ce4  wheelhouse/windows-x64-py310/h5py-3.14.0-cp310-cp310-win_amd64.whl
 ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c  wheelhouse/windows-x64-py310/idna-3.20-py3-none-any.whl
+085e0305cfe6f16ab12d72e2024030f5d52674afad6911bb1eee207177b8a748  wheelhouse/windows-x64-py310/ifaddr-0.2.0-py3-none-any.whl
 3dbbf9f6e4b592a2357b854608e980fe6390d131d7a82f011a377ef2ebef7aba  wheelhouse/windows-x64-py310/joblib-1.6.0-py3-none-any.whl
 f0fd6321b839904e15c46e0d257fdd101dd7f530fe03fd6359c1ea63738703f3  wheelhouse/windows-x64-py310/numpy-2.2.6-cp310-cp310-win_amd64.whl
 b31553efa588ae44bc306f863c785c5333a9ecc091248c6ee68b4b6c87fdedfb  wheelhouse/windows-x64-py310/opentelemetry_api-1.45.1-py3-none-any.whl
@@ -23,3 +24,4 @@ cd8b60b5641b45c67bbf73c64c843235fc2d8a480c87389f52f5dbee893b86be  wheelhouse/win
 481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8  wheelhouse/windows-x64-py310/typing_extensions-4.16.0-py3-none-any.whl
 65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147  wheelhouse/windows-x64-py310/typing_inspection-0.4.4-py3-none-any.whl
 505bdb0f318731d45f1f712071fc781a8981f6847a31c902c9f5e652d4f67faf  wheelhouse/windows-x64-py310/uvicorn-0.54.0-py3-none-any.whl
+1ff72dd4ba1549814dcd87104997f324989fc2319558e6f4461931c4fc7dacec  wheelhouse/windows-x64-py310/zeroconf-0.151.5-cp310-cp310-win_amd64.whl
