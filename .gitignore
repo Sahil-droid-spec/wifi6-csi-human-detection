@@ -24,3 +24,6 @@ android/build/
 *.jks
 *.p12
 *.keystore
+
+# Binary dependencies are shipped in the offline download, not Git history.
+wheelhouse/**/*.whl

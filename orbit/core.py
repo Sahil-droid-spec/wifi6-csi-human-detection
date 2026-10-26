@@ -23,6 +23,9 @@ def safe_extract(archive, target):
                 or ".." in p.parts
                 or ":" in str(p)
                 or stat.S_ISLNK(item.external_attr >> 16)
+                or any(part.rstrip(" .") != part or part.split(".")[0].upper() in
+                       {"CON", "PRN", "AUX", "NUL", *[f"COM{i}" for i in range(1, 10)],
+                        *[f"LPT{i}" for i in range(1, 10)]} for part in p.parts)
             ):
                 raise ValueError("Unsafe archive path or symbolic link.")
             if str(p).lower() in seen:
@@ -40,6 +43,8 @@ def safe_extract(archive, target):
             if p.suffix.lower() not in (".mat", ".json"):
                 continue
             dest = target.joinpath(*p.parts)
+            if not dest.resolve().is_relative_to(target.resolve()):
+                raise ValueError("Unsafe archive destination; use a fresh import folder.")
             dest.parent.mkdir(parents=True, exist_ok=True)
             with z.open(item) as src, dest.open("wb") as out:
                 count = 0
@@ -50,7 +55,7 @@ def safe_extract(archive, target):
                     out.write(chunk)
 
 
-def read_capture(path, bandwidth=None):
+def read_capture(path, bandwidth=None, with_audit=False):
     if not h5py.is_hdf5(path):
         raise ValueError("Expected MATLAB v7.3 / HDF5 with a complex capture dataset.")
     with h5py.File(path, "r") as f:
@@ -101,7 +106,23 @@ def read_capture(path, bandwidth=None):
     )
     if not np.isfinite(a).all():
         raise ValueError("CSI magnitude overflows float32.")
-    return a, invalid, int(zero.sum())
+    result = (a, invalid, int(zero.sum()))
+    return (*result, packet_audit(invalid, zero, ~finite)) if with_audit else result
+
+
+def packet_audit(invalid, zero, nonfinite):
+    """Observed unusable columns, not RF packet loss without sequence numbers."""
+    indices = np.flatnonzero(invalid)
+    runs = []
+    for group in np.split(indices, np.flatnonzero(np.diff(indices) != 1) + 1):
+        if len(group):
+            runs.append({"start": int(group[0]), "end": int(group[-1]) + 1, "packets": len(group)})
+    return {"packets": len(invalid), "invalid_packets": int(invalid.sum()),
+            "zero_packets": int(zero.sum()), "nonfinite_packets": int(nonfinite.sum()),
+            "invalid_fraction": float(invalid.mean()), "bursts": runs,
+            "longest_burst": max((r["packets"] for r in runs), default=0),
+            "protocol": "Any nonfinite CSI or all-zero complex CSI column is unusable. Missing transmitted packets cannot be counted without sequence numbers/timestamps."}
+
 
 
 def metadata(path, root):
@@ -163,15 +184,15 @@ def four_features(segment, valid=None):
 
 def contract(bandwidth):
     return {
-        "version": "orbit-amplitude-v1",
+        "version": "orbit-amplitude-v2",
         "bandwidth": bandwidth,
         "window": 256 if bandwidth == 20 else 512,
         "hop": 128 if bandwidth == 20 else 512,
         "features": ["mean", "std", "mean_abs_adjacent_difference", "p90_minus_p10"],
         "preprocessing": (
-            "nonfinite-to-zero" if bandwidth == 20 else "valid-packets-adjacent-pairs"
+            "valid-packets-adjacent-pairs"
         ),
-        "min_valid_fraction": 0 if bandwidth == 20 else 0.90,
+        "min_valid_fraction": 0.90,
         "subcarriers": 256 if bandwidth == 20 else 512,
     }
 
@@ -192,7 +213,7 @@ def feature_windows(a, invalid, bandwidth):
         reason = ""
         if end - start < 256:
             reason = "shorter_than_minimum_window"
-        elif bandwidth == 40 and valid.mean() < 0.90:
+        elif valid.mean() < c["min_valid_fraction"]:
             reason = "valid_fraction_below_90_percent"
         audit.append(
             {
@@ -205,7 +226,7 @@ def feature_windows(a, invalid, bandwidth):
         )
         if not reason:
             rows.append(
-                four_features(a[:, start:end], valid if bandwidth == 40 else None)
+                four_features(a[:, start:end], valid)
             )
             windows.append({"start": start, "end": end})
     return np.vstack(rows) if rows else np.empty((0, a.shape[0] * 4)), windows, audit

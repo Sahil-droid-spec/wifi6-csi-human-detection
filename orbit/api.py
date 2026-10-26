@@ -217,6 +217,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             return JSONResponse(
                 {"detail": "Operation failed. Check the local server log."}, 500
             )
+        response.headers["Content-Security-Policy"] = "default-src 'self'; connect-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Frame-Options"] = "DENY"
@@ -383,7 +384,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
                         )
                     if invalid.any():
                         warnings.append(
-                            f"{int(invalid.sum())} invalid/all-zero packet columns. 20 MHz baseline replaces nonfinite values with zero; 40 MHz uses validity-aware windows."
+                            f"{int(invalid.sum())} invalid/all-zero packet columns. Both bandwidths use validity-aware windows under contract v2."
                         )
                     if not (~invalid).any():
                         raise ValueError("Capture has no valid packet columns.")
@@ -569,7 +570,8 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         return {
             "metadata": cap,
             "packet": list(range(start, end)),
-            "trace": trace.tolist(),
+            "trace": [None if invalid[start + i] else float(v) for i, v in enumerate(trace)],
+            "packet_audit": cap.get("packet_audit") or core.read_capture(data / cap["path"], cap["bandwidth"], with_audit=True)[3],
             "heatmap": segment[::scstep, ::heatstep].tolist(),
             "heatmap_packet": list(range(start, end, heatstep)),
             "heatmap_subcarrier": list(range(0, a.shape[0], scstep)),
@@ -664,6 +666,14 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         generations: int = Field(default=6, ge=1, le=15)
         mutation: float = Field(default=0.03, ge=0, le=0.3)
 
+    @app.get("/api/train/options")
+    def training_options():
+        captures = rows("capture")
+        return [{"dataset_id": did, "bandwidth": bw, "split": split, "kind": kind,
+                 **models.training_check([c for c in captures if not did or c["dataset_id"] == did], bw, split, [kind])}
+                for did in ["", *[d["id"] for d in rows("dataset")]]
+                for bw in (20, 40) for split in ("date", "capture") for kind in ("lr", "rf", "mlp", "ga_rf")]
+
     @app.post("/api/train")
     def train(body: TrainBody):
         if (
@@ -679,6 +689,10 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         ]
         # Inferred bandwidth is useful for plots but never sufficient evidence for training.
         captures = [c for c in captures if c.get("bandwidth_verified")]
+
+        check = models.training_check(captures, body.bandwidth, body.split, body.kinds)
+        if not check["valid"]:
+            raise ValueError(check["reason"])
 
         def work(jid, p):
             result = models.train(
@@ -711,6 +725,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     class PredictBody(BaseModel):
         capture_id: str
         model_id: str
+        mode: str = "held_out"
 
     @app.post("/api/predict")
     def predict(body: PredictBody):
@@ -720,7 +735,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             raise ValueError(
                 "Bandwidth must be verified by recording config before inference."
             )
-        result = models.predict(cap, data, data / "models" / f"{body.model_id}.joblib")
+        result = models.predict(cap, data, data / "models" / f"{body.model_id}.joblib", body.mode)
         row = {
             "id": secrets.token_hex(12),
             "created": now(),
@@ -1041,6 +1056,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     class CompareBody(BaseModel):
         capture_id: str
+        mode: str = "held_out"
 
     @app.post("/api/predict/compare")
     def compare_predictions(body: CompareBody):
@@ -1049,13 +1065,15 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         for m in rows("model"):
             if (
                 m["contract"]["bandwidth"] == cap["bandwidth"]
+                and m["contract"] == core.contract(cap["bandwidth"])
+                and (body.mode != "held_out" or cap["sha256"] in m.get("held_out_windows", {}))
                 and m["name"] not in chosen
             ):
                 chosen[m["name"]] = m
         if not chosen:
             raise ValueError("Train a compatible classifier in Learning Lab first.")
         results = [
-            predict(PredictBody(capture_id=body.capture_id, model_id=m["id"]))
+            predict(PredictBody(capture_id=body.capture_id, model_id=m["id"], mode=body.mode))
             for m in chosen.values()
         ]
         return {"capture_id": body.capture_id, "results": results}

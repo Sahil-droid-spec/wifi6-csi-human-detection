@@ -163,7 +163,7 @@ def test_bandwidth_contracts_and_window_rejection():
     assert len(x) == 1 and w[0]["start"] == 512 and not audit[0]["accepted"]
     assert x.shape[1] == 2048
     x, w, audit = core.feature_windows(a[:256], bad, 20)
-    assert len(x) == 5
+    assert len(x) == 4 and not audit[0]["accepted"]
     assert x.shape[1] == 1024
 
 
@@ -296,7 +296,9 @@ def test_training_grouping_manifest_predict_and_mismatch(client):
         "/api/predict", json={"capture_id": s["captures"][0]["id"], "model_id": m["id"]}
     )
     assert result.status_code == 200, result.text
-    assert result.json()["in_training"] and len(result.json()["windows"]) == 5
+    assert not result.json()["in_training"] and result.json()["mode"] == "held_out" and len(result.json()["windows"]) == 5
+    seen = client.post("/api/predict", json={"capture_id": s["captures"][0]["id"], "model_id": m["id"], "mode": "seen"}).json()
+    assert seen["in_training"] and "seen in training" in seen["validation_protocol"]
     assert client.get("/api/export/model/" + m["id"]).status_code == 200
     s40 = import_data(client, 40)
     cap40 = next(c for c in s40["captures"] if c["bandwidth"] == 40)
@@ -539,7 +541,7 @@ def test_compare_all_trained_models(client):
         "Logistic Regression",
     }
     assert all(
-        r["source"] == "MODEL OUTPUT" and r["in_training"] for r in result["results"]
+        r["source"] == "MODEL OUTPUT" and not r["in_training"] and r["mode"] == "held_out" for r in result["results"]
     )
 
 
@@ -564,3 +566,111 @@ def test_download_catalog_and_private_files(tmp_path, monkeypatch):
         assert c.get("/api/downloads/private-secret.txt").status_code == 404
         response = c.get("/api/downloads/" + apk.name, headers={"Range": "bytes=0-1"})
         assert response.status_code == 206 and response.content == b"PK"
+
+
+def test_packet_audit_and_trace_gaps(client, tmp_path):
+    p = tmp_path / "audit.mat"
+    p.write_bytes(mat_bytes((256, 768)))
+    with h5py.File(p, "r+") as f:
+        raw = f["capture"][()]
+        raw[:, 10:15] = 0
+        raw[:, 30] = complex(float("nan"), 1)
+        del f["capture"]
+        f["capture"] = raw
+    a, bad, zero, audit = core.read_capture(p, 20, with_audit=True)
+    assert zero == 5 and audit["nonfinite_packets"] == 1
+    assert audit["longest_burst"] == 5 and audit["invalid_packets"] == 6
+    r = client.post("/api/upload", files={"file": ("audit.mat", p.read_bytes())}, data={"profile": "ax20"})
+    assert wait(client, r.json()["id"])["status"] == "completed"
+    cap = client.get("/api/status").json()["captures"][0]
+    v = client.get("/api/captures/" + cap["id"]).json()
+    assert v["trace"][10:15] == [None] * 5 and v["trace"][30] is None
+    assert v["packet_audit"]["zero_packets"] == 5
+    # Differences may not bridge across an unusable sample.
+    features = core.four_features(np.array([[1., 2., 1000., 4., 5.]]), np.array([1,1,0,1,1], bool))
+    assert features[2] == 1
+
+
+@pytest.mark.parametrize("name", ["CON.mat", "aux/config.json", "a./x.mat", "a /x.mat", "NUL.txt", "COM1.mat"])
+def test_zip_windows_aliases(tmp_path, name):
+    p = tmp_path / "bad.zip"
+    with zipfile.ZipFile(p, "w") as z: z.writestr(name, b"x")
+    with pytest.raises(ValueError, match="Unsafe"): core.safe_extract(p, tmp_path / "dest")
+
+
+def test_zip_bomb_and_size_caps(tmp_path, monkeypatch):
+    p = tmp_path / "bomb.zip"
+    with zipfile.ZipFile(p, "w", zipfile.ZIP_DEFLATED) as z: z.writestr("a.mat", b"0" * 2000000)
+    with pytest.raises(ValueError, match="compression-ratio"): core.safe_extract(p, tmp_path / "out")
+    monkeypatch.setattr(core, "MAX_EXPANDED", 10)
+    with pytest.raises(ValueError, match="expanded size"): core.safe_extract(p, tmp_path / "out")
+
+
+def test_eligibility_explains_invalid_choices(client):
+    state = import_data(client, 40)
+    # Classes/dates fixture is valid, but unavailable bandwidth is disabled.
+    options = client.get("/api/train/options").json()
+    bad = [o for o in options if o["bandwidth"] == 20]
+    assert bad and all(not o["valid"] and "Import" in o["reason"] for o in bad)
+    r = client.post("/api/train", json={"bandwidth": 20})
+    assert r.status_code == 422 and "Import" in r.text
+    caps = state["captures"]
+    for c in caps: c["date"] = "Day A" if not c["present"] else "Day B"
+    check = models.training_check(caps, 40, "date", ["rf"])
+    assert not check["valid"] and "confounding" in check["reason"]
+
+
+def test_held_out_replay_uses_saved_fold_without_final_estimator(client, monkeypatch):
+    state = import_data(client)
+    r = client.post("/api/train", json={"kinds": ["rf"]})
+    assert wait(client, r.json()["id"])["status"] == "completed"
+    state = client.get("/api/status").json(); model = state["models"][0]; cap = state["captures"][0]
+    import joblib
+    path = client.app.state.data / "models" / (model["id"] + ".joblib")
+    bundle = joblib.load(path)
+    bundle["estimator"] = None  # Held-out replay must not call the final fitted estimator.
+    joblib.dump(bundle, path)
+    result = client.post("/api/predict", json={"capture_id": cap["id"], "model_id": model["id"]})
+    assert result.status_code == 200 and not result.json()["in_training"]
+    assert result.json()["windows"] == model["held_out_windows"][cap["sha256"]]
+    # Corrupt fold provenance: must refuse instead of silently using fitted outputs.
+    fold = next(f for f in bundle["manifest"]["folds"] if cap["id"] in f["test_capture_ids"])
+    fold["train_capture_ids"].append(cap["id"])
+    joblib.dump(bundle, path)
+    assert client.post("/api/predict", json={"capture_id": cap["id"], "model_id": model["id"]}).status_code == 422
+
+
+def test_ga_selection_receives_only_outer_training_date(client, monkeypatch):
+    state = import_data(client)
+    observed = []
+    original = models.genetic_select
+    def spy(x, y, g, *args):
+        observed.append(set(g.tolist()))
+        return original(x, y, g, *args)
+    monkeypatch.setattr(models, "genetic_select", spy)
+    r = client.post("/api/train", json={"kinds": ["ga_rf"], "population": 4, "generations": 1})
+    assert wait(client, r.json()["id"])["status"] == "completed"
+    model = client.get("/api/status").json()["models"][0]
+    for calls, fold in zip(observed[:-1], model["folds"]):
+        assert calls == set(fold["train_capture_ids"])
+        assert not calls & set(fold["test_capture_ids"])
+        assert not set(fold["train_dates"]) & set(fold["test_dates"])
+    assert observed[-1] == set(c["id"] for c in state["captures"])  # Separate deployment fit only, never used for held-out metrics.
+
+
+def test_sha256_manifest_detects_corruption(tmp_path):
+    import hashlib
+    from tools.checksums import verify_manifest
+    source = tmp_path / "data.txt"; source.write_bytes(b"actual file bytes")
+    manifest = tmp_path / "SHA256SUMS.txt"
+    manifest.write_text(hashlib.sha256(source.read_bytes()).hexdigest() + "  data.txt\n")
+    assert verify_manifest(tmp_path, manifest) == 1
+    source.write_bytes(b"changed")
+    with pytest.raises(ValueError, match="Checksum mismatch"): verify_manifest(tmp_path, manifest)
+
+
+def test_zip_symlink_destination_and_member_cap(tmp_path, monkeypatch):
+    p = tmp_path / "member.zip"
+    with zipfile.ZipFile(p, "w") as z: z.writestr("large.mat", b"x" * 200)
+    monkeypatch.setattr(core, "MAX_ARRAY_BYTES", 100)
+    with pytest.raises(ValueError, match="size or compression"): core.safe_extract(p, tmp_path / "out")
