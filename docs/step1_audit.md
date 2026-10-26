@@ -22,9 +22,11 @@ Step 2 onward remains pending. No simulation datasets were added and no verified
 
 ## Executed verification
 
-- python -m pytest tests -q: 50 passed, 1 upstream Starlette TestClient deprecation warning, 85.78 seconds.
+- python -m pytest tests -q: 50 passed, 1 upstream Starlette TestClient deprecation warning, 65.09 seconds.
 - npm run build: TypeScript and Vite passed; bundle-size advisory remains.
 - Fresh Windows x64 CPython 3.10 virtual environment: all 25 packages installed with --no-index from SHA-256 verified wheels; pip check: No broken requirements found; Orbit dependency imports passed. Separate clean machine: NOT EXECUTED.
 - Android build: v2/v3 signature verified, zipalign verified, 13 address checks passed; compiled network policy asserted default deny plus exact RFC1918 IP exceptions. Physical phone: NOT EXECUTED.
 - Real-data model retraining: seven v2 models and saved outer-fold probabilities generated; legacy artifacts preserved.
 - Windows offline CI job added; remote CI execution: NOT EXECUTED at this local checkpoint.
+
+Prediction timeline CSV exports include validation_protocol and source on every output row. Source checksums use canonical LF file bytes and were verified after extracting the deliverable.
