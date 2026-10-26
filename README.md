@@ -1,27 +1,3 @@
-## Orbit v1.1: saved datasets, themes and Learning Lab
-
-The app now includes saved-dataset selection, new-data drop/upload, a photo/video/audio library, four persistent themes, a quiet presentation view, single/all-classifier replay, and real phone-sharing controls. **Soft Computing** is now **Learning Lab**. Use `Start-Orbit-Server.cmd` to launch laptop + phone mode. See [the demo guide](docs/orbit_demo_guide.md).
-
-Data and trained model artifacts are stored only in the local `orbit-data/` folder. They are not committed to GitHub.
-
-## Run the Orbit application
-
-The local **Orbit — Wi-Fi Sensing Lab** application is now included: circular workspace, local MAT/ZIP uploads, real DSP experiments, leakage-safe model training, GA/fuzzy labs, offline replay and the recorded research evidence.
-
-```powershell
-python launch_orbit.py
-```
-
-Windows: double-click `Start-Orbit.cmd`. Phone access: `python launch_orbit.py --lan`. Open **http://127.0.0.1:8765** and enter the access code printed in the terminal. Python 3.10+ is required; the first launch installs dependencies into a private environment. The frontend is prebuilt.
-
-![Orbit circular workspace](docs/images/orbit-desktop.png)
-
-See [the complete run guide](docs/orbit_run_guide.md) for supported data, phone setup, scientific contracts, validation limits and development. No raw CSI data or trained model is bundled. Live hardware remains unverified. The research history below is preserved; statements about an application still being planned describe the prior research stage.
-
----
-
-<div align="center">
-
 # Wi-Fi CSI Human Presence & Activity Sensing
 
 **Combining Wi-Fi 6 Channel State Information (CSI), Digital Signal Processing, Machine Learning, and Soft Computing**
@@ -331,6 +307,30 @@ This project uses a different dataset and adapts general CSI-processing concepts
 **Research-first project · Results reported with validation limitations · Real-hardware sensing remains unverified**
 
 </div>
+
+
+## Orbit v1.1: saved datasets, themes and Learning Lab
+
+The app now includes saved-dataset selection, new-data drop/upload, a photo/video/audio library, four persistent themes, a quiet presentation view, single/all-classifier replay, and real phone-sharing controls. **Soft Computing** is now **Learning Lab**. Use `Start-Orbit-Server.cmd` to launch laptop + phone mode. See [the demo guide](docs/orbit_demo_guide.md).
+
+Data and trained model artifacts are stored only in the local `orbit-data/` folder. They are not committed to GitHub.
+
+## Run the Orbit application
+
+The local **Orbit — Wi-Fi Sensing Lab** application is now included: circular workspace, local MAT/ZIP uploads, real DSP experiments, leakage-safe model training, GA/fuzzy labs, offline replay and the recorded research evidence.
+
+```powershell
+python launch_orbit.py
+```
+
+Windows: double-click `Start-Orbit.cmd`. Phone access: `python launch_orbit.py --lan`. Open **http://127.0.0.1:8765** and enter the access code printed in the terminal. Python 3.10+ is required; the first launch installs dependencies into a private environment. The frontend is prebuilt.
+
+![Orbit circular workspace](docs/images/orbit-desktop.png)
+
+---
+
+<div align="center">
+
 
 
 ## Step 1 audit update
