@@ -364,3 +364,18 @@ def test_all_theme_text_tokens_meet_aa_contrast():
             for background in theme[2:4]:
                 a, b = sorted([lum(foreground), lum(background)])
                 assert (b + 0.05) / (a + 0.05) >= 4.5, (theme[1], foreground, background)
+
+
+def test_resumable_zip_uses_original_name_not_part_suffix(client):
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w") as archive:
+        archive.writestr("recording.mat", mat_bytes((256, 768)))
+        archive.writestr(
+            "config.json",
+            json.dumps({"modulation": "ax", "bandwidth": 20, "people": {"present": True}}),
+        )
+    payload = stream.getvalue()
+    job = transfer(client, payload, name="phone-dataset.zip")
+    done = wait(client, job["id"])
+    assert done["status"] == "completed", done
+    assert client.get("/api/status").json()["captures"]

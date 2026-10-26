@@ -129,6 +129,9 @@ def install(app, ctx):
     token_urls = {}
     lock = threading.Lock()
     stop = threading.Event()
+    from .demo import install as install_demo
+
+    install_demo(app, {**ctx, "pair_lock": lock, "pair_tokens": tokens})
     observed = {}
     mdns = {}
 
@@ -149,7 +152,7 @@ def install(app, ctx):
         folder = data / "staging" / ("normalize-" + token)
         folder.mkdir()
         try:
-            if path.suffix.lower() == ".zip":
+            if Path(name).suffix.lower() == ".zip":
                 core.safe_extract(path, folder)
             else:
                 shutil.copy2(path, folder / Path(name).name)

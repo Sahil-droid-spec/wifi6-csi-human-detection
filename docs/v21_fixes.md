@@ -1,0 +1,7 @@
+# Orbit 2.1 demonstration fixes
+
+Fixed resumable ZIP normalization using original upload name instead of extensionless temporary path. Added an actual ZIP regression. Compact status responses retain only a hash availability index for held-out windows; full validated outputs remain in model artifacts and predict. Training-choice effects use stable capture IDs, timeout/error/retry, and Replay selection persists. Fixed 40MHz replay window count.
+
+Added an exact-cohort progression of LR/RF/ANN and nested GA+RF/LR/ANN/equal LR+ANN ensemble, with training-only cached GA selection reused within each outer fold. GA fitness uses RF. Same-cohort recorded Evidence has confusion matrices and no forced improvement. Added useful archived Colab cells and historical outputs, explicit DSP recording selector, linkable notebook video and checklist-only recording-plan explanation. Browser phone sample downloads and one-use browser-to-APK handoff avoid typed pairing codes. APK rebuilt for current LAN address change.
+
+Live local HTTP test: resumable ZIP/hash/import/Inbox/held-out replay passed (7 predicted windows). Browser: Learning Lab loaded and Train & evaluate enabled. Physical phone and independent clean Windows machine: NOT EXECUTED. Historical notebook GA result remains distinct. Current 15-capture, two-date held-out comparison: GA+RF accuracy 0.933333 and balanced accuracy 0.9375; combined GA+LR+ANN accuracy 0.666667 and balanced accuracy 0.678571. Negative result retained. Simulation comparisons are separate and excluded from Evidence.

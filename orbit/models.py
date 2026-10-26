@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import joblib
 import numpy as np
 import sklearn
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
@@ -40,12 +40,19 @@ def metrics(y, p):
 
 
 def estimator(kind):
-    if kind == "lr":
+    if kind == "ga_lr_ann":
+        return VotingClassifier(
+            estimators=[("lr", estimator("lr")), ("ann", estimator("mlp"))],
+            voting="soft",
+            weights=[1, 1],
+            n_jobs=1,
+        )
+    if kind in ("lr", "ga_lr"):
         return make_pipeline(
             StandardScaler(),
             LogisticRegression(max_iter=3000, class_weight="balanced", random_state=42),
         )
-    if kind == "mlp":
+    if kind in ("mlp", "ga_mlp"):
         return make_pipeline(
             StandardScaler(),
             MLPClassifier(
@@ -179,7 +186,7 @@ def training_check(captures, bandwidth=20, split="date", kinds=None):
                 if min(counts) == 0:
                     reason = "Date/class confounding leaves a training fold with one class. Choose capture-held-out exploratory evaluation or collect both classes on each date."
                     break
-                if "ga_rf" in kinds and min(counts) < 2:
+                if any(k.startswith("ga_") for k in kinds) and min(counts) < 2:
                     reason = "GA needs two independent training recordings per class in every outer fold. Add recordings or choose LR, RF or ANN."
                     break
     return {
@@ -272,8 +279,9 @@ def train(
             "Only two or fewer recording dates; generalization estimates have high uncertainty."
         )
     results = []
+    selection_cache = {}
     for ki, kind in enumerate(kinds):
-        if kind not in ("lr", "rf", "mlp", "ga_rf"):
+        if kind not in ("lr", "rf", "mlp", "ga_rf", "ga_lr", "ga_mlp", "ga_lr_ann"):
             raise ValueError("Unsupported model.")
         pred = np.full(len(y), -1)
         probability = np.full(len(y), np.nan)
@@ -289,15 +297,18 @@ def train(
                 assert not set(dates[tr]) & set(dates[te]), "Date leakage"
             cols = np.arange(x.shape[1])
             convergence = []
-            if kind == "ga_rf":
-                cols, convergence = genetic_select(
-                    x[tr], y[tr], g[tr], population, generations, mutation
-                )
+            if kind.startswith("ga_"):
+                cache_key = tuple(tr)
+                if cache_key not in selection_cache:
+                    selection_cache[cache_key] = genetic_select(
+                        x[tr], y[tr], g[tr], population, generations, mutation
+                    )
+                cols, convergence = selection_cache[cache_key]
             m = estimator(kind)
             m.fit(x[tr][:, cols], y[tr])
             pred[te] = m.predict(x[te][:, cols])
             probability[te] = m.predict_proba(x[te][:, cols])[:, list(m.classes_).index(1)]
-            if kind == "ga_rf":
+            if kind.startswith("ga_"):
                 random_cols = np.random.default_rng(42 + i).choice(
                     x.shape[1], len(cols), replace=False
                 )
@@ -309,10 +320,12 @@ def train(
                     "held_out": np.unique(groups[te]).tolist(),
                     "train_dates": np.unique(dates[tr]).tolist(),
                     "test_dates": np.unique(dates[te]).tolist(),
-                    "selector_capture_ids": np.unique(g[tr]).tolist() if kind == "ga_rf" else [],
+                    "selector_capture_ids": np.unique(g[tr]).tolist()
+                    if kind.startswith("ga_")
+                    else [],
                     "train_capture_ids": np.unique(g[tr]).tolist(),
                     "test_capture_ids": np.unique(g[te]).tolist(),
-                    "selected_features": cols.tolist() if kind == "ga_rf" else None,
+                    "selected_features": cols.tolist() if kind.startswith("ga_") else None,
                     "convergence": convergence,
                 }
             )
@@ -320,8 +333,12 @@ def train(
         mtr = metrics([r["truth"] for r in rows], [r["prediction"] for r in rows])
         cols = np.arange(x.shape[1])
         convergence = []
-        if kind == "ga_rf":
-            cols, convergence = genetic_select(x, y, g, population, generations, mutation)
+        if kind.startswith("ga_"):
+            if "final" not in selection_cache:
+                selection_cache["final"] = genetic_select(
+                    x, y, g, population, generations, mutation
+                )
+            cols, convergence = selection_cache["final"]
         final = estimator(kind)
         final.fit(x[:, cols], y)
         mid = f"{job_id}-{kind}"
@@ -332,6 +349,9 @@ def train(
                 "rf": "Random Forest",
                 "mlp": "ANN / MLP",
                 "ga_rf": "GA + Random Forest",
+                "ga_lr": "GA + Logistic Regression",
+                "ga_mlp": "GA + ANN",
+                "ga_lr_ann": "GA + LR + ANN ensemble",
             }[kind],
             "created": datetime.now(timezone.utc).isoformat(),
             "contract": contract(bandwidth),
@@ -376,12 +396,14 @@ def train(
             "versions": versions,
             "label_mapping": {"0": "No person", "1": "Person present"},
             "caveats": caveats,
-            "selected_features": cols.tolist() if kind == "ga_rf" else None,
+            "selected_features": cols.tolist() if kind.startswith("ga_") else None,
             "convergence": convergence,
-            "architecture": [int(len(cols)), 64, 32, 1] if kind == "mlp" else None,
-            "loss_curve": (getattr(final[-1], "loss_curve_", []) if kind == "mlp" else []),
+            "architecture": [int(len(cols)), 64, 32, 1] if kind in ("mlp", "ga_mlp") else None,
+            "loss_curve": (
+                getattr(final[-1], "loss_curve_", []) if kind in ("mlp", "ga_mlp") else []
+            ),
         }
-        if kind == "ga_rf":
+        if kind.startswith("ga_"):
             random_rows = aggregate(y, random_pred, g)
             manifest["random_feature_baseline"] = {
                 "metrics": metrics(

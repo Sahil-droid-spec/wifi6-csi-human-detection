@@ -13,3 +13,9 @@
 ## Step 1 audit
 - Defaulted replay to saved held-out outputs with fold provenance; preserved historical GA results.
 - Added validity-aware feature contract v2, packet audits, safe ZIP paths and real SHA-256 manifests.
+
+## 2.1
+- Fix resumable ZIP imports, compact status polling, explicit training errors and persistent Replay selection.
+- Add exact-cohort GA/LR/ANN progression and confusion matrices; retain negative outcomes.
+- Add phone sample downloads/APK handoff, original Colab archive, explicit DSP sources and notebook CSI links.
+- Preserve the existing Downloads installation and its uploaded files.

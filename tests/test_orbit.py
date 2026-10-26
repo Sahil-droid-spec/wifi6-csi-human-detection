@@ -608,7 +608,10 @@ def test_held_out_replay_uses_saved_fold_without_final_estimator(client, monkeyp
     joblib.dump(bundle, path)
     result = client.post("/api/predict", json={"capture_id": cap["id"], "model_id": model["id"]})
     assert result.status_code == 200 and not result.json()["in_training"]
-    assert result.json()["windows"] == model["held_out_windows"][cap["sha256"]]
+    assert (
+        model["held_out_windows"][cap["sha256"]] is True
+    )  # status is a compact availability index
+    assert result.json()["windows"] == bundle["manifest"]["held_out_windows"][cap["sha256"]]
     # Corrupt fold provenance: must refuse instead of silently using fitted outputs.
     fold = next(f for f in bundle["manifest"]["folds"] if cap["id"] in f["test_capture_ids"])
     fold["train_capture_ids"].append(cap["id"])
