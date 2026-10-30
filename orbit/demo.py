@@ -13,6 +13,8 @@ from . import core
 
 
 def install(app, ctx):
+    from .smartcsi import install as install_smartcsi
+    install_smartcsi(app, ctx)
     data, get, put = ctx["data"], ctx["get"], ctx["put"]
 
     @lru_cache(maxsize=4)
