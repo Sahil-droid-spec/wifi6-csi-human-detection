@@ -15,6 +15,8 @@ from . import core
 def install(app, ctx):
     from .smartcsi import install as install_smartcsi
     install_smartcsi(app, ctx)
+    from .receiver import install as install_receiver
+    install_receiver(app, ctx)
     data, get, put = ctx["data"], ctx["get"], ctx["put"]
 
     @lru_cache(maxsize=4)
@@ -122,6 +124,7 @@ def install(app, ctx):
         allowed = {
             "WIFI6RECONSTRUCTION.ipynb",
             "wifi6reconstruction.py",
+            "Colab-reference-2026-11-01.pdf",
             "WIFI6RECONSTRUCTION.ipynb - Colab.pdf",
         }
         if name not in allowed or not (data / "research" / name).is_file():
