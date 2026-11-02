@@ -53,6 +53,7 @@ import "./styles.css";
 import {SCShow,GraphGallery} from "./Showcase";
 import {SmartCSI} from "./SmartCSI";
 import {Receiver} from "./Receiver";
+import {Journey} from "./Journey";
 import {PhoneFiles,Progression,ResearchCode,NotebookLinks} from "./Demo";
 import {BulkImport,SimulationPage,ConnectTools,InboxPage,PlanPage,GuidePage,GlossaryPage,AdvancedPage,Term} from "./Extensions";
 import {themes,lightThemes,okabeIto,applyTheme} from "./themes";
@@ -68,7 +69,7 @@ type Page =
   | "modes"
   | "settings"
   | "upload"
-  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs" | "smartcsi" | "receiver";
+  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs" | "smartcsi" | "receiver" | "journey";
 const stages = [
   "Receive",
   "Window",
@@ -102,6 +103,7 @@ const nav = [
   {id:"simulation",label:"Simulation",icon:Waves},
   {id:"inbox",label:"Phone Inbox",icon:Smartphone},
   {id:"advanced",label:"DSP & SC tools",icon:CircuitBoard},
+  {id:"journey",label:"Research Journey",icon:BrainCircuit},
   {id:"receiver",label:"SDR & spectrum",icon:Radio},
   {id:"smartcsi",label:"SmartCSI",icon:BrainCircuit},
   {id:"scshow",label:"SC presentation",icon:BrainCircuit},
@@ -1249,6 +1251,7 @@ function App() {
               {page === "learning" && <Progression state={state} capture={capture}/>}
               {page === "results" && <Progression state={{...stored,simulation:false}}/>}
               {["scshow","graphs","smartcsi"].includes(page)&&<div className="studio-source"><CaptureSelect {...common}/></div>}
+              {page === "journey"&&<Journey state={state}/>}
               {page === "receiver"&&<Receiver/>}
               {page === "smartcsi"&&<SmartCSI {...common}/>}
               {page === "scshow"&&<SCShow {...common}/>}

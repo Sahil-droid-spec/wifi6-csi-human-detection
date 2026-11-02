@@ -24,3 +24,9 @@
 - Buffer Replay windows, preserve the chart instance, align traces with verdicts and ignore stale inference responses.
 - Add SC presentation and Saved graphs with labelled historical Colab figures.
 - Add three classroom Simulation upload sets with evaluated model coverage.
+
+## Research Journey - 2026-11-03
+- Added eight-stage source-labelled research dashboard, 19 original graph gallery, selected PDF export and professor presentation.
+- Added 30-page A4 research report, graphs-only PDF and printer-friendly HTML.
+- Integrated new archived SAGE V3 and BF reliability evidence; preserved negative results and marked GA-Fuzzy supplied claims pending original export.
+- Preserved runtime, local server, phone access, datasets and existing lab features.

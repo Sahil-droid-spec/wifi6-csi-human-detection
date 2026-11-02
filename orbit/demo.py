@@ -17,6 +17,8 @@ def install(app, ctx):
     install_smartcsi(app, ctx)
     from .receiver import install as install_receiver
     install_receiver(app, ctx)
+    from .journey import install as install_journey
+    install_journey(app, ctx)
     data, get, put = ctx["data"], ctx["get"], ctx["put"]
 
     @lru_cache(maxsize=4)
