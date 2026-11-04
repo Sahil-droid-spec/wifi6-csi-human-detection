@@ -30,3 +30,11 @@
 - Added 30-page A4 research report, graphs-only PDF and printer-friendly HTML.
 - Integrated new archived SAGE V3 and BF reliability evidence; preserved negative results and marked GA-Fuzzy supplied claims pending original export.
 - Preserved runtime, local server, phone access, datasets and existing lab features.
+
+## Ultimate 4.0 - 2026-11-04
+- Add general-file exchange, verified resumable bytes, receipts and two-session text/attachment chat.
+- Add server-side 12-hour expiry; preserve QR and local-server access.
+- Add BFSK framing/timing/CRC, generated and recorded audio, explicit microphone UI.
+- Group navigation; collapse optional graphs/receipts; clarify DSP axes.
+- Update Android Send files, exact LAN IPs and browser fallback.
+- Add inventory, acceptance tests and continuation record. No hardware/MATLAB/AgentLink/live-call completion claim.

@@ -54,6 +54,8 @@ import {SCShow,GraphGallery} from "./Showcase";
 import {SmartCSI} from "./SmartCSI";
 import {Receiver} from "./Receiver";
 import {Journey} from "./Journey";
+import {Transfer} from "./Transfer";
+import {Acoustic} from "./Acoustic";
 import {PhoneFiles,Progression,ResearchCode,NotebookLinks} from "./Demo";
 import {BulkImport,SimulationPage,ConnectTools,InboxPage,PlanPage,GuidePage,GlossaryPage,AdvancedPage,Term} from "./Extensions";
 import {themes,lightThemes,okabeIto,applyTheme} from "./themes";
@@ -69,7 +71,7 @@ type Page =
   | "modes"
   | "settings"
   | "upload"
-  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs" | "smartcsi" | "receiver" | "journey";
+  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs" | "smartcsi" | "receiver" | "journey" | "transfer" | "acoustic";
 const stages = [
   "Receive",
   "Window",
@@ -100,6 +102,8 @@ const nav = [
   { id: "results", label: "Evidence", icon: FlaskConical },
   { id: "modes", label: "Sensing modes", icon: Radio },
   { id: "settings", label: "Connect", icon: Settings2 },
+  {id:"transfer",label:"Transfer & chat",icon:Smartphone},
+  {id:"acoustic",label:"Acoustic modem",icon:AudioLines},
   {id:"simulation",label:"Simulation",icon:Waves},
   {id:"inbox",label:"Phone Inbox",icon:Smartphone},
   {id:"advanced",label:"DSP & SC tools",icon:CircuitBoard},
@@ -641,7 +645,7 @@ function App() {
     setSelected(id);
     localStorage.setItem("orbit-capture", id);
   };
-  useEffect(()=>{if(location.hash.startsWith("#/pair?")||location.hash.startsWith("#/desktop?")){const token=new URLSearchParams(location.hash.split("?")[1]).get("token");if(token)api(location.hash.startsWith("#/desktop?")?"desktop/claim":"pair/claim",{token}).then(async()=>{await refresh();navigate(location.hash.startsWith("#/desktop?")?"overview":"upload");}).catch(()=>{setAuthError("Pairing link expired. Create a new QR on the laptop.");setAuthOpen(true);});}},[]);
+  useEffect(()=>{if(location.hash.startsWith("#/pair?")||location.hash.startsWith("#/desktop?")){const token=new URLSearchParams(location.hash.split("?")[1]).get("token");if(token)api(location.hash.startsWith("#/desktop?")?"desktop/claim":"pair/claim",{token}).then(async()=>{await refresh();navigate(location.hash.startsWith("#/desktop?")?"overview":"transfer");}).catch(()=>{setAuthError("Pairing link expired. Create a new QR on the laptop.");setAuthOpen(true);});}},[]);
   const authenticate = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -841,21 +845,15 @@ function App() {
               </span>
             </button>
             <div className="sidebar-label">WORKSPACE</div>
-            <nav>
-              {nav.map((n, i) => (
-                <React.Fragment key={n.id}>
-                  {i === 6 && <div className="nav-divider" />}
-                  <button
-                    onClick={() => navigate(n.id as Page)}
-                    className={page === n.id ? "active" : ""}
-                  >
-                    <n.icon size={19} />
-                    <span>{n.label}</span>
-                    {n.id === "dsp" && <i className="nav-dot orange" />}
-                    {n.id === "learning" && <i className="nav-dot violet" />}
-                  </button>
-                </React.Fragment>
-              ))}
+            <nav className="grouped-navigation">
+              <button className={page==='overview'?'active':''} onClick={()=>navigate('overview')}><LayoutDashboard size={19}/><span>Home</span></button>
+              {[
+                {title:'Connect & share',ids:['settings','transfer','inbox']},
+                {title:'Signal lab',ids:['dsp','acoustic','receiver','advanced']},
+                {title:'Data & learning',ids:['data','learning','replay','smartcsi','simulation']},
+                {title:'Research & notebook',ids:['journey','graphs','results','media','modes','plan']},
+                {title:'Help',ids:['guide','glossary']}
+              ].map(group=><details key={group.title} open={group.ids.includes(page)||(page==='overview'&&group.title==='Signal lab')}><summary>{group.title}</summary>{group.ids.map(id=>{const n=nav.find(item=>item.id===id)!;return <button key={id} className={page===id?'active':''} onClick={()=>navigate(id as Page)}><n.icon size={18}/><span>{n.label}</span></button>;})}</details>)}
             </nav>
             <div className="sidebar-bottom">
               <div className="local-card">
@@ -1251,6 +1249,8 @@ function App() {
               {page === "learning" && <Progression state={state} capture={capture}/>}
               {page === "results" && <Progression state={{...stored,simulation:false}}/>}
               {["scshow","graphs","smartcsi"].includes(page)&&<div className="studio-source"><CaptureSelect {...common}/></div>}
+              {page === "acoustic"&&<Acoustic/>}
+              {page === "transfer"&&<Transfer state={state}/>}
               {page === "journey"&&<Journey state={state}/>}
               {page === "receiver"&&<Receiver/>}
               {page === "smartcsi"&&<SmartCSI {...common}/>}
@@ -1299,7 +1299,7 @@ function App() {
                   <ShieldCheck size={13} /> Local-first. Evidence-led.
                 </span>
                 <span>
-                  Orbit v2.0 <i /> Live hardware remains unverified.
+                  Orbit Ultimate 4.0 <i /> Live hardware remains unverified.
                 </span>
               </footer>
             </main>

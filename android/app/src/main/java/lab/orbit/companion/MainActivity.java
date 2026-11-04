@@ -70,7 +70,7 @@ public class MainActivity extends Activity {
             if(target!=null && target.startsWith("http://")){base=ServerAddress.normalize(target);if(!NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted(new URI(base).getHost()))throw new Exception("Laptop address changed; use the phone browser or an APK built for this LAN address.");launchUrl=target;getPreferences(MODE_PRIVATE).edit().putString("server",base).apply();showWorkspace();}
             else if(!previous.isEmpty()){base=ServerAddress.normalize(previous);showWorkspace();}
             else showConnect(null);
-            if(!shared.isEmpty())Toast.makeText(this,shared.size()+" shared files ready. Open Import wizard and tap Choose files.",Toast.LENGTH_LONG).show();
+            if(!shared.isEmpty())Toast.makeText(this,shared.size()+" shared files ready. Open Transfer & chat and tap Choose files to send.",Toast.LENGTH_LONG).show();
         }catch(Exception e){showConnect(e.getMessage());}
     }
 
@@ -113,12 +113,13 @@ public class MainActivity extends Activity {
         TextView title = text("orbit",36,Color.rgb(35,52,73)); title.setTypeface(null,Typeface.BOLD); card.addView(title);
         card.addView(text("YOUR LOCAL LAB",11,Color.rgb(79,111,151)));
         card.addView(text("One lab. Two screens.",25,Color.rgb(35,52,73)));
-        card.addView(text("Start Orbit on your laptop, connect both devices to the same Wi-Fi, then enter the laptop address shown in Server & settings.",15,Color.rgb(92,110,133)));
+        card.addView(text("Start Orbit on your laptop, connect both devices to the same Wi-Fi, then enter the laptop address shown in Connect.",15,Color.rgb(92,110,133)));
         address = new EditText(this); address.setSingleLine(true); address.setTextSize(16);
         address.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
         address.setHint("http://192.168.1.20:8765");
         address.setText(getPreferences(MODE_PRIVATE).getString("server", "")); card.addView(address);
         card.addView(button("Connect to my laptop", v -> connect()));
+        card.addView(button("Open in phone browser", v -> {try{String entered=address.getText().toString();String local=ServerAddress.normalize(entered);String target=entered.contains("#/pair?")?entered:local+"/#/transfer";startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(target)));}catch(Exception e){Toast.makeText(this,"Enter the private laptop address shown in Connect.",Toast.LENGTH_LONG).show();}}));
         card.addView(button("Save Simulation examples on this phone", v -> saveExample()));
         if (message != null) card.addView(text(message,14,Color.rgb(168,63,73)));
         card.addView(text("Scan the one-time QR in Connect to pair without typing a code. The phone gets the same library, DSP tools and model workspace while the laptop server runs.",14,Color.rgb(92,110,133)));
@@ -152,13 +153,14 @@ public class MainActivity extends Activity {
         LinearLayout toolbar=new LinearLayout(this); toolbar.setGravity(Gravity.CENTER_VERTICAL); toolbar.setPadding(dp(10),dp(2),dp(10),dp(2));
         TextView brand=text("orbit",21,Color.rgb(35,52,73)); brand.setTypeface(null,Typeface.BOLD);
         toolbar.addView(brand,new LinearLayout.LayoutParams(0,dp(50),1));
-        toolbar.addView(button("Upload",v -> web.loadUrl(base+"/#/upload")));
+        toolbar.addView(button("Send files",v -> web.loadUrl(base+"/#/transfer")));
         toolbar.addView(button("Inbox",v -> web.loadUrl(base+"/#/inbox")));
         toolbar.addView(button("Connect",v -> showConnect(null)));
         outer.addView(toolbar);
         status=text("Connecting to "+base,11,Color.rgb(92,110,133)); status.setPadding(dp(12),0,dp(12),dp(5)); outer.addView(status);
         web=new WebView(this); outer.addView(web,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,0,1));
         WebSettings settings=web.getSettings(); settings.setJavaScriptEnabled(true); settings.setDomStorageEnabled(true);
+        settings.setUserAgentString(settings.getUserAgentString()+" OrbitCompanion/4.0");
         settings.setAllowFileAccess(false); settings.setAllowContentAccess(true);
         settings.setAllowFileAccessFromFileURLs(false); settings.setAllowUniversalAccessFromFileURLs(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);

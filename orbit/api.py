@@ -93,6 +93,26 @@ class UploadBodyLimit:
             await self.app(scope, replay, send)
 
 
+class ExpiringSessions(dict):
+    """Server-side lifetime matches the 12-hour browser cookie."""
+
+    def add(self, token):
+        for key, deadline in list(self.items()):
+            if deadline <= time.monotonic():
+                self.pop(key, None)
+        self[token] = time.monotonic() + 12 * 3600
+
+    def discard(self, token):
+        self.pop(token, None)
+
+    def __contains__(self, token):
+        deadline = self.get(token)
+        if deadline is None or deadline <= time.monotonic():
+            self.pop(token, None)
+            return False
+        return True
+
+
 def now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -102,7 +122,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     for name in ("originals", "captures", "models", "staging", "media", "references"):
         (data / name).mkdir(parents=True, exist_ok=True)
     code = access_code or secrets.token_hex(4).upper()
-    sessions = set()
+    sessions = ExpiringSessions()
     attempts = {}
     guard = Lock()
     pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="orbit")
@@ -224,7 +244,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             # Do not send local paths or stack traces to clients.
             return JSONResponse({"detail": "Operation failed. Check the local server log."}, 500)
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; connect-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'"
+            "default-src 'self'; connect-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'"
         )
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
@@ -1111,6 +1131,8 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     download_root = Path(os.environ.get("ORBIT_DOWNLOADS_DIR", ROOT.parent)).resolve()
     downloads_allowed = {
+        "Orbit-Transfer-Sample.txt": ("General file-transfer test document", "text/plain"),
+        "Orbit-Acoustic-Hello.wav": ("Generated BFSK Hello Orbit transmit waveform", "audio/wav"),
         "Orbit-Windows.zip": ("Native Windows desktop application", "application/zip"),
         "Simulation-set-A.zip": (
             "Simulation set A · all generated classes and sessions",

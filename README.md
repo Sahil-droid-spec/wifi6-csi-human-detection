@@ -1,4 +1,4 @@
-# Orbit — Wi-Fi Sensing Lab
+# ORBIT Ultimate — Communication and Signal Laboratory
 
 A local lab for recorded Wi-Fi CSI, DSP, model comparison and clearly separated simulation experiments. The phone and laptop share the same local server and saved library.
 
@@ -40,3 +40,11 @@ DSP & SC tools extends filters, FFT, aliasing, pole-zero views, convolution, spe
 Replay defaults to saved outer-fold predictions. Scaling, GA feature selection and tuning exclude held-out recordings/dates. Final-model inference is explicitly labelled. Metrics carry validation protocols; small datasets and date/class confounding remain limitations. Simulated results do not establish real-world accuracy. No verified live CSI, through-wall detection or native 802.11bf support is claimed.
 
 Run python -m pytest tests -q and python -m ruff check orbit tests tools desktop.py build_desktop.py launch_orbit.py. Verify file bytes with python tools/checksums.py --verify. See CHANGELOG.md, docs/step1_audit.md and [the preserved research history](docs/research_history.md).
+
+## New local communication and acoustic DSP tools
+
+Connect -> fresh QR -> Transfer & chat. General files up to 256 MiB are separate from CSI imports. Resumable chunks, SHA-256, duplicate detection, cancellation, messages and attachments are implemented. Load acknowledgements are not human read receipts. Client-reported accepted-payload rates are not Wi-Fi PHY speed. Sessions expire server-side after 12 hours.
+
+Signal lab -> Acoustic modem: UTF-8 BFSK at 1200/2200 Hz, 100 bit/s, preamble/length/CRC32. Generated speaker WAV, noisy loopback and PCM WAV decode. Microphone capture needs a supported secure context and permission; phone LAN HTTP commonly blocks it. Physical acoustic tests, AgentLink, calls, live SDR and MATLAB Engine remain unverified or pending.
+
+Grouped navigation preserves existing pages. See docs/ORBIT_ULTIMATE_STATUS.md and feature inventory. No new mandatory libraries; existing NumPy/SciPy/scikit-learn BSD-family licenses and FastAPI MIT metadata inspected. MATLAB remains optional.

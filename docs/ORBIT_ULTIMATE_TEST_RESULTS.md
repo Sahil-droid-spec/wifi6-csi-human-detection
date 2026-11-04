@@ -1,0 +1,14 @@
+# Executed verification - 2026-11-04
+
+- Full application regression: python -m pytest tests -q -> 108 passed, one upstream Starlette TestClient deprecation warning, 148.64 seconds.
+- Final focused acoustic/transfer checks after provenance and media-policy changes: python -m pytest tests/test_acoustic.py tests/test_communication.py -q -> 8 passed (see output log for duration). Includes authentication, hash identity, interrupted upload, persisted offset after restart, duplicate/cancel/error paths, message acknowledgements, session expiry, BFSK timing/noise/CRC corruption, stereo 44.1 kHz WAV resampling and simulation provenance.
+- Frontend: npm --prefix frontend run build -> TypeScript/Vite passed. Large-bundle advisory remains. No dependency reinstallation or model retraining.
+- Python Ruff checks passed for changed backend/tests.
+- Real loopback TCP HTTP: two cookie-authenticated clients sent/received 9000 bytes with matching SHA-256 and message acknowledgement. This is actual local TCP, not physical phone or radio testing. Detailed measurements: outputs/Orbit-Ultimate-TCP-Check.json.
+- Browser: actual file picker upload of 155-byte sample -> server hash matched -> Receive & verify -> saved download. Filesystem SHA-256 matched both original and saved copy: 014405619fd4ef8baeffd9e1b8fe3a3285a25ff7ef8fb5638879778aa72cc4a7. Chat stored a real browser message. Modem UI computed CRC-valid Hello Orbit in a labelled single-frame simulation. Grouped navigation, collapsed receipt/graph panels and numeric axes inspected.
+- Windows executable self-test passed. Additional frozen-runtime server test executed the BFSK endpoint and verified a real file download through the packaged scientific runtime. Logs/JSON under outputs/Orbit-Ultimate-Frozen-*.
+- Android v4.0, versionCode 6: rebuilt with existing signing identity; signature/alignment and default-deny exact RFC1918 exemptions passed; 13 server-address checks passed. Physical Android install/transfer/microphone: NOT EXECUTED.
+- MATLAB R2026b installation and local Engine setup supported-version list inspected. Engine module absent from Orbit environment; license, toolboxes, Engine computation and Simulink execution NOT EXECUTED.
+- No live SDR, Wi-Fi PHY metrics, real acoustic channel, AgentLink, WebRTC call, SAGE rerun or independent SmartCSI revalidation was performed. These are not passed acceptance criteria.
+
+Known limits: client payload/time reports are not wire/PHY counters; browser verification buffers files, so memory-limited phones should use direct save and re-upload the saved copy. Browser secure contexts constrain microphones. Audio exports are PCM16 derived from analyzed samples; clipping is counted, and exported WAV should be re-decoded to evaluate that derived signal. These results are software checks, not broad communication reliability or classification accuracy claims.

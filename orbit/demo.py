@@ -19,6 +19,10 @@ def install(app, ctx):
     install_receiver(app, ctx)
     from .journey import install as install_journey
     install_journey(app, ctx)
+    from .communication import install as install_communication
+    install_communication(app, ctx)
+    from .acoustic import install as install_acoustic
+    install_acoustic(app, ctx)
     data, get, put = ctx["data"], ctx["get"], ctx["put"]
 
     @lru_cache(maxsize=4)
