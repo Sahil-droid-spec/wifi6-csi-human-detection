@@ -2,6 +2,46 @@
 
 A local lab for recorded Wi-Fi CSI, DSP, model comparison and clearly separated simulation experiments. The phone and laptop share the same local server and saved library.
 
+## Wi-Fi 6 research at a glance
+
+![Research pipeline from recorded CSI through DSP, modelling and evaluation](assets/assets/project_pipeline.svg)
+
+![Archived comparison of capture accuracy under different validation protocols](assets/assets/validation_protocol_comparison.png)
+
+The original notebook studied **recorded human-presence and activity sensing**. Its validation plot compares different ways of holding recordings out. Its separate AX/BF simulator study measured throughput and sensing latency with five valid runs per configuration.
+
+<details>
+<summary>Original CSI, FIR, DFT and AX/BF graphs</summary>
+
+#### Recorded CSI amplitude
+
+![20 MHz recorded CSI amplitude examples](assets/assets/csi_20mhz_examples.webp)
+![40 MHz recorded CSI amplitude examples](assets/assets/csi_40mhz_examples.webp)
+
+#### Filter and spectrum inspection
+
+![Original raw versus FIR-filtered CSI](assets/assets/fir_filter_comparison.webp)
+![Original DFT magnitude comparison](assets/assets/dft_spectrum_comparison.webp)
+
+#### AX/BF simulator comparison
+
+![Archived AX throughput and BF report latency under three simulator configurations](assets/assets/phase7_simulator_results.png)
+
+</details>
+
+[Original Colab notebook](https://colab.research.google.com/drive/1iFoaTazemwuRKRnVC7APWzceNzxh0OiK?usp=sharing) · [Research history and limitations](docs/research_history.md) · [Recorded model comparison](docs/model_comparison_20mhz_40mhz.md) · [AX/BF evaluation](docs/ax_bf_simulator_evaluation.md)
+
+## Project progress
+
+| Area | Status |
+|---|---|
+| Research | Archived CSI plots, grouped evaluations and AX/BF simulation comparisons are available. |
+| Orbit workflow | Library, Signal Studio, Learning Lab, held-out Replay and Evidence are available for recorded datasets. |
+| Phone workflow | QR pairing and local uploads are implemented. Physical Android acceptance remains unverified. |
+| Simulation | Generated examples use a separate workspace and carry their source labels. Live CSI and native 802.11bf remain unverified. |
+
+[Research progress](docs/research_progress.md) · [Orbit changelog](CHANGELOG.md) · [Merged app update and verification notes](https://github.com/Sahil-droid-spec/wifi6-csi-human-detection/pull/2)
+
 ## Windows application
 
 Extract the Windows download fully, then open **Orbit.exe**. It includes Python and the scientific runtime. The native window uses Microsoft Edge WebView2. Keep the app open while using your phone.
