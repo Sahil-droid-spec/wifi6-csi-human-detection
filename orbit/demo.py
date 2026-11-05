@@ -23,6 +23,10 @@ def install(app, ctx):
     install_communication(app, ctx)
     from .acoustic import install as install_acoustic
     install_acoustic(app, ctx)
+    from .vision import install as install_vision
+    from .matlab_lab import install as install_matlab
+    install_vision(app, ctx)
+    install_matlab(app, ctx)
     data, get, put = ctx["data"], ctx["get"], ctx["put"]
 
     @lru_cache(maxsize=4)

@@ -7,7 +7,6 @@ import json
 import os
 import secrets
 import shutil
-import socket
 import sqlite3
 import time
 import zipfile
@@ -26,6 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import core, models
+from .network import lan_addresses
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_UPLOAD = 2 * 1024**3
@@ -192,7 +192,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     app = FastAPI(
         title="Orbit Wi-Fi Sensing Lab",
-        version="2.2.0",
+        version="4.1.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
@@ -262,7 +262,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     def health():
         return {
             "status": "online",
-            "version": "2.2.0",
+            "version": "4.1.0",
             "local_only": True,
             "instance_id": app.state.instance_id,
         }
@@ -318,7 +318,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             "lan": sharing["enabled"],
             "media": rows("media"),
             "references": rows("reference"),
-            "version": "2.2.0",
+            "version": "4.1.0",
         }
 
     cancelled = set()
@@ -875,19 +875,12 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         )
 
     def lan_info():
-        addresses = set()
-        try:
-            for result in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-                ip = result[4][0]
-                if not ip.startswith("127."):
-                    addresses.add(ip)
-        except OSError:
-            pass
+        addresses = lan_addresses() if sharing["enabled"] else []
         return {
             "enabled": sharing["enabled"],
             "bound_for_lan": lan,
             "addresses": (
-                [f"http://{ip}:{port}/#/upload" for ip in sorted(addresses)]
+                [f"http://{ip}:{port}/#/transfer" for ip in addresses]
                 if sharing["enabled"]
                 else []
             ),
@@ -1132,6 +1125,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     download_root = Path(os.environ.get("ORBIT_DOWNLOADS_DIR", ROOT.parent)).resolve()
     downloads_allowed = {
         "Orbit-Transfer-Sample.txt": ("General file-transfer test document", "text/plain"),
+        "Orbit-Transfer-Research-Graph.png": ("Archived research graph for a transfer test", "image/png"),
         "Orbit-Acoustic-Hello.wav": ("Generated BFSK Hello Orbit transmit waveform", "audio/wav"),
         "Orbit-Windows.zip": ("Native Windows desktop application", "application/zip"),
         "Simulation-set-A.zip": (
@@ -1167,25 +1161,31 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         ),
     }
 
+    def download_path(name):
+        path = download_root / name
+        if name == "Orbit-Transfer-Research-Graph.png" and not path.is_file():
+            return data / "research" / "journey" / "graph-01.png"
+        return path
+
     @app.get("/api/downloads")
     def download_catalog():
         return [
             {
                 "name": name,
                 "title": title,
-                "size": (download_root / name).stat().st_size,
+                "size": download_path(name).stat().st_size,
                 "url": "/api/downloads/" + name,
             }
             for name, (title, mime) in downloads_allowed.items()
-            if (download_root / name).is_file()
+            if download_path(name).is_file()
         ]
 
     @app.get("/api/downloads/{name}")
     def download_file(name: str):
-        if name not in downloads_allowed or not (download_root / name).is_file():
+        if name not in downloads_allowed or not download_path(name).is_file():
             raise HTTPException(404, "Download is not available.")
         return FileResponse(
-            download_root / name, filename=name, media_type=downloads_allowed[name][1]
+            download_path(name), filename=name, media_type=downloads_allowed[name][1]
         )
 
     static = ROOT / "orbit" / "static"

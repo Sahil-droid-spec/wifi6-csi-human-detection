@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import * as echarts from "echarts";
 import {
   Activity,
+  ScanLine,
   ArrowDownToLine,
   ArrowRight,
   AudioLines,
@@ -57,6 +58,8 @@ import {Journey} from "./Journey";
 import {Transfer} from "./Transfer";
 import {Acoustic} from "./Acoustic";
 import {PhoneFiles,Progression,ResearchCode,NotebookLinks} from "./Demo";
+import {CameraStudio} from "./CameraStudio";
+import {MatlabStudio} from "./MatlabStudio";
 import {BulkImport,SimulationPage,ConnectTools,InboxPage,PlanPage,GuidePage,GlossaryPage,AdvancedPage,Term} from "./Extensions";
 import {themes,lightThemes,okabeIto,applyTheme} from "./themes";
 type Dict = Record<string, any>;
@@ -71,7 +74,7 @@ type Page =
   | "modes"
   | "settings"
   | "upload"
-  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs" | "smartcsi" | "receiver" | "journey" | "transfer" | "acoustic";
+  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs" | "smartcsi" | "receiver" | "journey" | "transfer" | "acoustic" | "camera" | "matlab";
 const stages = [
   "Receive",
   "Window",
@@ -104,6 +107,8 @@ const nav = [
   { id: "settings", label: "Connect", icon: Settings2 },
   {id:"transfer",label:"Transfer & chat",icon:Smartphone},
   {id:"acoustic",label:"Acoustic modem",icon:AudioLines},
+  {id:"camera",label:"Camera Studio",icon:ScanLine},
+  {id:"matlab",label:"MATLAB Studio",icon:Activity},
   {id:"simulation",label:"Simulation",icon:Waves},
   {id:"inbox",label:"Phone Inbox",icon:Smartphone},
   {id:"advanced",label:"DSP & SC tools",icon:CircuitBoard},
@@ -849,7 +854,7 @@ function App() {
               <button className={page==='overview'?'active':''} onClick={()=>navigate('overview')}><LayoutDashboard size={19}/><span>Home</span></button>
               {[
                 {title:'Connect & share',ids:['settings','transfer','inbox']},
-                {title:'Signal lab',ids:['dsp','acoustic','receiver','advanced']},
+                {title:'Signal lab',ids:['dsp','acoustic','receiver','advanced','camera','matlab']},
                 {title:'Data & learning',ids:['data','learning','replay','smartcsi','simulation']},
                 {title:'Research & notebook',ids:['journey','graphs','results','media','modes','plan']},
                 {title:'Help',ids:['guide','glossary']}
@@ -1245,11 +1250,14 @@ function App() {
                   )}
                 </>
               )}
-              {(page === "upload" || page === "settings") && <PhoneFiles/>}
+              {page === "settings"&&<ConnectTools/>}
+              {page === "upload" && <PhoneFiles/>}
               {page === "learning" && <Progression state={state} capture={capture}/>}
               {page === "results" && <Progression state={{...stored,simulation:false}}/>}
               {["scshow","graphs","smartcsi"].includes(page)&&<div className="studio-source"><CaptureSelect {...common}/></div>}
               {page === "acoustic"&&<Acoustic/>}
+              {page === "camera"&&<CameraStudio/>}
+              {page === "matlab"&&<MatlabStudio/>}
               {page === "transfer"&&<Transfer state={state}/>}
               {page === "journey"&&<Journey state={state}/>}
               {page === "receiver"&&<Receiver/>}
@@ -1283,11 +1291,8 @@ function App() {
               {page === "guide"&&<GuidePage/>}
               {page === "glossary"&&<GlossaryPage/>}
               {page === "advanced"&&<><AdvancedPage {...{state,capture,refresh}}/><ResearchCode/></>}
-              {page === "settings"&&<ConnectTools/>}
               {page === "settings" && (
-                <SettingsPage
-                  notify={notify}
-                  logout={async () => {
+                <SettingsPage logout={async () => {
                     await api("logout", {});
                     setAuthed(false);
                     navigate("intro");
@@ -1299,7 +1304,7 @@ function App() {
                   <ShieldCheck size={13} /> Local-first. Evidence-led.
                 </span>
                 <span>
-                  Orbit Ultimate 4.0 <i /> Live hardware remains unverified.
+                  Orbit Ultimate 4.1 <i /> Live hardware remains unverified.
                 </span>
               </footer>
             </main>
@@ -4484,10 +4489,8 @@ function MediaPage({
 }
 
 function SettingsPage({
-  notify,
   logout,
 }: {
-  notify: (s: string) => void;
   logout: () => void;
 }) {
   const [server, setServer] = useState<Dict | null>(null);
@@ -4537,96 +4540,6 @@ function SettingsPage({
         </section>
       )}
       <div className="two-column">
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <Badge tone={server?.enabled ? "green" : "muted"}>
-                {server?.enabled ? "LAN ENABLED" : "LAPTOP ONLY"}
-              </Badge>
-              <h2>One lab. Two screens.</h2>
-            </div>
-            <Smartphone size={27} />
-          </div>
-          <div className="sharing-control">
-            <span>
-              {server?.enabled ? "Phone sharing is on" : "Phone sharing is off"}
-            </span>
-            <Button
-              secondary
-              onClick={async () => {
-                try {
-                  setServer(
-                    await api("server/sharing", { enabled: !server?.enabled }),
-                  );
-                } catch (e: any) {
-                  notify(e.message);
-                }
-              }}
-            >
-              {server?.enabled ? "Switch sharing off" : "Enable phone sharing"}
-            </Button>
-          </div>
-          <p className="helper">
-            To start LAN mode after a laptop-only launch, double-click{" "}
-            <b>Start-Orbit-Server.cmd</b> in the app folder.
-          </p>
-          <p>
-            Connect your phone and laptop to the same trusted Wi-Fi network.
-            Open the laptop’s LAN address, enter the terminal access code, and
-            send a recording.
-          </p>
-          {server?.enabled && server.addresses.length ? (
-            <>
-              <div className="qr-layout">
-                <img
-                  src="/api/qr"
-                  alt="QR code for the laptop phone upload address"
-                />
-                <div>
-                  <span className="tiny-label">SCAN TO UPLOAD</span>
-                  <p>
-                    No cloud hand-off. Your phone sends the file directly to
-                    this laptop.
-                  </p>
-                </div>
-              </div>
-              {server.addresses.map((address: string) => (
-                <div className="address-row" key={address}>
-                  <code>{address}</code>
-                  <button
-                    className="text-button"
-                    onClick={() =>
-                      navigator.clipboard
-                        .writeText(address)
-                        .then(() => notify("LAN address copied."))
-                        .catch(() =>
-                          notify("Select and copy the displayed address."),
-                        )
-                    }
-                  >
-                    Copy
-                  </button>
-                </div>
-              ))}
-            </>
-          ) : (
-            <div className="setup-card">
-              <Network size={28} />
-              <h3>Enable trusted-LAN access.</h3>
-              <p>Stop the local server, then start Orbit with:</p>
-              <code>python -m orbit --lan</code>
-              <p>
-                A LAN address and QR code appear here after reconnecting. Allow
-                Python through Windows Firewall on private networks if prompted.
-              </p>
-            </div>
-          )}
-          <Note>
-            This server is for a trusted private network. Do not forward its
-            port or publish a public tunnel. A physical phone transfer still
-            needs to be verified on your network.
-          </Note>
-        </section>
         <section className="panel">
           <Badge tone="green">LOCAL PROCESSING</Badge>
           <h2>The details that matter.</h2>

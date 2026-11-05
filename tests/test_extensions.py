@@ -104,7 +104,8 @@ def test_numeric_import_wizard(client, extension):
     assert cap["bandwidth"] == 20 and cap["present"] is True and not cap["synthetic"]
 
 
-def test_pairing_is_one_use_and_sharing_respected(client):
+def test_pairing_is_one_use_and_sharing_respected(client, monkeypatch):
+    monkeypatch.setattr("orbit.api.lan_addresses", lambda: ["192.168.43.79"])
     token = client.post("/api/pair/token").json()
     assert client.get(token["qr"]).status_code == 200
     with TestClient(client.app, client=("192.168.1.20", 1000)) as phone:
@@ -116,6 +117,18 @@ def test_pairing_is_one_use_and_sharing_respected(client):
         assert phone.post("/api/watch", json={"path": "C:/", "enabled": False}).status_code == 403
         assert client.post("/api/server/sharing", json={"enabled": False}).status_code == 200
         assert phone.get("/api/status").status_code == 403
+
+
+def test_pairing_selects_the_requested_interface(client, monkeypatch):
+    monkeypatch.setattr("orbit.api.lan_addresses", lambda: ["192.168.43.79", "192.168.137.1"])
+    assert client.get("/api/doctor").json()["addresses"][0] == "http://192.168.43.79:8765/#/transfer"
+    assert client.post("/api/pair/token?interface=9").status_code == 409
+    payload = client.post("/api/pair/token?interface=1").json()
+    assert payload["url"] == "http://192.168.137.1:8765/connect-phone/#" + payload["token"]
+    assert "Open in the Orbit APK" in client.get("/connect-phone/").text
+    assert client.get(payload["qr"]).headers["content-type"] == "image/svg+xml"
+    assert client.post("/api/pair/claim", json={"token": payload["token"]}).status_code == 200
+    assert client.get(payload["qr"]).status_code == 410
 
 
 def test_simulation_separation_reproducibility_and_exports(client, tmp_path):

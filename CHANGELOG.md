@@ -1,5 +1,12 @@
 # Changelog
 
+## Orbit Ultimate 4.1
+
+- Unified phone pairing on the Connect page with ranked private addresses, a lightweight QR landing page, and one-time browser or APK handoff.
+- Added phone transfer examples, sender-session labels, and a reduced-motion-aware progress indicator.
+- Added consent-first, laptop-only Camera Studio with OpenCV face/eye candidates and QR text, local photo/video capture, motion inspection, and quality-gated educational rPPG.
+- Added local MATLAB batch comparisons for generated FIR and image fixtures and a small Simulink gain model.
+
 ## 2.0
 - Preserved desktop and command-line local-server modes for phone/laptop transfers.
 - Added resumable hashed uploads, folder/batch wizard, numeric formats, duplicate detection and watch folders.

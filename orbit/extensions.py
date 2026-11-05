@@ -370,35 +370,37 @@ def install(app, ctx):
         require_local(request)
         if not ctx["sharing"]["enabled"]:
             raise HTTPException(409, "Switch local-server phone sharing on first.")
+        addresses = ctx["lan_info"]()["addresses"]
+        if not 0 <= interface < len(addresses):
+            raise HTTPException(409, "Select an available laptop Wi-Fi or hotspot address.")
+        base = addresses[interface].split("/#")[0]
         token = secrets.token_urlsafe(32)
+        url = base + "/connect-phone/#" + token
         with lock:
             for old in list(tokens):
                 if tokens[old] < time.monotonic():
                     tokens.pop(old)
-            tokens[token] = time.monotonic() + 120
-        addresses = ctx["lan_info"]()["addresses"]
-        base = (
-            addresses[max(0, min(interface, len(addresses) - 1))].split("/#")[0]
-            if addresses
-            else f"http://orbit.local:{ctx['port']}"
-        )
-        token_urls[token] = base + "/#/pair?token=" + token
+                    token_urls.pop(old, None)
+            tokens[token] = time.monotonic() + 180
+            token_urls[token] = url
         return {
             "token": token,
-            "url": base + "/#/pair?token=" + token,
-            "expires_seconds": 120,
+            "url": url,
+            "expires_seconds": 180,
             "qr": "/api/pair/qr/" + token,
         }
 
     @app.get("/api/pair/qr/{token}")
     def pairing_qr(token: str):
-        if tokens.get(token, 0) < time.monotonic():
+        with lock:
+            url = token_urls.get(token) if tokens.get(token, 0) >= time.monotonic() else None
+        if not url:
             raise HTTPException(410, "Create a fresh pairing QR.")
         import qrcode
         import qrcode.image.svg
 
         buffer = io.BytesIO()
-        qrcode.make(token_urls[token], image_factory=qrcode.image.svg.SvgPathImage).save(buffer)
+        qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage, border=4).save(buffer)
         return Response(buffer.getvalue(), media_type="image/svg+xml")
 
     @app.post("/api/desktop/claim")
