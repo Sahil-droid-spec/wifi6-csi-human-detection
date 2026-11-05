@@ -3,6 +3,7 @@
 import hashlib
 import secrets
 import threading
+import time
 from pathlib import Path
 
 from fastapi import HTTPException, Query, Request
@@ -10,6 +11,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 CAP = 256 * 1024**2
+TIMELINE_POINTS = 257
 
 
 class Begin(BaseModel):
@@ -35,6 +37,9 @@ def install(app, ctx):
     def path(row):
         return root / row["id"]
 
+    def summary(row):
+        return {key: value for key, value in row.items() if key != "events"}
+
     def digest(p):
         h = hashlib.sha256()
         with p.open("rb") as f:
@@ -44,7 +49,7 @@ def install(app, ctx):
 
     @app.get("/api/exchange")
     def status(request: Request):
-        files = rows("exchange")
+        files = [summary(row) for row in rows("exchange")]
         messages = sorted(rows("message"), key=lambda r: r["created"])[-200:]
         return {
             "device_id": device(request),
@@ -71,7 +76,7 @@ def install(app, ctx):
                     and r["status"] in ("uploading", "complete")
                 ):
                     r["duplicate"] = r["status"] == "complete"
-                    return {**r, "offset": path(r).stat().st_size}
+                    return {**summary(r), "offset": path(r).stat().st_size}
             active = [r for r in rows("exchange") if r["status"] == "uploading"]
             if (
                 len(active) >= 8
@@ -93,15 +98,39 @@ def install(app, ctx):
                 "receipts": [],
                 "chunks": 0,
                 "duplicate": False,
+                "events": [[time.time_ns(), 0]],
             }
             path(r).touch()
             put("exchange", r)
-            return r
+            return summary(r)
 
     @app.get("/api/exchange/files/{ident}")
     def offset(ident: str):
         r = get("exchange", ident)
-        return {**r, "offset": path(r).stat().st_size if path(r).exists() else 0}
+        return {**summary(r), "offset": path(r).stat().st_size if path(r).exists() else 0}
+
+    @app.get("/api/exchange/files/{ident}/timeline")
+    def timeline(ident: str):
+        r = get("exchange", ident)
+        events = r.get("events", [])
+        elapsed = (events[-1][0] - events[0][0]) / 1e9 if events else 0
+        points = [
+            {"elapsed_s": (stamp - events[0][0]) / 1e9, "accepted_bytes": size}
+            for stamp, size in events
+        ]
+        interval = (events[-1][0] - events[-2][0]) / 1e9 if len(events) > 1 else 0
+        return {
+            "points": points,
+            "elapsed_s": elapsed if len(events) > 1 else None,
+            "observed_bytes": events[-1][1] - events[0][1] if events else 0,
+            "total_bytes": r["size"],
+            "average_bytes_per_s": (events[-1][1] - events[0][1]) / elapsed if elapsed else None,
+            "last_interval_bytes_per_s": (events[-1][1] - events[-2][1]) / interval if interval else None,
+            "status": r["status"],
+            "verified": r["status"] == "complete",
+            "offset_conflicts": r.get("offset_conflicts", 0),
+            "protocol": "Laptop server timestamps after accepting payload chunks. Intervals include pauses and retries. Cumulative offsets exclude duplicate or rejected chunks.",
+        }
 
     @app.put("/api/exchange/files/{ident}")
     async def chunk(ident: str, request: Request, offset: int = Query(0, ge=0)):
@@ -110,27 +139,36 @@ def install(app, ctx):
             payload.extend(block)
             if len(payload) > 2 * 1024**2:
                 raise HTTPException(413, "Use chunks no larger than 2 MiB.")
+        if not payload:
+            raise HTTPException(422, "Send a non-empty chunk, or verify the completed file.")
         with lock:
             r = get("exchange", ident)
             if r["status"] != "uploading":
                 raise HTTPException(409, "Resume an active upload.")
             actual = path(r).stat().st_size
             if offset != actual:
+                r["offset_conflicts"] = r.get("offset_conflicts", 0) + 1
+                put("exchange", r)
                 raise HTTPException(409, "Resync with the server offset and retry.")
             if actual + len(payload) > r["size"]:
                 raise HTTPException(413, "Chunk exceeds the declared file size.")
             with path(r).open("ab") as f:
                 f.write(payload)
             r.update(offset=actual + len(payload), chunks=r["chunks"] + 1)
+            stamp = time.time_ns()
+            events = r.setdefault("events", [[stamp, actual]])
+            if len(events) >= TIMELINE_POINTS:
+                events = events[::2]
+            r["events"] = [*events, [max(stamp, events[-1][0]), r["offset"]]]
             put("exchange", r)
-            return r
+            return summary(r)
 
     @app.post("/api/exchange/files/{ident}/complete")
     def complete(ident: str):
         with lock:
             r = get("exchange", ident)
             if r["status"] == "complete":
-                return r
+                return summary(r)
             if r["status"] != "uploading" or path(r).stat().st_size != r["size"]:
                 raise HTTPException(409, "Finish uploading all bytes first.")
             if digest(path(r)) != r["sha256"]:
@@ -139,7 +177,7 @@ def install(app, ctx):
                 )
             r.update(status="complete", verified_sha256=r["sha256"], completed=ctx["now"]())
             put("exchange", r)
-            return r
+            return summary(r)
 
     @app.delete("/api/exchange/files/{ident}")
     def cancel(ident: str):

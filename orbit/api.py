@@ -316,7 +316,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             "runs": [r for r in rows("run") if r.get("source") != "SIMULATION"][:50],
             "jobs": rows("job")[:30],
             "lan": sharing["enabled"],
-            "media": rows("media"),
+            "media": [row for row in rows("media") if not row.get("trashed")],
             "references": rows("reference"),
             "version": "4.1.0",
         }
@@ -1075,6 +1075,8 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     @app.get("/api/media/{id}/file")
     def media_file(id: str):
         row = get("media", id)
+        if row.get("trashed"):
+            raise HTTPException(404, "Restore this recording from Trash before opening it.")
         return FileResponse(
             data / row["path"],
             media_type=row["type"],

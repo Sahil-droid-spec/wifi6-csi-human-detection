@@ -1,3 +1,17 @@
+# Integrated transfer, WAV and CSI checks · 2026-11-05
+
+- Baseline: `python -m pytest -q tests` → 112 passed. Updated suite → 115 passed. Both runs reported one upstream Starlette TestClient deprecation warning.
+- `npm --prefix frontend run build` → TypeScript and production Vite build passed, with the existing large-chunk advisory.
+- Scoped Ruff → passed for the changed DSP, transport and test code.
+- Two software clients: measured accepted offsets through interrupted/resumed upload, exact SHA-256, original and filtered WAV comparison, Library versioning, and Trash/restore/permanent deletion.
+- Recorded CSI: 15 labelled 20 MHz AX captures, two leave-one-date-out folds, same four feature groups and Random Forest parameters, fixed 15-tap Hamming FIR at 0.08 cycles/packet. Baseline 10/15 correct (balanced accuracy 0.6786); Hamming 11/15 correct (balanced accuracy 0.7500). Both had four false alarms; misses 1 → 0. This is a single recorded cohort.
+- Physical Android, acoustics, live CSI, live SDR and calls: **NOT EXECUTED**.
+- Final scoped rerun after switching WAV I/O to the already-bundled SciPy runtime: 6 passed. The first native launch failed because the standard-library wave module was absent in the older frozen runtime; the corrected launch passed.
+- Native Windows LAN test: 64,044-byte generated WAV, observed accepted offsets 0 → 16,000 → 64,044, exact roundtrip, analysis, filtered output, Trash, restore and permanent deletion. Licensed MATLAB matched SciPy on the first 2,048 samples of the same saved WAV (maximum absolute difference 2.22045e-16; same 63-tap Hamming FIR at 1,200 Hz).
+- Isolated browser: uploaded the generated WAV, inspected the SHA-verified graph, opened Audio Studio and saved a filtered copy with independent playback and spectrogram.
+
+---
+
 # Executed verification - 2026-11-04
 
 - Full application regression: python -m pytest tests -q -> 108 passed, one upstream Starlette TestClient deprecation warning, 148.64 seconds.

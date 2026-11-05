@@ -4353,3 +4353,10 @@ html[data-theme] :is(.note,.essential,.historical-callout,.job-banner,.fuzzy-ver
 .transfer-dot { position:absolute; left:.7rem; top:1.7rem; width:.6rem; height:.6rem; border-radius:50%; background:var(--blue); }
 @media (prefers-reduced-motion:no-preference) { .transfer-progress[data-active=true] .transfer-dot { animation:transfer-pulse 1.3s ease-in-out infinite; } }
 @keyframes transfer-pulse { 50% { transform:scale(1.45); opacity:.65; } }
+
+.exchange-timeline { border:1px solid var(--line); border-radius:18px; margin-block:1rem; padding:1rem; }
+.exchange-timeline svg { display:block; width:100%; max-width:680px; }
+.audio-spectrogram { width:min(100%, 680px); height:220px; image-rendering:pixelated; }
+
+.presence-trace { display:block; width:100%; max-width:760px; }
+.table-scroll { overflow-x:auto; }

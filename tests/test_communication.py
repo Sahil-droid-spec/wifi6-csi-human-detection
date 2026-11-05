@@ -23,6 +23,12 @@ def test_general_file_roundtrip_resume_and_chat(tmp_path, monkeypatch):
         assert resumed["offset"] == 300
         assert phone.put(url + "?offset=300", content=payload[300:]).status_code == 200
         assert phone.post(url + "/complete").json()["verified_sha256"] == sha
+        graph = phone.get(url + "/timeline").json()
+        assert [point["accepted_bytes"] for point in graph["points"]] == [0, 300, len(payload)]
+        assert graph["offset_conflicts"] == 1 and graph["verified"]
+        assert graph["elapsed_s"] > 0 and graph["observed_bytes"] == len(payload)
+        assert graph["average_bytes_per_s"] == len(payload) / graph["elapsed_s"]
+        assert "events" not in laptop.get("/api/exchange").json()["files"][0]
         received = phone.get(url + "/download")
         assert received.content == payload
         assert hashlib.sha256(received.content).hexdigest() == sha
@@ -76,6 +82,7 @@ def test_invalid_file_hash_cancel_and_persisted_resume(tmp_path, monkeypatch):
     with TestClient(create_app(tmp_path, "B")) as c:
         c.post("/api/auth", json={"code": "B"})
         assert c.post("/api/exchange/files", json=b).json()["offset"] == 2
+        assert c.get(url + "/timeline").json()["observed_bytes"] == 2
         c.put(url + "?offset=2", content=b"d!")
         assert c.post(url + "/complete").status_code == 422
         assert c.get(url + "/download").status_code == 409

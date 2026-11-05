@@ -1,5 +1,11 @@
 # Changelog
 
+## Current development
+
+- Restored the original Wi-Fi CSI research plots and added a progress summary to the README.
+- Added server-measured transfer timelines, Audio Studio with versioned WAVs in the media library, and a same-input MATLAB comparison for Library WAVs.
+- Added a separate fixed-configuration Hamming FIR versus baseline presence experiment with two paths through identical date-held-out validation and aligned window inspection.
+
 ## Orbit Ultimate 4.1
 
 - Unified phone pairing on the Connect page with ranked private addresses, a lightweight QR landing page, and one-time browser or APK handoff.

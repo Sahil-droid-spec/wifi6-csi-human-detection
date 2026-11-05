@@ -59,12 +59,14 @@ def matlab_executable() -> str | None:
     return None
 
 
-def compare(executable: str, workspace: Path, mode: str) -> dict:
+def compare(executable: str, workspace: Path, mode: str, audio: tuple | None = None) -> dict:
     from scipy.io import savemat
 
     b = np.array([0.25, 0.5, 0.25])
     t = np.arange(64)
     x = np.sin(2 * np.pi * t / 16) + 0.24 * np.cos(2 * np.pi * t / 4)
+    if audio is not None:
+        x, b = audio
     if mode == "fir":
         expected = signal.lfilter(b, [1], x)
     elif mode == "simulink":
@@ -73,8 +75,12 @@ def compare(executable: str, workspace: Path, mode: str) -> dict:
     elif mode == "image":
         rows, cols = np.mgrid[:32, :32]
         x = (cols / 100) + ((rows > 7) & (rows < 24) & (cols > 8) & (cols < 24)) * 0.55
-        smooth = ndimage.correlate(x, np.array([[1, 2, 1], [2, 4, 2], [1, 2, 1]]) / 16, mode="nearest")
-        edges = np.abs(ndimage.correlate(smooth, [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], mode="nearest"))
+        smooth = ndimage.correlate(
+            x, np.array([[1, 2, 1], [2, 4, 2], [1, 2, 1]]) / 16, mode="nearest"
+        )
+        edges = np.abs(
+            ndimage.correlate(smooth, [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], mode="nearest")
+        )
         expected = np.dstack((smooth, edges, edges > 0.5))
     else:
         raise ValueError("Choose a listed MATLAB experiment.")
@@ -85,9 +91,18 @@ def compare(executable: str, workspace: Path, mode: str) -> dict:
         folder = Path(directory)
         savemat(folder / "input.mat", {"x": x, "b": b})
         (folder / "orbit_run.m").write_text(SCRIPT.replace("ORBIT_MODE", mode), encoding="utf-8")
-        command = [executable, *(["-wait"] if os.name == "nt" else []), "-batch", "run('orbit_run.m')"]
+        command = [
+            executable,
+            *(["-wait"] if os.name == "nt" else []),
+            "-batch",
+            "run('orbit_run.m')",
+        ]
         proc = subprocess.run(
-            command, cwd=folder, env=env, capture_output=True, timeout=150,
+            command,
+            cwd=folder,
+            env=env,
+            capture_output=True,
+            timeout=150,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
         if proc.returncode or not (folder / "result.json").is_file():
@@ -98,10 +113,16 @@ def compare(executable: str, workspace: Path, mode: str) -> dict:
         raise RuntimeError("MATLAB returned an unexpected sample layout.")
     delta = np.abs(actual - expected)
     return {
-        "mode": mode, "source": "Generated comparison input", "synthetic": True,
-        "matlab_version": result["version"], "input": x.tolist(), "python": expected.tolist(),
-        "matlab": actual.tolist(), "shape": list(actual.shape), "max_abs_difference": float(delta.max()),
-        "protocol": "Same generated input and coefficients or gain; all returned values compared against NumPy/SciPy.",
+        "mode": mode,
+        "source": "Library WAV · channel 1" if audio is not None else "Generated comparison input",
+        "synthetic": None if audio is not None else True,
+        "matlab_version": result["version"],
+        "input": x.tolist(),
+        "python": expected.tolist(),
+        "matlab": actual.tolist(),
+        "shape": list(actual.shape),
+        "max_abs_difference": float(delta.max()),
+        "protocol": "Same input and coefficients or gain; all returned values compared against NumPy/SciPy.",
     }
 
 
@@ -110,20 +131,57 @@ def install(app, ctx):
     def status(request: Request):
         return {"available": bool(matlab_executable()), "can_run": ctx["local_request"](request)}
 
-    @app.post("/api/matlab/{mode}")
-    def run(mode: Literal["fir", "image", "simulink"], request: Request):
+    def run_batch(request, mode, audio=None):
         if not ctx["local_request"](request):
             raise HTTPException(403, "Run MATLAB Studio from the laptop.")
         exe = matlab_executable()
         if not exe:
-            raise HTTPException(503, "Install a licensed MATLAB on this laptop to run this experiment.")
+            raise HTTPException(
+                503, "Install a licensed MATLAB on this laptop to run this experiment."
+            )
         if not _active.acquire(blocking=False):
             raise HTTPException(409, "Wait for the current MATLAB run to finish.")
         try:
-            return compare(exe, ctx["data"], mode)
+            return compare(exe, ctx["data"], mode, audio)
         except subprocess.TimeoutExpired as exc:
-            raise HTTPException(504, "MATLAB did not finish. Check its license and try again.") from exc
+            raise HTTPException(
+                504, "MATLAB did not finish. Check its license and try again."
+            ) from exc
         except (OSError, RuntimeError) as exc:
-            raise HTTPException(503, "Open MATLAB on the laptop and check its license and toolbox.") from exc
+            raise HTTPException(
+                503, "Open MATLAB on the laptop and check its license and toolbox."
+            ) from exc
         finally:
             _active.release()
+
+    @app.post("/api/matlab/{mode}")
+    def run(mode: Literal["fir", "image", "simulink"], request: Request):
+        return run_batch(request, mode)
+
+    @app.post("/api/matlab/audio/{ident}")
+    def run_wav(ident: str, request: Request):
+        from .audio_studio import MAX_WAV, read_wav
+
+        if not ctx["local_request"](request):
+            raise HTTPException(403, "Run MATLAB Studio from the laptop.")
+        row = ctx["get"]("media", ident)
+        if row.get("trashed") or row["type"] != "audio/wav":
+            raise HTTPException(404, "Choose a saved WAV from the Library.")
+        path = ctx["data"] / row["path"]
+        try:
+            with path.open("rb") as file:
+                raw = file.read(MAX_WAV + 1)
+        except FileNotFoundError as exc:
+            raise HTTPException(404, "The saved audio file is unavailable.") from exc
+        if len(raw) > MAX_WAV:
+            raise HTTPException(413, "Choose a WAV smaller than 12 MiB.")
+        rate, x = read_wav(raw)
+        coefficients = signal.firwin(63, 1200, window="hamming", fs=rate)
+        result = run_batch(request, "fir", (x[:2048, 0], coefficients))
+        return {
+            **result,
+            "sample_rate": rate,
+            "library_id": ident,
+            "sha256": row["sha256"],
+            "protocol": "Channel 1, first 2048 samples or fewer; same 63-tap, 1200 Hz Hamming FIR and zero initial state in Python and MATLAB.",
+        }

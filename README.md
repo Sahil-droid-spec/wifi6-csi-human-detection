@@ -1,6 +1,42 @@
-# ORBIT Ultimate — Communication and Signal Laboratory
+# ORBIT Ultimate — Wi-Fi 6 CSI Human Presence & Activity Sensing
 
-A local lab for recorded Wi-Fi CSI, DSP, model comparison and clearly separated simulation experiments. The phone and laptop share the same local server and saved library.
+A local research lab for recorded Wi-Fi CSI, DSP, machine learning, and soft computing. A laptop hosts the app and phone workspace. Orbit keeps recorded detection experiments, ns-3 research, and ordinary file transfers distinct.
+
+## Research at a glance
+
+![Research pipeline from CSI through DSP, modelling and evaluation](assets/assets/project_pipeline.svg)
+
+| Original CSI graphs | What to look for |
+|---|---|
+| [20 MHz amplitude](assets/assets/csi_20mhz_examples.webp) · [40 MHz amplitude](assets/assets/csi_40mhz_examples.webp) | Changes across recorded packets and subcarriers |
+| [FIR comparison](assets/assets/fir_filter_comparison.webp) · [DFT spectrum](assets/assets/dft_spectrum_comparison.webp) | How the original notebook's filter changed the waveform and frequency content |
+| [Validation protocols](assets/assets/validation_protocol_comparison.png) · [Original AX/BF comparison](assets/assets/phase7_simulator_results.png) | How the split changed capture scores and how the partial simulator measured throughput and sensing latency |
+
+![Archived comparison of capture accuracy under different validation protocols](assets/assets/validation_protocol_comparison.png)
+
+<details>
+<summary>Original CSI, FIR, DFT and AX/BF graphs</summary>
+
+![20 MHz recorded CSI amplitude examples](assets/assets/csi_20mhz_examples.webp)
+![40 MHz recorded CSI amplitude examples](assets/assets/csi_40mhz_examples.webp)
+![Original raw versus FIR-filtered CSI](assets/assets/fir_filter_comparison.webp)
+![Original DFT magnitude comparison](assets/assets/dft_spectrum_comparison.webp)
+![Archived AX throughput and BF report latency under three simulator configurations](assets/assets/phase7_simulator_results.png)
+
+</details>
+
+The figures are archived outputs. The original AX/BF plot is from a five-run-per-configuration partial ns-3.40 experiment. The separate SAGE V3 study used 12 seeds and reported a severe-fading AX-only throughput gain alongside lower successful BF report rates in matched mixed-mode comparisons. The research history keeps both protocols and the recorded CSI results separate. [Research notebook](https://colab.research.google.com/drive/1iFoaTazemwuRKRnVC7APWzceNzxh0OiK?usp=sharing) · [Original research history](docs/research_history.md) · [Research Journey and SAGE V3](docs/research_journey.md)
+
+## Orbit progress
+
+| Area | Current status |
+|---|---|
+| Recorded CSI and Evidence | Quality-aware feature extraction, grouped training, held-out Replay, and a separate matched Hamming FIR experiment using the same features and held-out dates. |
+| Phone exchange | One-time QR, resumable hash-verified exchange, chat, and a server-measured upload timeline. Physical Android acceptance pending. |
+| Audio and MATLAB | Verified transferred WAVs can enter Audio Studio, be filtered into linked Library copies, and be reopened for a bounded comparison in optional licensed MATLAB. |
+| Additional labs | Software BFSK loopback, generated or recorded I/Q SDR, Camera Studio, and local MATLAB/Simulink fixture comparisons |
+
+[Current checklist](docs/ORBIT_PROJECT_CHECKLIST.md) · [Implementation status](docs/ORBIT_ULTIMATE_STATUS.md) · [Test record](docs/ORBIT_ULTIMATE_TEST_RESULTS.md)
 
 ## Windows application
 
@@ -43,7 +79,7 @@ Run python -m pytest tests -q and python -m ruff check orbit tests tools desktop
 
 ## New local communication and acoustic DSP tools
 
-Connect -> fresh QR -> Transfer & chat. General files up to 256 MiB are separate from CSI imports. Resumable chunks, SHA-256, duplicate detection, cancellation, messages and attachments are implemented. Load acknowledgements are not human read receipts. Client-reported accepted-payload rates are not Wi-Fi PHY speed. Sessions expire server-side after 12 hours.
+Connect → fresh QR → Transfer & chat. General files up to 256 MiB are separate from CSI imports. Open **View upload graph** for server-accepted bytes and observed application throughput. For a verified PCM16 WAV, **Save & analyze WAV** opens Audio Studio with playback, waveform, spectrum, spectrogram, and non-destructive filtering. Use Audio Studio on the laptop for optional MATLAB comparison and Trash controls. Sessions expire server-side after 12 hours.
 
 Signal lab -> Acoustic modem: UTF-8 BFSK at 1200/2200 Hz, 100 bit/s, preamble/length/CRC32. Generated speaker WAV, noisy loopback and PCM WAV decode. Microphone capture needs a supported secure context and permission; phone LAN HTTP commonly blocks it. Physical acoustic tests, AgentLink, calls, live SDR and MATLAB Engine remain unverified or pending.
 

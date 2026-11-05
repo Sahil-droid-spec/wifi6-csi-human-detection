@@ -59,6 +59,8 @@ import {Transfer} from "./Transfer";
 import {Acoustic} from "./Acoustic";
 import {PhoneFiles,Progression,ResearchCode,NotebookLinks} from "./Demo";
 import {CameraStudio} from "./CameraStudio";
+import {PresenceExperiment} from "./PresenceExperiment";
+import {AudioStudio} from "./AudioStudio";
 import {MatlabStudio} from "./MatlabStudio";
 import {BulkImport,SimulationPage,ConnectTools,InboxPage,PlanPage,GuidePage,GlossaryPage,AdvancedPage,Term} from "./Extensions";
 import {themes,lightThemes,okabeIto,applyTheme} from "./themes";
@@ -74,7 +76,7 @@ type Page =
   | "modes"
   | "settings"
   | "upload"
-  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs" | "smartcsi" | "receiver" | "journey" | "transfer" | "acoustic" | "camera" | "matlab";
+  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs" | "smartcsi" | "receiver" | "journey" | "transfer" | "acoustic" | "camera" | "matlab" | "audio" | "presence";
 const stages = [
   "Receive",
   "Window",
@@ -108,6 +110,8 @@ const nav = [
   {id:"transfer",label:"Transfer & chat",icon:Smartphone},
   {id:"acoustic",label:"Acoustic modem",icon:AudioLines},
   {id:"camera",label:"Camera Studio",icon:ScanLine},
+  {id:"presence",label:"Presence Experiment",icon:Activity},
+  {id:"audio",label:"Audio Studio",icon:AudioLines},
   {id:"matlab",label:"MATLAB Studio",icon:Activity},
   {id:"simulation",label:"Simulation",icon:Waves},
   {id:"inbox",label:"Phone Inbox",icon:Smartphone},
@@ -483,9 +487,9 @@ function Ring({
 function App() {
   const [page, setPage] = useState<Page>(
     () =>
-      ((location.hash.slice(2) === "soft"
+      ((location.hash.slice(2).split('?')[0] === "soft"
         ? "learning"
-        : location.hash.slice(2)) as Page) || "intro",
+        : location.hash.slice(2).split('?')[0]) as Page) || "intro",
   );
   const [stored, setState] = useState<Dict>({
     captures: [],
@@ -628,9 +632,9 @@ function App() {
   useEffect(() => {
     const fn = () =>
       setPage(
-        ((location.hash.slice(2) === "soft"
+        ((location.hash.slice(2).split('?')[0] === "soft"
           ? "learning"
-          : location.hash.slice(2)) as Page) || "intro",
+          : location.hash.slice(2).split('?')[0]) as Page) || "intro",
       );
     window.addEventListener("hashchange", fn);
     return () => window.removeEventListener("hashchange", fn);
@@ -854,8 +858,8 @@ function App() {
               <button className={page==='overview'?'active':''} onClick={()=>navigate('overview')}><LayoutDashboard size={19}/><span>Home</span></button>
               {[
                 {title:'Connect & share',ids:['settings','transfer','inbox']},
-                {title:'Signal lab',ids:['dsp','acoustic','receiver','advanced','camera','matlab']},
-                {title:'Data & learning',ids:['data','learning','replay','smartcsi','simulation']},
+                {title:'Signal lab',ids:['dsp','acoustic','audio','receiver','advanced','camera','matlab']},
+                {title:'Data & learning',ids:['data','learning','presence','replay','smartcsi','simulation']},
                 {title:'Research & notebook',ids:['journey','graphs','results','media','modes','plan']},
                 {title:'Help',ids:['guide','glossary']}
               ].map(group=><details key={group.title} open={group.ids.includes(page)||(page==='overview'&&group.title==='Signal lab')}><summary>{group.title}</summary>{group.ids.map(id=>{const n=nav.find(item=>item.id===id)!;return <button key={id} className={page===id?'active':''} onClick={()=>navigate(id as Page)}><n.icon size={18}/><span>{n.label}</span></button>;})}</details>)}
@@ -1258,6 +1262,8 @@ function App() {
               {page === "acoustic"&&<Acoustic/>}
               {page === "camera"&&<CameraStudio/>}
               {page === "matlab"&&<MatlabStudio/>}
+              {page === "audio"&&<AudioStudio/>}
+              {page === "presence"&&<PresenceExperiment datasets={state.datasets||[]} simulation={simulation}/>}
               {page === "transfer"&&<Transfer state={state}/>}
               {page === "journey"&&<Journey state={state}/>}
               {page === "receiver"&&<Receiver/>}
@@ -4452,6 +4458,11 @@ function MediaPage({
                   {new Date(m.created).toLocaleString()}
                 </small>
                 <div className="button-row">
+                  {m.type === "audio/wav" && (
+                    <a className="text-button" href={"#/audio?item=" + m.id}>
+                      Open in Audio Studio
+                    </a>
+                  )}
                   {m.capture_id && (
                     <Button
                       secondary
