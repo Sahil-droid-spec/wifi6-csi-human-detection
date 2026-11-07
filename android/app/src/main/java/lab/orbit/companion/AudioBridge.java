@@ -22,6 +22,8 @@ public final class AudioBridge {
     private final WebView web;
     private final BooleanSupplier allowed;
     private volatile boolean recording=false, deliver=false, pending=false;
+    private final Object captureLock=new Object();
+    private AudioRecord active;
     private Thread worker;
     AudioBridge(Activity a,WebView w,BooleanSupplier check){activity=a;web=w;allowed=check;}
     private void event(String status,String error,String data){
@@ -56,9 +58,13 @@ public final class AudioBridge {
                 recorder=new AudioRecord(MediaRecorder.AudioSource.UNPROCESSED,16000,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT,Math.max(8192,minimum*2));
                 if(recorder.getState()!=AudioRecord.STATE_INITIALIZED)throw new Exception("Microphone could not start. Close other recording apps and try again.");
                 ByteArrayOutputStream output=new ByteArrayOutputStream();byte[] buffer=new byte[4096];
-                recorder.startRecording();event("recording",null,null);
+                synchronized(captureLock){
+                    if(!recording||!deliver)return;
+                    active=recorder;recorder.startRecording();
+                }
+                event("recording",null,null);
                 int cap=seconds*32000;
-                while(recording&&output.size()<cap){int count=recorder.read(buffer,0,Math.min(buffer.length,cap-output.size()));if(count<=0)throw new Exception("No microphone samples. Stop and retry.");output.write(buffer,0,count);}
+                while(recording&&output.size()<cap){int count=recorder.read(buffer,0,Math.min(buffer.length,cap-output.size()));if(count<=0){if(!recording)break;throw new Exception("No microphone samples. Stop and retry.");}output.write(buffer,0,count);}
                 recording=false;
                 if(deliver&&output.size()>=3200){
                     byte[] pcm=output.toByteArray();ByteBuffer wav=ByteBuffer.allocate(44+pcm.length).order(ByteOrder.LITTLE_ENDIAN);
@@ -66,9 +72,9 @@ public final class AudioBridge {
                     event("stopped",null,Base64.encodeToString(wav.array(),Base64.NO_WRAP));
                 }else event("stopped",deliver?"Record at least 0.1 seconds before stopping.":null,null);
             }catch(Exception e){event("stopped",e.getMessage(),null);}
-            finally{recording=false;if(recorder!=null){try{recorder.stop();}catch(Exception ignored){}recorder.release();}}
+            finally{recording=false;synchronized(captureLock){active=null;if(recorder!=null){try{recorder.stop();}catch(Exception ignored){}recorder.release();}}}
         },"orbit-foreground-audio");worker.start();
     }
     @JavascriptInterface public void stop(){recording=false;}
-    @JavascriptInterface public void cancel(){deliver=false;recording=false;}
+    @JavascriptInterface public void cancel(){synchronized(captureLock){deliver=false;recording=false;if(active!=null){try{active.stop();}catch(Exception ignored){}}}}
 }
