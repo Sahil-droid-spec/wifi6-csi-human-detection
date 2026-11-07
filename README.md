@@ -35,6 +35,7 @@ The figures are archived outputs. The original AX/BF plot is from a five-run-per
 | Phone exchange | One-time QR, resumable hash-verified exchange, chat, and a server-measured upload timeline. Physical Android acceptance pending. |
 | Audio and MATLAB | Verified transferred WAVs can enter Audio Studio, be filtered into linked Library copies, and be reopened for a bounded comparison in optional licensed MATLAB. |
 | Additional labs | Software BFSK loopback, generated or recorded I/Q SDR, Camera Studio, and local MATLAB/Simulink fixture comparisons |
+| Retinal Image Lab | Consented photo enhancement and vessel-candidate masks through Python or licensed MATLAB, with Library save and measured timings. Software verification uses generated geometry. |
 
 [Current checklist](docs/ORBIT_PROJECT_CHECKLIST.md) · [Implementation status](docs/ORBIT_ULTIMATE_STATUS.md) · [Test record](docs/ORBIT_ULTIMATE_TEST_RESULTS.md)
 

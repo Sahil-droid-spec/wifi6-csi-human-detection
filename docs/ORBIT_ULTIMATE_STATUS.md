@@ -1,5 +1,13 @@
 # ORBIT Ultimate checkpoint
 
+## 2026-11-07 · retinal image experiment
+
+Retinal Image Lab accepts a consented uploaded fundus JPEG/PNG or an explicitly generated test image. Both phone and laptop can request Python or licensed MATLAB processing from the laptop server. The preview includes enhanced contrast, vessel response, a binary candidate mask and an overlay. Users can save the original and derivatives into the existing Lab notebook, reopen them across sessions and delete the saved set from the laptop.
+
+Verification used generated geometric input only. The full suite passed 117 tests. Windows native runtime preview, original-byte preservation, two authenticated software sessions and deletion passed. Python's first 256 × 256 test run measured 867.53 ms, including decoding and PNG encoding. MATLAB R2026b with Image Processing Toolbox completed the generated test in 103,949.69 ms including startup. These are individual observed runs.
+
+Genuine fundus segmentation quality, physical Android use and continuous retinal-camera capture remain unverified. The current mode processes individual images. Clinical assessment and reference-based segmentation metrics require appropriately licensed fundus photos and expert masks. See [Retinal Image Lab](retinal_image_lab.md).
+
 ## 2026-11-05 · integrated transfer, audio and CSI experiment
 
 | Workflow | Status | Evidence |
