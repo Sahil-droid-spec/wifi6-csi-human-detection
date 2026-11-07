@@ -78,7 +78,9 @@ The Lab notebook should hold related graphs, camera clips, audio, and screen rec
 - [ ] **Image Studio.** Open a saved image for contrast, sharpening, smoothing, edge detection, and a simple segmentation exercise. Send the same input to MATLAB and save the result and settings alongside it.
 - [x] **Educational pulse-signal lab.** Camera Studio has opt-in facial RGB analysis and quality checks. Live capture and reference validation remain to be done.
 - [ ] Add consented recorded-video input and comparison with a user-supplied synchronized reference. Show quality checks, estimates withheld for poor signals, and errors only when a reference was actually provided. Keep this educational.
-- [ ] Keep fundus research in a separate study. Start only when appropriately licensed labelled images, ground truth, and a validation protocol are available. Limit the first study to image quality and vessel segmentation. Webcam blood-pressure estimates and clinical diagnosis are outside the project.
+- [x] Add a consented Retinal Image Lab for uploaded fundus photos, with Python and optional licensed MATLAB processing, enhancement, vessel-candidate masks, overlays and shared media Library outputs. Software checks use generated geometry.
+- [ ] Validate retinal segmentation on appropriately licensed fundus photographs and independent expert masks. Add reference-based Dice/sensitivity/specificity and dataset-level comparisons only after collecting suitable annotations.
+- [ ] Assess live retinal capture with a compatible fundus camera or phone attachment. The current experiment processes individual uploaded photos through the laptop server.
 
 ## 7. Later hardware and communication milestones
 

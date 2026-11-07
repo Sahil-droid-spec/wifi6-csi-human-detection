@@ -4360,3 +4360,4 @@ html[data-theme] :is(.note,.essential,.historical-callout,.job-banner,.fuzzy-ver
 
 .presence-trace { display:block; width:100%; max-width:760px; }
 .table-scroll { overflow-x:auto; }
+.retina-preview { display:block; width:min(100%,768px); max-height:70vh; object-fit:contain; border-radius:16px; margin:1rem 0; background:#112333; }

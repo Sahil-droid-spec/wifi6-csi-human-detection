@@ -27,10 +27,12 @@ def install(app, ctx):
     from .matlab_lab import install as install_matlab
     from .audio_studio import install as install_audio
     from .presence_experiment import install as install_presence
+    from .retina import install as install_retina
     install_vision(app, ctx)
     install_matlab(app, ctx)
     install_audio(app, ctx)
     install_presence(app, ctx)
+    install_retina(app, ctx)
     data, get, put = ctx["data"], ctx["get"], ctx["put"]
 
     @lru_cache(maxsize=4)

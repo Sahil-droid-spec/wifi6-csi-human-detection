@@ -60,6 +60,7 @@ import {Acoustic} from "./Acoustic";
 import {PhoneFiles,Progression,ResearchCode,NotebookLinks} from "./Demo";
 import {CameraStudio} from "./CameraStudio";
 import {PresenceExperiment} from "./PresenceExperiment";
+import {RetinalStudio} from "./RetinalStudio";
 import {AudioStudio} from "./AudioStudio";
 import {MatlabStudio} from "./MatlabStudio";
 import {BulkImport,SimulationPage,ConnectTools,InboxPage,PlanPage,GuidePage,GlossaryPage,AdvancedPage,Term} from "./Extensions";
@@ -76,7 +77,7 @@ type Page =
   | "modes"
   | "settings"
   | "upload"
-  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs" | "smartcsi" | "receiver" | "journey" | "transfer" | "acoustic" | "camera" | "matlab" | "audio" | "presence";
+  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs" | "smartcsi" | "receiver" | "journey" | "transfer" | "acoustic" | "camera" | "matlab" | "audio" | "presence" | "retina";
 const stages = [
   "Receive",
   "Window",
@@ -112,6 +113,7 @@ const nav = [
   {id:"camera",label:"Camera Studio",icon:ScanLine},
   {id:"presence",label:"Presence Experiment",icon:Activity},
   {id:"audio",label:"Audio Studio",icon:AudioLines},
+  {id:"retina",label:"Retinal Image Lab",icon:ScanLine},
   {id:"matlab",label:"MATLAB Studio",icon:Activity},
   {id:"simulation",label:"Simulation",icon:Waves},
   {id:"inbox",label:"Phone Inbox",icon:Smartphone},
@@ -858,7 +860,7 @@ function App() {
               <button className={page==='overview'?'active':''} onClick={()=>navigate('overview')}><LayoutDashboard size={19}/><span>Home</span></button>
               {[
                 {title:'Connect & share',ids:['settings','transfer','inbox']},
-                {title:'Signal lab',ids:['dsp','acoustic','audio','receiver','advanced','camera','matlab']},
+                {title:'Signal lab',ids:['dsp','acoustic','audio','receiver','advanced','camera','retina','matlab']},
                 {title:'Data & learning',ids:['data','learning','presence','replay','smartcsi','simulation']},
                 {title:'Research & notebook',ids:['journey','graphs','results','media','modes','plan']},
                 {title:'Help',ids:['guide','glossary']}
@@ -1263,6 +1265,7 @@ function App() {
               {page === "camera"&&<CameraStudio/>}
               {page === "matlab"&&<MatlabStudio/>}
               {page === "audio"&&<AudioStudio/>}
+              {page === "retina"&&<RetinalStudio/>}
               {page === "presence"&&<PresenceExperiment datasets={state.datasets||[]} simulation={simulation}/>}
               {page === "transfer"&&<Transfer state={state}/>}
               {page === "journey"&&<Journey state={state}/>}

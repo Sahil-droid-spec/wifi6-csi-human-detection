@@ -1,3 +1,14 @@
+# Retinal image checks · 2026-11-07
+
+- Full suite: 117 passed, one upstream Starlette deprecation warning, 137.51 s. Scoped Ruff passed. TypeScript/Vite production build passed with the existing chunk-size advisory.
+- Test images: generated geometry only. Checked binary output, excluded dark border, source labels, consent, authentication, file bounds, saved-byte identity, idempotent saves, repair after deleting one derivative, and dependency checks for deletion.
+- Windows native runtime passed preview, four-image save, cross-session retrieval and delete. Python first-run processing for the generated 256 × 256 input measured 867.53 ms.
+- Actual MATLAB R2026b image functions ran on that generated input, including CLAHE, median filtering, bottom-hat enhancement, adaptive binarization and morphological opening. The batch measured 103,949.69 ms including startup.
+- Physical Android, genuine fundus accuracy, clinical validation and continuous retinal imaging: **NOT EXECUTED**.
+- Browser check: uploaded the generated geometry fixture, selected the Simulation source, processed a preview, inspected the mask and saved four Library entries. The input could be selected again from the saved list.
+
+---
+
 # Integrated transfer, WAV and CSI checks · 2026-11-05
 
 - Baseline: `python -m pytest -q tests` → 112 passed. Updated suite → 115 passed. Both runs reported one upstream Starlette TestClient deprecation warning.

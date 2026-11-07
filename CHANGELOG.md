@@ -2,6 +2,7 @@
 
 ## Current development
 
+- Added a consented Retinal Image Lab for image enhancement, vessel-candidate segmentation, masks, overlays, measured processing times, local Library save/delete, and optional licensed MATLAB execution.
 - Restored the original Wi-Fi CSI research plots and added a progress summary to the README.
 - Added server-measured transfer timelines, Audio Studio with versioned WAVs in the media library, and a same-input MATLAB comparison for Library WAVs.
 - Added a separate fixed-configuration Hamming FIR versus baseline presence experiment with two paths through identical date-held-out validation and aligned window inspection.
