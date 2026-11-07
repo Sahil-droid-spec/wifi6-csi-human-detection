@@ -26,3 +26,8 @@ typing-inspection==0.4.4
 typing_extensions==4.16.0
 uvicorn==0.54.0
 zeroconf==0.151.5
+
+cffi==2.0.0
+cryptography==46.0.7
+pycparser==3.0
+pillow==12.1.1

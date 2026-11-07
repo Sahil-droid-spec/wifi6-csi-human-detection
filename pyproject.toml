@@ -4,3 +4,6 @@ line-length = 100
 extend-exclude = ["build-desktop", "dist-desktop", "android/build", "wheelhouse"]
 [tool.ruff.lint]
 select = ["E4", "E9", "F", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

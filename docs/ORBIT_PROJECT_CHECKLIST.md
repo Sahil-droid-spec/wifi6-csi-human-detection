@@ -2,6 +2,18 @@
 
 Build order: **phone transfer and shared Library → Wi-Fi presence pipeline → DSP practicals and audio tools → camera/image extensions → live hardware validation.** Keep one experiment workspace with tabs for input, processing, graphs, and results.
 
+## 4.2 connection checkpoint
+
+- [x] Send a consented fundus original to laptop before processing, reuse it and save linked derivatives.
+- [x] Small text/binary encrypted audio files, framing/CRC/authentication/hash verification, shared reconstructed inbox and lab import actions.
+- [x] Same-received-WAV raw/filter comparison with actual packet outcomes and digital-level graphs.
+- [x] Two-track add/subtract mixer, independent gains, solo playback, resampling and parent-aware saved versions.
+- [x] APK foreground PCM recorder with explicit confirmation and Android permission; compile/sign checks passed.
+- [ ] Physical phone and speaker-to-microphone acceptance. No hardware delivery claim yet.
+- [ ] Speech recognition, blind source separation, acoustic FEC/ARQ, calls and AgentLink.
+
+See [test steps and limits](acoustic_link_demo.md). Older roadmap tables below preserve their earlier checkpoint context; this section records the new implementation.
+
 ## One project, shared data
 
 The core project is human presence detection from saved Wi-Fi 6 CSI. The DSP question is whether a filter or a new feature helps detect presence on a recording date left out of training.
@@ -66,7 +78,7 @@ The Lab notebook should hold related graphs, camera clips, audio, and screen rec
 | Quantisation | Q15 FIR coefficient quantisation demonstration. | Add sample quantisation with bit depth and input range controls. Plot original, quantised, and error waveforms, with measured clipping and SNR when the reference and error permit it. |
 | Forward error correction (FEC) | Acoustic BFSK modem with CRC error detection. | Add Hamming (7,4) coding and an optional interleaver in a separate simulation. Use extended Hamming (8,4) for a single-error correction and double-error detection demo. Compare uncoded and coded runs on a seeded error channel. Plot transmitted and recovered bits, actual block outcomes against the known input, and BER versus noise or flip rate. Include frame failures and coding overhead. CRC checks integrity. FEC attempts recovery. |
 | Audio analyser | Acoustic modem can analyse a supported WAV and plot a waveform, spectrum, and spectrogram. | Open any supported saved WAV in Audio Studio. Plot time signal, magnitude/phase, and spectrogram. Add filter previews, A/B listening, and linked WAV export. |
-| Mixer | Planned. | Mix two WAV tracks with independent gain, mute, and alignment. Use a common sample rate and explicit mono/stereo handling. Plot each input, the mixed waveform, its spectrum, and peaks or clipping. Preview and save the mix locally. |
+| Mixer | Two-track A+B/A−B with gain, resampling, solo playback, clipping and saved version links. | Mix two WAV tracks with independent gain, mute, and alignment. Use a common sample rate and explicit mono/stereo handling. Plot each input, the mixed waveform, its spectrum, and peaks or clipping. Preview and save the mix locally. |
 
 - [ ] Give each graph a title, axis units, and source label. Show before/after on comparable axes and allow local plot and data export. Use seconds and hertz for a known sample rate, or packet index and cycles per packet for CSI without verified timing.
 - [ ] Keep transfer graphs in the transfer panel and processing graphs with the experiment. Prefer one useful preview per tool and put extra graphs under **Inspect graphs**.

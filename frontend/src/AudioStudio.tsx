@@ -52,6 +52,7 @@ export function AudioStudio(){
   const [kind,setKind]=useState('lowpass'),[cutoff,setCutoff]=useState(1200),[upper,setUpper]=useState(2500);
   const [title,setTitle]=useState(''),[matlab,setMatlab]=useState<MatlabResult|null>(null),[canMatlab,setCanMatlab]=useState(false);
   const [confirmDelete,setConfirmDelete]=useState('');
+  const [second,setSecond]=useState(''),[gainA,setGainA]=useState(.5),[gainB,setGainB]=useState(.5),[operation,setOperation]=useState('add');
   const selected=items.find(item=>item.id===id&&!item.trashed);
   const parent=items.find(item=>item.id===selected?.parent_id&&!item.trashed);
   const refresh=async()=>setItems(await call<Item[]>('audio'));
@@ -60,7 +61,8 @@ export function AudioStudio(){
     refresh().catch(e=>setError(e.message));
     call<{available:boolean,can_run:boolean}>('matlab/status').then(r=>setCanMatlab(r.available&&r.can_run)).catch(()=>{});
     const change=()=>setId(requested());window.addEventListener('hashchange',change);
-    return()=>window.removeEventListener('hashchange',change);
+    const poll=setInterval(()=>refresh().catch(()=>{}),4000);
+    return()=>{window.removeEventListener('hashchange',change);clearInterval(poll);};
   },[]);
   useEffect(()=>{
     let active=true;setAnalysis(null);setOriginal(null);setMatlab(null);
@@ -86,6 +88,15 @@ export function AudioStudio(){
       {error&&<p role="alert">{error}</p>}
       {busy&&<p role="status">Working on the selected audio…</p>}
     </section>
+    {selected&&<section className="panel"><h2>Two-track mixer</h2><p>Selected Library recording is track A. Add or subtract a known track B, listen to each original, then inspect the saved mixture. Separating arbitrary unknown speakers is not implemented.</p>
+      <div className="control-grid"><label>Track B<select value={second} onChange={e=>setSecond(e.target.value)}><option value="">Choose a second recording</option>{items.filter(item=>!item.trashed).map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+      <label>A gain<input type="number" min={-2} max={2} step={.1} value={gainA} onChange={e=>setGainA(+e.target.value)}/></label>
+      <label>B gain<input type="number" min={-2} max={2} step={.1} value={gainB} onChange={e=>setGainB(+e.target.value)}/></label>
+      <label>Operation<select value={operation} onChange={e=>setOperation(e.target.value)}><option value="add">A + B</option><option value="subtract">A − B</option></select></label></div>
+      <p>Solo A</p><audio controls src={'/api/media/'+selected.id+'/file'}/>{second&&<><p>Solo B</p><audio key={second} controls src={'/api/media/'+second+'/file'}/></>}
+      <button className="button" disabled={busy||!second} onClick={()=>action(async()=>{const result=await call<Item>('audio/mix','POST',{first_id:id,second_id:second,gain_a:gainA,gain_b:gainB,operation});await refresh();setId(result.id);})}>Mix &amp; save new version</button>
+      <p>Starts aligned; shorter tails padded with zeros; B resampled to A. PCM16 clipping is counted on the saved result.</p>
+    </section>}
     {selected&&<section className="panel"><h2>{selected.title}</h2>
       {parent&&<><h3>Original input · {parent.title}</h3><audio controls preload="metadata" src={'/api/media/'+parent.id+'/file'}/></>}
       <h3>{selected.parent_id?'Processed copy':'Original recording'}</h3>

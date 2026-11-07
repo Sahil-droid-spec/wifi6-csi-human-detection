@@ -1,3 +1,18 @@
+# Connected transfer and acoustic checks · 2026-11-07
+
+- Project suite: `python -m pytest tests -q` → **122 passed**, one upstream Starlette TestClient deprecation warning, 122.94 s. Default pytest discovery now targets tests/ rather than vendored frozen libraries. An initial root-wide collection was stopped after collecting vendor tests with missing external fixtures; those are not project-test results.
+- Scoped Ruff passed; production TypeScript/Vite build passed with the existing chunk-size advisory.
+- New tests: encryption freshness, wrong-key/tamper rejection, bounds, binary reconstruction, arbitrary sample offsets, incomplete/silent reception failure, authenticated shared inbox, replay idempotency, WAV import and known-track cancellation/resampling/clipping.
+- Original-image handoff: phone software client uploads original before processing; laptop sees identical bytes, saves derivatives without duplicating input.
+- Frozen Windows initially failed on missing `cryptography.hazmat.primitives.ciphers.aead`. Fixed by packaging the complete matching cryptography runtime. Final native test passed one-time LAN pairing, real JPEG original handoff, exact encrypted image reconstruction, PCM analysis and mixer subtraction; no existing user data used.
+- Browser interface: generated 11-byte Hello Orbit payload, 2 packets, 5.580 s sound; test-generated-WAV action recovered the exact text and populated the shared inbox. This is a codec test only.
+- Native clean/noisy WAV and all four filters: 2/2 CRC-valid packets for each. No demonstrated decoding improvement; no BER without reference bits. Noise sample is generated, not a room recording.
+- APK 4.2: compile, v2/v3 signing, zipalign, microphone manifest permission and 13 address parser checks passed. Exact LAN HTTP allowlist retained. Native hardware recording remains unverified.
+- Source dependencies installed offline in a fresh Windows CPython 3.10 virtual environment, without system site packages; pip check passed. This verifies a fresh environment on this host, not a separate factory-clean Windows installation.
+- **NOT EXECUTED:** physical Android installation/pairing/mic, speaker-to-mic acceptance, live CSI, Wi-Fi 6 PHY comparison, speech recognition, medical validation. MATLAB and Simulink were not rerun or extended in this update.
+
+---
+
 # Retinal image checks · 2026-11-07
 
 - Full suite: 117 passed, one upstream Starlette deprecation warning, 137.51 s. Scoped Ruff passed. TypeScript/Vite production build passed with the existing chunk-size advisory.

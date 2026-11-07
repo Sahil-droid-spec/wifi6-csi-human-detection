@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 
 type Settings={radius:number,minimum_area:number,sensitivity:number,size:number,engine:'python'|'matlab',source_kind:'uploaded'|'simulation'};
-type Saved={id:string,title:string,retina_role:string,parent_id:string|null,synthetic:boolean};
+type Saved={id:string,title:string,retina_role:string,parent_id:string|null,synthetic:boolean,sha256:string};
 type Result={source:string,processing_ms:number,source_dimensions:number[],processed_dimensions:number[],
   candidate_pixels:number,field_pixels:number,protocol:string,engine_version:string,engine_note:string,
   images:Record<string,string>,saved:Saved[]};
@@ -47,7 +47,8 @@ export function RetinalStudio(){
   return <div className="ultimate-tools">
     <section className="panel">
       <span className="badge">FUNDUS IMAGE RESEARCH</span><h2>Retinal Image Lab</h2>
-      <p>Open a fundus photograph from appropriate imaging equipment or a licensed dataset. Inspect grayscale processing, contrast enhancement, vessel candidates and an overlay. The laptop processes the image for both devices.</p>
+      <p>Choose a consented fundus photo and Send input to laptop. The original appears in the shared list below. On the laptop, choose Use this input again and process it there.</p>
+      <p><a href="/api/downloads/Orbit-Real-Retina-CC0.jpg">Save the real CC0 sample photo</a> · <a href="#/link">AcousticLink · encrypted sound reconstruction</a></p>
       <label><input type="checkbox" checked={consent} disabled={busy} onChange={e=>setConsent(e.target.checked)}/> I have permission to process this fundus photo and consent to local processing.</label>
       <label>Choose a fundus JPEG or PNG · up to 8 MiB
         <input ref={fileInput} type="file" accept="image/jpeg,image/png" disabled={busy} onChange={e=>{
@@ -56,6 +57,14 @@ export function RetinalStudio(){
         }}/>
       </label>
       <div className="button-row">
+        <button className="button" disabled={!file||!consent||busy||file.size>8*1024**2} onClick={async()=>{
+          if(!file)return;setBusy(true);setError('');
+          try{
+            await json('/import?consent=true&synthetic='+String(settings.source_kind==='simulation'),{method:'POST',body:file});
+            await refresh();setResult(null);
+          }catch(e){setError((e as Error).message);}
+          finally{setBusy(false);}
+        }}>Send input to laptop</button>
         <button className="button" disabled={!file||!consent||busy||file.size>8*1024**2} onClick={()=>run(false)}>Process preview</button>
         <button className="button secondary" disabled={!file||!consent||busy||file.size>8*1024**2} onClick={()=>run(true)}>Process &amp; save to Library</button>
         <button className="button secondary" disabled={busy||!file} onClick={()=>{setFile(null);setResult(null);if(fileInput.current)fileInput.current.value='';}}>Discard preview</button>

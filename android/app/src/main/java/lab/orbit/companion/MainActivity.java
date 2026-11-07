@@ -52,6 +52,8 @@ public class MainActivity extends Activity {
     private boolean pageError;
     private String launchUrl;
     private String browserPairUrl;
+    private AudioBridge audioBridge;
+    private boolean foreground;
     private ArrayList<Uri> shared = new ArrayList<>();
 
     @Override public void onCreate(Bundle state) {
@@ -116,6 +118,7 @@ public class MainActivity extends Activity {
         setContentView(root); root.requestApplyInsets();
     }
     private void destroyWeb() {
+        if(audioBridge!=null){audioBridge.cancel();audioBridge=null;}
         if (web != null) { web.stopLoading(); web.destroy(); web = null; }
         if (fileCallback != null) { fileCallback.onReceiveValue(null); fileCallback = null; }
     }
@@ -185,7 +188,9 @@ public class MainActivity extends Activity {
         status=text("Connecting to "+base,11,Color.rgb(92,110,133)); status.setPadding(dp(12),0,dp(12),dp(5)); outer.addView(status);
         web=new WebView(this); outer.addView(web,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,0,1));
         WebSettings settings=web.getSettings(); settings.setJavaScriptEnabled(true); settings.setDomStorageEnabled(true);
-        settings.setUserAgentString(settings.getUserAgentString()+" OrbitCompanion/4.1");
+        settings.setUserAgentString(settings.getUserAgentString()+" OrbitCompanion/4.2");
+        audioBridge=new AudioBridge(this,web,()->foreground&&web!=null&&isServerUrl(web.getUrl()));
+        web.addJavascriptInterface(audioBridge,"OrbitAudio");
         settings.setAllowFileAccess(false); settings.setAllowContentAccess(true);
         settings.setAllowFileAccessFromFileURLs(false); settings.setAllowUniversalAccessFromFileURLs(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
@@ -267,5 +272,7 @@ public class MainActivity extends Activity {
         }
     }
     @Override public void onBackPressed(){if(web!=null && web.canGoBack())web.goBack();else if(web!=null)showConnect(null);else super.onBackPressed();}
+    @Override protected void onResume(){super.onResume();foreground=true;}
+    @Override protected void onPause(){foreground=false;if(audioBridge!=null)audioBridge.cancel();super.onPause();}
     @Override protected void onDestroy(){destroyWeb();super.onDestroy();}
 }

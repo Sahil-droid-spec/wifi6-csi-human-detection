@@ -27,8 +27,39 @@ class Import(BaseModel):
     exchange_id: str = Field(pattern="^[a-f0-9]{24}$")
 
 
+class LinkImport(BaseModel):
+    received_id: str = Field(pattern="^[a-f0-9]{24}$")
+
+
 class Rename(BaseModel):
     title: str = Field(min_length=1, max_length=160)
+
+
+class Mix(BaseModel):
+    first_id: str = Field(pattern="^[a-f0-9]{24}$")
+    second_id: str = Field(pattern="^[a-f0-9]{24}$")
+    gain_a: float = Field(default=0.5, ge=-2, le=2, allow_inf_nan=False)
+    gain_b: float = Field(default=0.5, ge=-2, le=2, allow_inf_nan=False)
+    operation: Literal["add", "subtract"] = "add"
+
+
+def mix_audio(rate_a: int, a: np.ndarray, rate_b: int, b: np.ndarray, settings: Mix):
+    """Align start times, resample B, zero-pad tails, and retain channel meaning."""
+    import math
+
+    divisor = math.gcd(rate_a, rate_b)
+    if rate_a != rate_b:
+        b = signal.resample_poly(b, rate_a // divisor, rate_b // divisor, axis=0)
+    channels = max(a.shape[1], b.shape[1])
+    if a.shape[1] != channels:
+        a = np.repeat(a, channels, axis=1)
+    if b.shape[1] != channels:
+        b = np.repeat(b, channels, axis=1)
+    length = max(len(a), len(b))
+    output = np.zeros((length, channels))
+    output[: len(a)] += settings.gain_a * a
+    output[: len(b)] += settings.gain_b * b * (1 if settings.operation == "add" else -1)
+    return output
 
 
 def read_wav(raw: bytes) -> tuple[int, np.ndarray]:
@@ -148,6 +179,27 @@ def install(app, ctx):
     def library():
         return [row for row in rows("media") if row["type"] == "audio/wav"]
 
+    @app.post("/api/audio/mix")
+    def mix(body: Mix):
+        with lock:
+            first, second = item(body.first_id), item(body.second_id)
+            rate_a, a = load(first)
+            rate_b, b = load(second)
+            output = mix_audio(rate_a, a, rate_b, b, body)
+            raw, clipped = encode_wav(rate_a, output)
+            return save(
+                raw,
+                "Orbit-mix.wav",
+                "Start-aligned; B resampled to A; mono duplicated for stereo; tails zero-padded. No blind separation or normalization.",
+                parent_id=first["id"],
+                secondary_parent_id=second["id"],
+                mix=body.model_dump(),
+                source="DERIVED MIX · input provenance retained by parent links",
+                sample_rate=rate_a,
+                channels=output.shape[1],
+                clipped_samples=clipped,
+            )
+
     @app.post("/api/audio/import")
     def from_exchange(body: Import):
         row = get("exchange", body.exchange_id)
@@ -175,6 +227,33 @@ def install(app, ctx):
                 "Saved from verified file exchange.",
                 exchange_id=row["id"],
                 source="TRANSFERRED WAV · content provenance unspecified",
+                sample_rate=rate,
+                channels=samples.shape[1],
+            )
+
+    @app.post("/api/audio/import-link")
+    def from_link(body: LinkImport):
+        row = get("link_received", body.received_id)
+        if Path(row["name"]).suffix.lower() != ".wav":
+            raise ValueError("Choose a reconstructed PCM WAV.")
+        with lock:
+            existing = next(
+                (r for r in rows("media") if r.get("link_received_id") == row["id"]), None
+            )
+            if existing:
+                if existing.get("trashed"):
+                    raise HTTPException(409, "Restore this recording from Audio Studio Trash.")
+                return existing
+            raw = (data / "acoustic_link" / (row["id"] + ".bin")).read_bytes()
+            if hashlib.sha256(raw).hexdigest() != row["sha256"]:
+                raise ValueError("Stored bytes changed. Receive the transmission again.")
+            rate, samples = read_wav(raw)
+            return save(
+                raw,
+                row["name"],
+                "Hash-checked acoustic reconstruction; physical channel unverified.",
+                link_received_id=row["id"],
+                source="RECONSTRUCTED WAV · " + row["source"],
                 sample_rate=rate,
                 channels=samples.shape[1],
             )
@@ -241,7 +320,10 @@ def install(app, ctx):
             raise HTTPException(403, "Permanently delete saved audio on the laptop.")
         with lock:
             row = item(ident, trash=True)
-            if any(other.get("parent_id") == ident for other in rows("media")):
+            if any(
+                ident in (other.get("parent_id"), other.get("secondary_parent_id"))
+                for other in rows("media")
+            ):
                 raise HTTPException(
                     409, "Delete linked audio versions before permanently deleting the original."
                 )

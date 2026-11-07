@@ -57,6 +57,7 @@ import {Receiver} from "./Receiver";
 import {Journey} from "./Journey";
 import {Transfer} from "./Transfer";
 import {Acoustic} from "./Acoustic";
+import {AcousticLink} from "./AcousticLink";
 import {PhoneFiles,Progression,ResearchCode,NotebookLinks} from "./Demo";
 import {CameraStudio} from "./CameraStudio";
 import {PresenceExperiment} from "./PresenceExperiment";
@@ -77,7 +78,7 @@ type Page =
   | "modes"
   | "settings"
   | "upload"
-  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs" | "smartcsi" | "receiver" | "journey" | "transfer" | "acoustic" | "camera" | "matlab" | "audio" | "presence" | "retina";
+  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs" | "smartcsi" | "receiver" | "journey" | "transfer" | "acoustic" | "camera" | "matlab" | "audio" | "presence" | "retina" | "link";
 const stages = [
   "Receive",
   "Window",
@@ -109,6 +110,7 @@ const nav = [
   { id: "modes", label: "Sensing modes", icon: Radio },
   { id: "settings", label: "Connect", icon: Settings2 },
   {id:"transfer",label:"Transfer & chat",icon:Smartphone},
+  {id:"link",label:"AcousticLink",icon:LockKeyhole},
   {id:"acoustic",label:"Acoustic modem",icon:AudioLines},
   {id:"camera",label:"Camera Studio",icon:ScanLine},
   {id:"presence",label:"Presence Experiment",icon:Activity},
@@ -860,7 +862,7 @@ function App() {
               <button className={page==='overview'?'active':''} onClick={()=>navigate('overview')}><LayoutDashboard size={19}/><span>Home</span></button>
               {[
                 {title:'Connect & share',ids:['settings','transfer','inbox']},
-                {title:'Signal lab',ids:['dsp','acoustic','audio','receiver','advanced','camera','retina','matlab']},
+                {title:'Signal lab',ids:['dsp','link','acoustic','audio','receiver','advanced','camera','retina','matlab']},
                 {title:'Data & learning',ids:['data','learning','presence','replay','smartcsi','simulation']},
                 {title:'Research & notebook',ids:['journey','graphs','results','media','modes','plan']},
                 {title:'Help',ids:['guide','glossary']}
@@ -1262,6 +1264,7 @@ function App() {
               {page === "results" && <Progression state={{...stored,simulation:false}}/>}
               {["scshow","graphs","smartcsi"].includes(page)&&<div className="studio-source"><CaptureSelect {...common}/></div>}
               {page === "acoustic"&&<Acoustic/>}
+              {page === "link"&&<AcousticLink/>}
               {page === "camera"&&<CameraStudio/>}
               {page === "matlab"&&<MatlabStudio/>}
               {page === "audio"&&<AudioStudio/>}

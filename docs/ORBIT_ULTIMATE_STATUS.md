@@ -1,3 +1,13 @@
+# 2026-11-07 · connected input, AcousticLink and mixer
+
+Retinal Image Lab now offers **Send input to laptop** before processing. The shared original is reused when the laptop saves enhancement, mask and overlay. AcousticLink supports small binary/text files, AES-256-GCM, sequenced BFSK frames, CRC32, reconstructed SHA-256 verification and a shared received inbox. Reconstructed WAV opens in Audio Studio; fundus imports require consent. Wi-Fi remains the practical original-file transport.
+
+Audio Studio now mixes or subtracts two known tracks with independent gains, resampling, channel handling, clipping counts and parent links. APK 4.2 adds an explicitly confirmed foreground PCM recorder. Physical handset acceptance remains unverified. Speech recognition, unknown-source separation, acoustic FEC/ARQ and live calls are not implemented.
+
+Project tests: 122 passed. Native Windows tests passed with two HTTP software clients. Generated clean and simulated-noisy Hello WAVs both recovered 2/2 CRC-valid packets for raw, band-pass, low-pass and notch: no decoding benefit demonstrated on these examples. Full cryptography source/native dependency is shipped after the initial frozen runtime exposed a missing module. The source offline lock now includes cryptography, cffi, pycparser and Pillow. See [demo and limits](acoustic_link_demo.md).
+
+---
+
 # ORBIT Ultimate checkpoint
 
 ## 2026-11-07 · retinal image experiment

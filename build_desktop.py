@@ -28,6 +28,8 @@ subprocess.run(
         "webview",
         "--collect-all",
         "h5py",
+        "--collect-all",
+        "cryptography",
         "--collect-submodules",
         "sklearn",
         "--hidden-import",

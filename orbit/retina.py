@@ -234,6 +234,56 @@ def install(app, ctx):
     def library():
         return [r for r in ctx["rows"]("media") if r.get("retina_role")]
 
+    @app.post("/api/retina/import")
+    async def import_input(request: Request, consent: bool = False, synthetic: bool = False):
+        if not consent:
+            raise HTTPException(422, "Confirm permission to send this photo to the laptop.")
+        raw = bytearray()
+        async for part in request.stream():
+            if len(raw) + len(part) > MAX_BYTES:
+                raise HTTPException(413, "Choose a JPEG or PNG up to 8 MiB.")
+            raw.extend(part)
+        await run_in_threadpool(decode_image, bytes(raw), 256)
+        digest = hashlib.sha256(raw).hexdigest()
+        with save_lock:
+            existing = next(
+                (
+                    r
+                    for r in ctx["rows"]("media")
+                    if r.get("retina_role") == "original"
+                    and r["sha256"] == digest
+                    and bool(r.get("synthetic")) == synthetic
+                ),
+                None,
+            )
+            if existing:
+                return existing
+            ident = secrets.token_hex(12)
+            ext = ".jpg" if raw[:2] == b"\xff\xd8" else ".png"
+            target = ctx["data"] / "media" / (ident + ext)
+            row = {
+                "id": ident,
+                "name": "Orbit-fundus-input" + ext,
+                "title": "Fundus · received input",
+                "type": "image/jpeg" if ext == ".jpg" else "image/png",
+                "path": str(target.relative_to(ctx["data"])),
+                "size": len(raw),
+                "sha256": digest,
+                "created": ctx["now"](),
+                "retina_role": "original",
+                "parent_id": None,
+                "synthetic": synthetic,
+                "source": "SIMULATION" if synthetic else "UPLOADED FUNDUS",
+                "notes": "Original image sent to the laptop for processing.",
+            }
+            try:
+                target.write_bytes(raw)
+                ctx["put"]("media", row)
+            except Exception:
+                target.unlink(missing_ok=True)
+                raise
+            return row
+
     @app.get("/api/retina/matlab-script")
     def export_script():
         return Response(
@@ -247,7 +297,21 @@ def install(app, ctx):
             (report["source_sha256"] + json.dumps(report["settings"], sort_keys=True)).encode()
         ).hexdigest()
         with save_lock:
-            old = [r for r in ctx["rows"]("media") if r.get("retina_group") == key]
+            media = ctx["rows"]("media")
+            old = [r for r in media if r.get("retina_group") == key]
+            if not any(r["retina_role"] == "original" for r in old):
+                original = next(
+                    (
+                        r
+                        for r in media
+                        if r.get("retina_role") == "original"
+                        and r["sha256"] == report["source_sha256"]
+                        and bool(r.get("synthetic")) == report["synthetic"]
+                    ),
+                    None,
+                )
+                if original:
+                    old.append(original)
             roles = {row["retina_role"] for row in old}
             if roles == {"original", "enhanced", "mask", "overlay"}:
                 return old

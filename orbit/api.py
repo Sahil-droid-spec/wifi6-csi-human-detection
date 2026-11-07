@@ -1126,6 +1126,11 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     download_root = Path(os.environ.get("ORBIT_DOWNLOADS_DIR", ROOT.parent)).resolve()
     downloads_allowed = {
+        "Orbit-Real-Retina-CC0.jpg": ("Real fundus photo · CC0 · source in demo guide", "image/jpeg"),
+        "Orbit-Audio-Demo-Generated.wav": ("Generated two-tone audio for filtering", "audio/wav"),
+        "Orbit-Link-Image-Teaching.jpg": ("64 px resized teaching copy · unsuitable for medical analysis", "image/jpeg"),
+        "Orbit-Link-Hello-Encrypted.wav": ("Generated encrypted modem WAV · key in demo guide", "audio/wav"),
+        "Orbit-Link-Hello-Noisy.wav": ("Simulated noisy encrypted modem WAV · key in demo guide", "audio/wav"),
         "Orbit-Transfer-Sample.txt": ("General file-transfer test document", "text/plain"),
         "Orbit-Transfer-Research-Graph.png": ("Archived research graph for a transfer test", "image/png"),
         "Orbit-Acoustic-Hello.wav": ("Generated BFSK Hello Orbit transmit waveform", "audio/wav"),

@@ -9,3 +9,5 @@ joblib==1.6.0
 python-multipart==0.0.32
 qrcode==8.2
 zeroconf==0.151.5
+cryptography==46.0.7
+pillow==12.1.1

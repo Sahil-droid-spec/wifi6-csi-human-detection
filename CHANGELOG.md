@@ -1,3 +1,12 @@
+# 4.2 · 2026-11-07
+
+- Send original fundus input to the shared laptop before processing; preserve one original across derived views.
+- Add AES-GCM AcousticLink for small text/binary payloads, CRC-checked framed BFSK, file reconstruction, hash verification, shared inbox and same-WAV filter comparison.
+- Add explicit foreground recording in APK 4.2 and browser PCM recording for voice-note transfers.
+- Add saved two-track audio mixing/subtraction, resampling, clipping and both-parent deletion dependencies.
+- Ship full matching cryptography runtime and additional offline wheels; constrain test discovery to project tests.
+- Physical acoustic/phone validation, speech recognition, calls, acoustic FEC and live CSI remain pending.
+
 # Changelog
 
 ## Current development

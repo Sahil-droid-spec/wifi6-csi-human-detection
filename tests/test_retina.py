@@ -37,6 +37,32 @@ def test_classical_pipeline_on_generated_geometry(tmp_path):
         decode_image(b"bad bytes", 256)
 
 
+def test_phone_sends_original_then_laptop_processes_without_duplicate(tmp_path, monkeypatch):
+    monkeypatch.setenv("ORBIT_DISABLE_MDNS", "1")
+    raw = generated_image()
+    app = create_app(tmp_path, "INPUT", lan=True)
+    with TestClient(app) as laptop, TestClient(app, client=("192.168.1.7", 8000)) as phone:
+        for client in (laptop, phone):
+            client.post("/api/auth", json={"code": "INPUT"})
+        assert phone.post("/api/retina/import", content=raw).status_code == 422
+        sent = phone.post("/api/retina/import?consent=true&synthetic=true", content=raw)
+        assert sent.status_code == 200, sent.text
+        original = sent.json()
+        assert len(laptop.get("/api/retina").json()) == 1
+        assert original["synthetic"] and original["retina_role"] == "original"
+        assert laptop.get("/api/media/" + original["id"] + "/file").content == raw
+        report = laptop.post(
+            "/api/retina/analyse?consent=true&save=true&size=256&source_kind=simulation",
+            content=raw,
+        ).json()
+        assert len(report["saved"]) == 4
+        assert len(laptop.get("/api/retina").json()) == 4
+        assert (
+            next(r for r in report["saved"] if r["retina_role"] == "original")["id"]
+            == original["id"]
+        )
+
+
 def test_phone_preview_save_reopen_and_laptop_delete(tmp_path, monkeypatch):
     pytest.importorskip("cv2")
     monkeypatch.setenv("ORBIT_DISABLE_MDNS", "1")
