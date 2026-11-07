@@ -20,12 +20,13 @@ export function RetinalStudio(){
   const [tab,setTab]=useState('overlay'),[confirm,setConfirm]=useState(''),[matlab,setMatlab]=useState(false);
   const fileInput=useRef<HTMLInputElement>(null),alive=useRef(false),controller=useRef<AbortController|null>(null);
   const local=['127.0.0.1','localhost','[::1]'].includes(location.hostname);
-  const refresh=async()=>setSaved(await json<Saved[]>(''));
+  const refresh=async()=>{const items=await json<Saved[]>('');if(alive.current)setSaved(items);};
   useEffect(()=>{
     alive.current=true;
     refresh().catch(e=>setError(e.message));
+    const poll=setInterval(()=>refresh().catch(()=>{}),4000);
     fetch('/api/matlab/status').then(r=>r.ok?r.json():null).then(r=>{if(alive.current)setMatlab(!!r?.available);}).catch(()=>{});
-    return()=>{alive.current=false;controller.current?.abort();};
+    return()=>{alive.current=false;clearInterval(poll);controller.current?.abort();};
   },[]);
   const change=(patch:Partial<Settings>)=>{setSettings(current=>({...current,...patch}));setResult(null);setError('');};
   async function run(save:boolean){
