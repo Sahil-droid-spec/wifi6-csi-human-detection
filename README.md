@@ -1,46 +1,43 @@
-# Orbit — Wi-Fi Sensing Lab
+# ORBIT Ultimate — Wi-Fi 6 CSI Human Presence & Activity Sensing
 
-A local lab for recorded Wi-Fi CSI, DSP, model comparison and clearly separated simulation experiments. The phone and laptop share the same local server and saved library.
+A local research lab for recorded Wi-Fi CSI, DSP, machine learning, and soft computing. A laptop hosts the app and phone workspace. Orbit keeps recorded detection experiments, ns-3 research, and ordinary file transfers distinct.
 
-## Wi-Fi 6 research at a glance
+## Research at a glance
 
-![Research pipeline from recorded CSI through DSP, modelling and evaluation](assets/assets/project_pipeline.svg)
+![Research pipeline from CSI through DSP, modelling and evaluation](assets/assets/project_pipeline.svg)
+
+| Original CSI graphs | What to look for |
+|---|---|
+| [20 MHz amplitude](assets/assets/csi_20mhz_examples.webp) · [40 MHz amplitude](assets/assets/csi_40mhz_examples.webp) | Changes across recorded packets and subcarriers |
+| [FIR comparison](assets/assets/fir_filter_comparison.webp) · [DFT spectrum](assets/assets/dft_spectrum_comparison.webp) | How the original notebook's filter changed the waveform and frequency content |
+| [Validation protocols](assets/assets/validation_protocol_comparison.png) · [Original AX/BF comparison](assets/assets/phase7_simulator_results.png) | How the split changed capture scores and how the partial simulator measured throughput and sensing latency |
 
 ![Archived comparison of capture accuracy under different validation protocols](assets/assets/validation_protocol_comparison.png)
-
-The original notebook studied **recorded human-presence and activity sensing**. Its validation plot compares different ways of holding recordings out. Its separate AX/BF simulator study measured throughput and sensing latency with five valid runs per configuration.
 
 <details>
 <summary>Original CSI, FIR, DFT and AX/BF graphs</summary>
 
-#### Recorded CSI amplitude
-
 ![20 MHz recorded CSI amplitude examples](assets/assets/csi_20mhz_examples.webp)
 ![40 MHz recorded CSI amplitude examples](assets/assets/csi_40mhz_examples.webp)
-
-#### Filter and spectrum inspection
-
 ![Original raw versus FIR-filtered CSI](assets/assets/fir_filter_comparison.webp)
 ![Original DFT magnitude comparison](assets/assets/dft_spectrum_comparison.webp)
-
-#### AX/BF simulator comparison
-
 ![Archived AX throughput and BF report latency under three simulator configurations](assets/assets/phase7_simulator_results.png)
 
 </details>
 
-[Original Colab notebook](https://colab.research.google.com/drive/1iFoaTazemwuRKRnVC7APWzceNzxh0OiK?usp=sharing) · [Research history and limitations](docs/research_history.md) · [Recorded model comparison](docs/model_comparison_20mhz_40mhz.md) · [AX/BF evaluation](docs/ax_bf_simulator_evaluation.md)
+The figures are archived outputs. The original AX/BF plot is from a five-run-per-configuration partial ns-3.40 experiment. The separate SAGE V3 study used 12 seeds and reported a severe-fading AX-only throughput gain alongside lower successful BF report rates in matched mixed-mode comparisons. The research history keeps both protocols and the recorded CSI results separate. [Research notebook](https://colab.research.google.com/drive/1iFoaTazemwuRKRnVC7APWzceNzxh0OiK?usp=sharing) · [Original research history](docs/research_history.md) · [Research Journey and SAGE V3](docs/research_journey.md)
 
-## Project progress
+## Orbit progress
 
-| Area | Status |
+| Area | Current status |
 |---|---|
-| Research | Archived CSI plots, grouped evaluations and AX/BF simulation comparisons are available. |
-| Orbit workflow | Library, Signal Studio, Learning Lab, held-out Replay and Evidence are available for recorded datasets. |
-| Phone workflow | QR pairing and local uploads are implemented. Physical Android acceptance remains unverified. |
-| Simulation | Generated examples use a separate workspace and carry their source labels. Live CSI and native 802.11bf remain unverified. |
+| Recorded CSI and Evidence | Quality-aware feature extraction, grouped training, held-out Replay, and a separate matched Hamming FIR experiment using the same features and held-out dates. |
+| Phone exchange | One-time QR, resumable hash-verified exchange, chat, and a server-measured upload timeline. Physical Android acceptance pending. |
+| Audio and MATLAB | Verified transferred WAVs can enter Audio Studio, be filtered into linked Library copies, and be reopened for a bounded comparison in optional licensed MATLAB. |
+| Additional labs | Software BFSK loopback, generated or recorded I/Q SDR, Camera Studio, and local MATLAB/Simulink fixture comparisons |
+| Retinal Image Lab | Consented photo enhancement and vessel-candidate masks through Python or licensed MATLAB, with Library save and measured timings. Software verification uses generated geometry. |
 
-[Research progress](docs/research_progress.md) · [Orbit changelog](CHANGELOG.md) · [Merged app update and verification notes](https://github.com/Sahil-droid-spec/wifi6-csi-human-detection/pull/2)
+[Current checklist](docs/ORBIT_PROJECT_CHECKLIST.md) · [Implementation status](docs/ORBIT_ULTIMATE_STATUS.md) · [Test record](docs/ORBIT_ULTIMATE_TEST_RESULTS.md)
 
 ## Windows application
 
@@ -80,3 +77,11 @@ DSP & SC tools extends filters, FFT, aliasing, pole-zero views, convolution, spe
 Replay defaults to saved outer-fold predictions. Scaling, GA feature selection and tuning exclude held-out recordings/dates. Final-model inference is explicitly labelled. Metrics carry validation protocols; small datasets and date/class confounding remain limitations. Simulated results do not establish real-world accuracy. No verified live CSI, through-wall detection or native 802.11bf support is claimed.
 
 Run python -m pytest tests -q and python -m ruff check orbit tests tools desktop.py build_desktop.py launch_orbit.py. Verify file bytes with python tools/checksums.py --verify. See CHANGELOG.md, docs/step1_audit.md and [the preserved research history](docs/research_history.md).
+
+## New local communication and acoustic DSP tools
+
+Connect → fresh QR → Transfer & chat. General files up to 256 MiB are separate from CSI imports. Open **View upload graph** for server-accepted bytes and observed application throughput. For a verified PCM16 WAV, **Save & analyze WAV** opens Audio Studio with playback, waveform, spectrum, spectrogram, and non-destructive filtering. Use Audio Studio on the laptop for optional MATLAB comparison and Trash controls. Sessions expire server-side after 12 hours.
+
+Signal lab -> Acoustic modem: UTF-8 BFSK at 1200/2200 Hz, 100 bit/s, preamble/length/CRC32. Generated speaker WAV, noisy loopback and PCM WAV decode. Microphone capture needs a supported secure context and permission; phone LAN HTTP commonly blocks it. Physical acoustic tests, AgentLink, calls, live SDR and MATLAB Engine remain unverified or pending.
+
+Grouped navigation preserves existing pages. See docs/ORBIT_ULTIMATE_STATUS.md and feature inventory. No new mandatory libraries; existing NumPy/SciPy/scikit-learn BSD-family licenses and FastAPI MIT metadata inspected. MATLAB remains optional.

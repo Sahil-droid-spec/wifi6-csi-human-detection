@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import * as echarts from "echarts";
 import {
   Activity,
+  ScanLine,
   ArrowDownToLine,
   ArrowRight,
   AudioLines,
@@ -51,7 +52,17 @@ import {
 } from "lucide-react";
 import "./styles.css";
 import {SCShow,GraphGallery} from "./Showcase";
+import {SmartCSI} from "./SmartCSI";
+import {Receiver} from "./Receiver";
+import {Journey} from "./Journey";
+import {Transfer} from "./Transfer";
+import {Acoustic} from "./Acoustic";
 import {PhoneFiles,Progression,ResearchCode,NotebookLinks} from "./Demo";
+import {CameraStudio} from "./CameraStudio";
+import {PresenceExperiment} from "./PresenceExperiment";
+import {RetinalStudio} from "./RetinalStudio";
+import {AudioStudio} from "./AudioStudio";
+import {MatlabStudio} from "./MatlabStudio";
 import {BulkImport,SimulationPage,ConnectTools,InboxPage,PlanPage,GuidePage,GlossaryPage,AdvancedPage,Term} from "./Extensions";
 import {themes,lightThemes,okabeIto,applyTheme} from "./themes";
 type Dict = Record<string, any>;
@@ -66,7 +77,7 @@ type Page =
   | "modes"
   | "settings"
   | "upload"
-  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs";
+  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs" | "smartcsi" | "receiver" | "journey" | "transfer" | "acoustic" | "camera" | "matlab" | "audio" | "presence" | "retina";
 const stages = [
   "Receive",
   "Window",
@@ -97,9 +108,19 @@ const nav = [
   { id: "results", label: "Evidence", icon: FlaskConical },
   { id: "modes", label: "Sensing modes", icon: Radio },
   { id: "settings", label: "Connect", icon: Settings2 },
+  {id:"transfer",label:"Transfer & chat",icon:Smartphone},
+  {id:"acoustic",label:"Acoustic modem",icon:AudioLines},
+  {id:"camera",label:"Camera Studio",icon:ScanLine},
+  {id:"presence",label:"Presence Experiment",icon:Activity},
+  {id:"audio",label:"Audio Studio",icon:AudioLines},
+  {id:"retina",label:"Retinal Image Lab",icon:ScanLine},
+  {id:"matlab",label:"MATLAB Studio",icon:Activity},
   {id:"simulation",label:"Simulation",icon:Waves},
   {id:"inbox",label:"Phone Inbox",icon:Smartphone},
   {id:"advanced",label:"DSP & SC tools",icon:CircuitBoard},
+  {id:"journey",label:"Research Journey",icon:BrainCircuit},
+  {id:"receiver",label:"SDR & spectrum",icon:Radio},
+  {id:"smartcsi",label:"SmartCSI",icon:BrainCircuit},
   {id:"scshow",label:"SC presentation",icon:BrainCircuit},
   {id:"graphs",label:"Saved graphs",icon:Activity},
   {id:"plan",label:"Recording plan",icon:BookOpen},
@@ -468,9 +489,9 @@ function Ring({
 function App() {
   const [page, setPage] = useState<Page>(
     () =>
-      ((location.hash.slice(2) === "soft"
+      ((location.hash.slice(2).split('?')[0] === "soft"
         ? "learning"
-        : location.hash.slice(2)) as Page) || "intro",
+        : location.hash.slice(2).split('?')[0]) as Page) || "intro",
   );
   const [stored, setState] = useState<Dict>({
     captures: [],
@@ -613,9 +634,9 @@ function App() {
   useEffect(() => {
     const fn = () =>
       setPage(
-        ((location.hash.slice(2) === "soft"
+        ((location.hash.slice(2).split('?')[0] === "soft"
           ? "learning"
-          : location.hash.slice(2)) as Page) || "intro",
+          : location.hash.slice(2).split('?')[0]) as Page) || "intro",
       );
     window.addEventListener("hashchange", fn);
     return () => window.removeEventListener("hashchange", fn);
@@ -635,7 +656,7 @@ function App() {
     setSelected(id);
     localStorage.setItem("orbit-capture", id);
   };
-  useEffect(()=>{if(location.hash.startsWith("#/pair?")||location.hash.startsWith("#/desktop?")){const token=new URLSearchParams(location.hash.split("?")[1]).get("token");if(token)api(location.hash.startsWith("#/desktop?")?"desktop/claim":"pair/claim",{token}).then(async()=>{await refresh();navigate(location.hash.startsWith("#/desktop?")?"overview":"upload");}).catch(()=>{setAuthError("Pairing link expired. Create a new QR on the laptop.");setAuthOpen(true);});}},[]);
+  useEffect(()=>{if(location.hash.startsWith("#/pair?")||location.hash.startsWith("#/desktop?")){const token=new URLSearchParams(location.hash.split("?")[1]).get("token");if(token)api(location.hash.startsWith("#/desktop?")?"desktop/claim":"pair/claim",{token}).then(async()=>{await refresh();navigate(location.hash.startsWith("#/desktop?")?"overview":"transfer");}).catch(()=>{setAuthError("Pairing link expired. Create a new QR on the laptop.");setAuthOpen(true);});}},[]);
   const authenticate = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -835,21 +856,15 @@ function App() {
               </span>
             </button>
             <div className="sidebar-label">WORKSPACE</div>
-            <nav>
-              {nav.map((n, i) => (
-                <React.Fragment key={n.id}>
-                  {i === 6 && <div className="nav-divider" />}
-                  <button
-                    onClick={() => navigate(n.id as Page)}
-                    className={page === n.id ? "active" : ""}
-                  >
-                    <n.icon size={19} />
-                    <span>{n.label}</span>
-                    {n.id === "dsp" && <i className="nav-dot orange" />}
-                    {n.id === "learning" && <i className="nav-dot violet" />}
-                  </button>
-                </React.Fragment>
-              ))}
+            <nav className="grouped-navigation">
+              <button className={page==='overview'?'active':''} onClick={()=>navigate('overview')}><LayoutDashboard size={19}/><span>Home</span></button>
+              {[
+                {title:'Connect & share',ids:['settings','transfer','inbox']},
+                {title:'Signal lab',ids:['dsp','acoustic','audio','receiver','advanced','camera','retina','matlab']},
+                {title:'Data & learning',ids:['data','learning','presence','replay','smartcsi','simulation']},
+                {title:'Research & notebook',ids:['journey','graphs','results','media','modes','plan']},
+                {title:'Help',ids:['guide','glossary']}
+              ].map(group=><details key={group.title} open={group.ids.includes(page)||(page==='overview'&&group.title==='Signal lab')}><summary>{group.title}</summary>{group.ids.map(id=>{const n=nav.find(item=>item.id===id)!;return <button key={id} className={page===id?'active':''} onClick={()=>navigate(id as Page)}><n.icon size={18}/><span>{n.label}</span></button>;})}</details>)}
             </nav>
             <div className="sidebar-bottom">
               <div className="local-card">
@@ -1241,10 +1256,21 @@ function App() {
                   )}
                 </>
               )}
-              {(page === "upload" || page === "settings") && <PhoneFiles/>}
+              {page === "settings"&&<ConnectTools/>}
+              {page === "upload" && <PhoneFiles/>}
               {page === "learning" && <Progression state={state} capture={capture}/>}
               {page === "results" && <Progression state={{...stored,simulation:false}}/>}
-              {["scshow","graphs"].includes(page)&&<div className="studio-source"><CaptureSelect {...common}/></div>}
+              {["scshow","graphs","smartcsi"].includes(page)&&<div className="studio-source"><CaptureSelect {...common}/></div>}
+              {page === "acoustic"&&<Acoustic/>}
+              {page === "camera"&&<CameraStudio/>}
+              {page === "matlab"&&<MatlabStudio/>}
+              {page === "audio"&&<AudioStudio/>}
+              {page === "retina"&&<RetinalStudio/>}
+              {page === "presence"&&<PresenceExperiment datasets={state.datasets||[]} simulation={simulation}/>}
+              {page === "transfer"&&<Transfer state={state}/>}
+              {page === "journey"&&<Journey state={state}/>}
+              {page === "receiver"&&<Receiver/>}
+              {page === "smartcsi"&&<SmartCSI {...common}/>}
               {page === "scshow"&&<SCShow {...common}/>}
               {page === "graphs"&&<GraphGallery {...common}/>}
               {page === "advanced" && <><div className="studio-source"><CaptureSelect {...common}/></div><p className="helper">Use the Recorded / Simulation button in the header to switch source. This selected CSI recording feeds the DSP and pipeline tools.</p></>}
@@ -1274,11 +1300,8 @@ function App() {
               {page === "guide"&&<GuidePage/>}
               {page === "glossary"&&<GlossaryPage/>}
               {page === "advanced"&&<><AdvancedPage {...{state,capture,refresh}}/><ResearchCode/></>}
-              {page === "settings"&&<ConnectTools/>}
               {page === "settings" && (
-                <SettingsPage
-                  notify={notify}
-                  logout={async () => {
+                <SettingsPage logout={async () => {
                     await api("logout", {});
                     setAuthed(false);
                     navigate("intro");
@@ -1290,7 +1313,7 @@ function App() {
                   <ShieldCheck size={13} /> Local-first. Evidence-led.
                 </span>
                 <span>
-                  Orbit v2.0 <i /> Live hardware remains unverified.
+                  Orbit Ultimate 4.1 <i /> Live hardware remains unverified.
                 </span>
               </footer>
             </main>
@@ -4438,6 +4461,11 @@ function MediaPage({
                   {new Date(m.created).toLocaleString()}
                 </small>
                 <div className="button-row">
+                  {m.type === "audio/wav" && (
+                    <a className="text-button" href={"#/audio?item=" + m.id}>
+                      Open in Audio Studio
+                    </a>
+                  )}
                   {m.capture_id && (
                     <Button
                       secondary
@@ -4475,10 +4503,8 @@ function MediaPage({
 }
 
 function SettingsPage({
-  notify,
   logout,
 }: {
-  notify: (s: string) => void;
   logout: () => void;
 }) {
   const [server, setServer] = useState<Dict | null>(null);
@@ -4528,96 +4554,6 @@ function SettingsPage({
         </section>
       )}
       <div className="two-column">
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <Badge tone={server?.enabled ? "green" : "muted"}>
-                {server?.enabled ? "LAN ENABLED" : "LAPTOP ONLY"}
-              </Badge>
-              <h2>One lab. Two screens.</h2>
-            </div>
-            <Smartphone size={27} />
-          </div>
-          <div className="sharing-control">
-            <span>
-              {server?.enabled ? "Phone sharing is on" : "Phone sharing is off"}
-            </span>
-            <Button
-              secondary
-              onClick={async () => {
-                try {
-                  setServer(
-                    await api("server/sharing", { enabled: !server?.enabled }),
-                  );
-                } catch (e: any) {
-                  notify(e.message);
-                }
-              }}
-            >
-              {server?.enabled ? "Switch sharing off" : "Enable phone sharing"}
-            </Button>
-          </div>
-          <p className="helper">
-            To start LAN mode after a laptop-only launch, double-click{" "}
-            <b>Start-Orbit-Server.cmd</b> in the app folder.
-          </p>
-          <p>
-            Connect your phone and laptop to the same trusted Wi-Fi network.
-            Open the laptop’s LAN address, enter the terminal access code, and
-            send a recording.
-          </p>
-          {server?.enabled && server.addresses.length ? (
-            <>
-              <div className="qr-layout">
-                <img
-                  src="/api/qr"
-                  alt="QR code for the laptop phone upload address"
-                />
-                <div>
-                  <span className="tiny-label">SCAN TO UPLOAD</span>
-                  <p>
-                    No cloud hand-off. Your phone sends the file directly to
-                    this laptop.
-                  </p>
-                </div>
-              </div>
-              {server.addresses.map((address: string) => (
-                <div className="address-row" key={address}>
-                  <code>{address}</code>
-                  <button
-                    className="text-button"
-                    onClick={() =>
-                      navigator.clipboard
-                        .writeText(address)
-                        .then(() => notify("LAN address copied."))
-                        .catch(() =>
-                          notify("Select and copy the displayed address."),
-                        )
-                    }
-                  >
-                    Copy
-                  </button>
-                </div>
-              ))}
-            </>
-          ) : (
-            <div className="setup-card">
-              <Network size={28} />
-              <h3>Enable trusted-LAN access.</h3>
-              <p>Stop the local server, then start Orbit with:</p>
-              <code>python -m orbit --lan</code>
-              <p>
-                A LAN address and QR code appear here after reconnecting. Allow
-                Python through Windows Firewall on private networks if prompted.
-              </p>
-            </div>
-          )}
-          <Note>
-            This server is for a trusted private network. Do not forward its
-            port or publish a public tunnel. A physical phone transfer still
-            needs to be verified on your network.
-          </Note>
-        </section>
         <section className="panel">
           <Badge tone="green">LOCAL PROCESSING</Badge>
           <h2>The details that matter.</h2>

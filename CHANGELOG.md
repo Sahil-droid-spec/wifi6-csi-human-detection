@@ -1,5 +1,19 @@
 # Changelog
 
+## Current development
+
+- Added a consented Retinal Image Lab for image enhancement, vessel-candidate segmentation, masks, overlays, measured processing times, local Library save/delete, and optional licensed MATLAB execution.
+- Restored the original Wi-Fi CSI research plots and added a progress summary to the README.
+- Added server-measured transfer timelines, Audio Studio with versioned WAVs in the media library, and a same-input MATLAB comparison for Library WAVs.
+- Added a separate fixed-configuration Hamming FIR versus baseline presence experiment with two paths through identical date-held-out validation and aligned window inspection.
+
+## Orbit Ultimate 4.1
+
+- Unified phone pairing on the Connect page with ranked private addresses, a lightweight QR landing page, and one-time browser or APK handoff.
+- Added phone transfer examples, sender-session labels, and a reduced-motion-aware progress indicator.
+- Added consent-first, laptop-only Camera Studio with OpenCV face/eye candidates and QR text, local photo/video capture, motion inspection, and quality-gated educational rPPG.
+- Added local MATLAB batch comparisons for generated FIR and image fixtures and a small Simulink gain model.
+
 ## 2.0
 - Preserved desktop and command-line local-server modes for phone/laptop transfers.
 - Added resumable hashed uploads, folder/batch wizard, numeric formats, duplicate detection and watch folders.
@@ -24,3 +38,17 @@
 - Buffer Replay windows, preserve the chart instance, align traces with verdicts and ignore stale inference responses.
 - Add SC presentation and Saved graphs with labelled historical Colab figures.
 - Add three classroom Simulation upload sets with evaluated model coverage.
+
+## Research Journey - 2026-11-03
+- Added eight-stage source-labelled research dashboard, 19 original graph gallery, selected PDF export and professor presentation.
+- Added 30-page A4 research report, graphs-only PDF and printer-friendly HTML.
+- Integrated new archived SAGE V3 and BF reliability evidence; preserved negative results and marked GA-Fuzzy supplied claims pending original export.
+- Preserved runtime, local server, phone access, datasets and existing lab features.
+
+## Ultimate 4.0 - 2026-11-04
+- Add general-file exchange, verified resumable bytes, receipts and two-session text/attachment chat.
+- Add server-side 12-hour expiry; preserve QR and local-server access.
+- Add BFSK framing/timing/CRC, generated and recorded audio, explicit microphone UI.
+- Group navigation; collapse optional graphs/receipts; clarify DSP axes.
+- Update Android Send files, exact LAN IPs and browser fallback.
+- Add inventory, acceptance tests and continuation record. No hardware/MATLAB/AgentLink/live-call completion claim.

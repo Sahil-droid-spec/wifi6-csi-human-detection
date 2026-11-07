@@ -7,7 +7,6 @@ import json
 import os
 import secrets
 import shutil
-import socket
 import sqlite3
 import time
 import zipfile
@@ -26,6 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import core, models
+from .network import lan_addresses
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_UPLOAD = 2 * 1024**3
@@ -93,6 +93,26 @@ class UploadBodyLimit:
             await self.app(scope, replay, send)
 
 
+class ExpiringSessions(dict):
+    """Server-side lifetime matches the 12-hour browser cookie."""
+
+    def add(self, token):
+        for key, deadline in list(self.items()):
+            if deadline <= time.monotonic():
+                self.pop(key, None)
+        self[token] = time.monotonic() + 12 * 3600
+
+    def discard(self, token):
+        self.pop(token, None)
+
+    def __contains__(self, token):
+        deadline = self.get(token)
+        if deadline is None or deadline <= time.monotonic():
+            self.pop(token, None)
+            return False
+        return True
+
+
 def now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -102,7 +122,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     for name in ("originals", "captures", "models", "staging", "media", "references"):
         (data / name).mkdir(parents=True, exist_ok=True)
     code = access_code or secrets.token_hex(4).upper()
-    sessions = set()
+    sessions = ExpiringSessions()
     attempts = {}
     guard = Lock()
     pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="orbit")
@@ -172,7 +192,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     app = FastAPI(
         title="Orbit Wi-Fi Sensing Lab",
-        version="2.2.0",
+        version="4.1.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
@@ -224,7 +244,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             # Do not send local paths or stack traces to clients.
             return JSONResponse({"detail": "Operation failed. Check the local server log."}, 500)
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; connect-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'"
+            "default-src 'self'; connect-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'"
         )
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
@@ -242,7 +262,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     def health():
         return {
             "status": "online",
-            "version": "2.2.0",
+            "version": "4.1.0",
             "local_only": True,
             "instance_id": app.state.instance_id,
         }
@@ -296,9 +316,9 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             "runs": [r for r in rows("run") if r.get("source") != "SIMULATION"][:50],
             "jobs": rows("job")[:30],
             "lan": sharing["enabled"],
-            "media": rows("media"),
+            "media": [row for row in rows("media") if not row.get("trashed")],
             "references": rows("reference"),
-            "version": "2.2.0",
+            "version": "4.1.0",
         }
 
     cancelled = set()
@@ -855,19 +875,12 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         )
 
     def lan_info():
-        addresses = set()
-        try:
-            for result in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-                ip = result[4][0]
-                if not ip.startswith("127."):
-                    addresses.add(ip)
-        except OSError:
-            pass
+        addresses = lan_addresses() if sharing["enabled"] else []
         return {
             "enabled": sharing["enabled"],
             "bound_for_lan": lan,
             "addresses": (
-                [f"http://{ip}:{port}/#/upload" for ip in sorted(addresses)]
+                [f"http://{ip}:{port}/#/transfer" for ip in addresses]
                 if sharing["enabled"]
                 else []
             ),
@@ -1062,6 +1075,8 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     @app.get("/api/media/{id}/file")
     def media_file(id: str):
         row = get("media", id)
+        if row.get("trashed"):
+            raise HTTPException(404, "Restore this recording from Trash before opening it.")
         return FileResponse(
             data / row["path"],
             media_type=row["type"],
@@ -1111,6 +1126,9 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     download_root = Path(os.environ.get("ORBIT_DOWNLOADS_DIR", ROOT.parent)).resolve()
     downloads_allowed = {
+        "Orbit-Transfer-Sample.txt": ("General file-transfer test document", "text/plain"),
+        "Orbit-Transfer-Research-Graph.png": ("Archived research graph for a transfer test", "image/png"),
+        "Orbit-Acoustic-Hello.wav": ("Generated BFSK Hello Orbit transmit waveform", "audio/wav"),
         "Orbit-Windows.zip": ("Native Windows desktop application", "application/zip"),
         "Simulation-set-A.zip": (
             "Simulation set A · all generated classes and sessions",
@@ -1145,25 +1163,31 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
         ),
     }
 
+    def download_path(name):
+        path = download_root / name
+        if name == "Orbit-Transfer-Research-Graph.png" and not path.is_file():
+            return data / "research" / "journey" / "graph-01.png"
+        return path
+
     @app.get("/api/downloads")
     def download_catalog():
         return [
             {
                 "name": name,
                 "title": title,
-                "size": (download_root / name).stat().st_size,
+                "size": download_path(name).stat().st_size,
                 "url": "/api/downloads/" + name,
             }
             for name, (title, mime) in downloads_allowed.items()
-            if (download_root / name).is_file()
+            if download_path(name).is_file()
         ]
 
     @app.get("/api/downloads/{name}")
     def download_file(name: str):
-        if name not in downloads_allowed or not (download_root / name).is_file():
+        if name not in downloads_allowed or not download_path(name).is_file():
             raise HTTPException(404, "Download is not available.")
         return FileResponse(
-            download_root / name, filename=name, media_type=downloads_allowed[name][1]
+            download_path(name), filename=name, media_type=downloads_allowed[name][1]
         )
 
     static = ROOT / "orbit" / "static"

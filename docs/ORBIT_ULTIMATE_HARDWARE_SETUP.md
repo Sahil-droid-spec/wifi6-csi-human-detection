@@ -1,0 +1,16 @@
+# Real-device verification
+
+1. Close older Orbit windows; open updated Orbit.exe. Keep the laptop server running. Start-Orbit-Server.cmd / Orbit.exe --server remains available.
+2. Connect phone/laptop to the same trusted Wi-Fi or laptop hotspot. In Connect select the actual laptop network interface. The 192.168.137.1 hotspot address only works while that hotspot exists. Generate a fresh one-use QR and open it on the phone. Pair again after 12 hours or server restart.
+3. Use the browser first. Transfer & chat -> Files -> choose a small real image/document. On the other device, Receive & verify bytes. Check displayed original and received SHA-256. Upload the saved downloaded copy back; it should be detected as the same bytes. This last step checks the saved copy, not merely browser memory.
+4. Repeat in reverse direction. Send a text message and attachment from each device. Acknowledgement means a different authenticated session loaded the message, not that a person read it.
+5. Start a larger upload, pause, close/reopen/reselect the original file, and confirm server offset resumes. Cancel one pending transfer. Turn Wi-Fi off/on and confirm retry/reconnection; server restart requires fresh authentication but partial file offsets persist.
+6. Application receipts count accepted payload bytes and client-reported wall time including processing/retries. They do not measure radio packet loss, MCS, PHY rate or wire retransmission bytes. HTTP RTT variation is not media/RTP jitter. Duplicate files do not create fake upload-rate receipts.
+7. APK v4.0 is built for the listed private laptop IPs only. If the address changes, use the phone browser or rebuild with --lan-host. Send files opens general exchange. Android Share -> Orbit -> Choose files to send. Receive & verify hashes bytes in WebView, then requests Android save; direct save fallback does not produce a client hash receipt. Verify the saved copy by re-upload. No physical Android installation was automated here.
+
+## Acoustic modem
+Use short text. Generate speaker audio on the transmitter. On a secure-context receiver (localhost/HTTPS with microphone support), click Start microphone and explicitly grant permission. Play the WAV from the transmitter, then Stop & decode. For phone LAN HTTP, browsers usually block microphone access: record PCM WAV in a supported recorder and upload it instead. Choose full 8–96 ksample/s mono/stereo PCM WAV, <=30 seconds / 6 MiB. Keep sound comfortable; avoid acoustic feedback. Data rate is 100 bit/s; this is not video transfer.
+A CRC-valid decoded message is required; playing sound is not transfer success. Record distances/volume/device model and compare the original text. Test noise and failed frames. No physical speaker/microphone validation, acoustic ACK/retry or encryption is claimed. Simulation is a single seeded noisy frame; BER is shown only for aligned known bits on CRC-valid frames. No reliability claim follows from five codec tests.
+
+## MATLAB/SDR
+MATLAB R2026b was found under Program Files; Python Engine is absent from the Orbit runtime. License, toolboxes, Engine execution and Simulink are NOT VERIFIED. Keep them optional and isolate future installation. No supported SDR receiver or live capture was verified. Existing generated/recorded IQ DSP works without hardware.

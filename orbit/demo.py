@@ -13,6 +13,26 @@ from . import core
 
 
 def install(app, ctx):
+    from .smartcsi import install as install_smartcsi
+    install_smartcsi(app, ctx)
+    from .receiver import install as install_receiver
+    install_receiver(app, ctx)
+    from .journey import install as install_journey
+    install_journey(app, ctx)
+    from .communication import install as install_communication
+    install_communication(app, ctx)
+    from .acoustic import install as install_acoustic
+    install_acoustic(app, ctx)
+    from .vision import install as install_vision
+    from .matlab_lab import install as install_matlab
+    from .audio_studio import install as install_audio
+    from .presence_experiment import install as install_presence
+    from .retina import install as install_retina
+    install_vision(app, ctx)
+    install_matlab(app, ctx)
+    install_audio(app, ctx)
+    install_presence(app, ctx)
+    install_retina(app, ctx)
     data, get, put = ctx["data"], ctx["get"], ctx["put"]
 
     @lru_cache(maxsize=4)
@@ -120,6 +140,7 @@ def install(app, ctx):
         allowed = {
             "WIFI6RECONSTRUCTION.ipynb",
             "wifi6reconstruction.py",
+            "Colab-reference-2026-11-01.pdf",
             "WIFI6RECONSTRUCTION.ipynb - Colab.pdf",
         }
         if name not in allowed or not (data / "research" / name).is_file():
