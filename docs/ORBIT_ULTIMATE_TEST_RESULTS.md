@@ -1,3 +1,11 @@
+# Acoustic result visibility check — 2026-11-08
+
+- Inspected the running installed laptop app: actual generated-file result showed Hash-checked content recovered, 2 CRC-valid packets and Hello Orbit. The message was below the ACK controls; no physical audio success inferred.
+- Added local button feedback and moved received text ahead of ACK controls. TypeScript/production build passed. Focused regression: python -m pytest tests/test_acoustic_link.py -q → 4 passed, 1 upstream warning in 8.70s.
+- Actual phone rendering and physical sound transfer remain NOT EXECUTED.
+
+---
+
 # Professional integration checks — Orbit 4.3 — 2026-11-08
 
 - Full project suite: `python -m pytest tests -q` → **145 passed, 1 warning in 128.45s**. The warning is the upstream Starlette/httpx TestClient deprecation. Scope: software fixtures, authentication, file lifecycle, DSP reference calculations and generated acoustic codecs; not hardware acceptance.

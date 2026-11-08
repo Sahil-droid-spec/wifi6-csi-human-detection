@@ -17,6 +17,7 @@ export function AcousticLink(){
   const [encrypted,setEncrypted]=useState(true),[consent,setConsent]=useState(false);
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[filter,setFilter]=useState('raw');
   const [tx,setTx]=useState<D|null>(null),[rx,setRx]=useState<D|null>(null),[received,setReceived]=useState<D[]>([]),[wifi,setWifi]=useState<D|null>(null);
+  const [codecState,setCodecState]=useState<'idle'|'running'|'success'|'failed'>('idle'),[codecError,setCodecError]=useState('');
   const [history,setHistory]=useState<D[]>([]),[soundOnly,setSoundOnly]=useState(false),[syntheticPayload,setSyntheticPayload]=useState(false);
   const [receiver,setReceiver]=useState<{file:File,mic:boolean}|null>(null);
   const reliable=useRef<AbortController|null>(null),speaker=useRef<HTMLAudioElement|null>(null);
@@ -26,7 +27,21 @@ export function AcousticLink(){
   const payload=async()=>file||new File([text],'message.txt',{type:'text/plain'});
   async function action(fn:()=>Promise<void>){setBusy(true);setError('');setNotice('');try{await fn();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
   async function transmit(){const f=await payload();if(f.size>8192)throw Error('For sound use at most 8192 bytes. Send the full original over Wi-Fi, or create a small teaching image copy.');
+    setCodecState('idle');setCodecError('');setRx(null);
     setTx(await post('link/transmit',{file_base64:b64(new Uint8Array(await f.arrayBuffer())),name:f.name,encrypted,passphrase:key,fec,bit_rate:bitRate,synthetic:syntheticPayload}));}
+  async function testGenerated(){
+    if(!tx||busy)return;setBusy(true);setError('');setCodecError('');setCodecState('running');setRx(null);
+    try{
+      const response=await fetch(tx.audio_url,{signal:AbortSignal.timeout(30000)});
+      if(!response.ok)throw Error('Generate the sound again, then retry the file test.');
+      const f=new File([await response.blob()],'generated-codec-test.wav',{type:'audio/wav'});
+      const result=await api('link/receive?preset='+filter,{method:'POST',headers:{'X-Orbit-Passphrase':b64(new TextEncoder().encode(key))},body:f});
+      setRx(result);setCodecState(result.success?'success':'failed');
+      if(!result.success)setCodecError(result.reason||'No complete message recovered. Generate a new sound and retry with Raw baseline.');
+      refresh().catch(()=>{});
+    }catch(e){const message=(e as Error).name==='TimeoutError'?'The test timed out. Check the laptop server, then retry.':(e as Error).message;setCodecError(message);setError(message);setCodecState('failed');}
+    finally{setBusy(false);}
+  }
   async function sendWifi(){
     const f=await payload();if(!f.size||f.size>256*1024**2)throw Error('Choose a file from 1 byte to 256 MiB.');
     const hasher=sha256.create();for(let offset=0;offset<f.size;offset+=1048576)hasher.update(new Uint8Array(await f.slice(offset,offset+1048576).arrayBuffer()));
@@ -38,7 +53,7 @@ export function AcousticLink(){
     setWifi({sha256:hash,size:f.size,ms,duplicate,id:row.id,remote:!['localhost','127.0.0.1','[::1]'].includes(location.hostname)});
     setNotice('Stored on the laptop. Open Transfer & chat on either device to receive it.');
   }
-  async function decode(f:File,mic=false){setReceiver({file:f,mic});await action(async()=>{
+  async function decode(f:File,mic=false){setCodecState('idle');setReceiver({file:f,mic});await action(async()=>{
     if(f.size>32*1024**2)throw Error('Choose a WAV smaller than 32 MiB.');
     setRx(await api('link/receive?preset='+filter+'&source='+encodeURIComponent(mic?'MICROPHONE RECORDING':'UPLOADED MODEM WAV'),{
       method:'POST',headers:{'X-Orbit-Passphrase':b64(new TextEncoder().encode(key))},body:f}));await refresh();
@@ -74,7 +89,7 @@ export function AcousticLink(){
     <label>Text to transfer<textarea value={text} maxLength={1024} disabled={busy||!!file} onChange={e=>{setText(e.target.value);setTx(null);setWifi(null);}}/></label>
     <label>Or choose an image, audio or another file<input disabled={busy} type="file" onChange={e=>{setFile(e.target.files?.[0]||null);setTx(null);setWifi(null);e.target.value='';}}/></label>
     {file&&<p>{file.name} · {file.size.toLocaleString()} bytes <button className="button secondary" disabled={busy} onClick={()=>{setFile(null);setTx(null);setWifi(null);}}>Use text instead</button></p>}
-    <details><summary>Record a voice file to send</summary><AudioRecorder onAudio={f=>{setFile(f);setTx(null);setWifi(null);}} maxSeconds={30}/><p>A recorded voice note is reconstructed as audio. Automatic speech transcription is not installed. PCM WAV is large; use Wi-Fi for normal voice notes.</p></details>
+    <details><summary>Record a voice file to send</summary><AudioRecorder onAudio={f=>{setFile(f);setTx(null);setWifi(null);}} maxSeconds={30}/><p>A recorded voice note is reconstructed as audio. For written words, save the WAV in Connected workbench → Shared files and choose Transcribe locally. PCM WAV is large; use Wi-Fi for normal voice notes.</p></details>
     <label><input type="checkbox" checked={syntheticPayload} onChange={e=>setSyntheticPayload(e.target.checked)}/> This payload contains Simulation/generated data</label><label><input type="checkbox" checked={encrypted} onChange={e=>setEncrypted(e.target.checked)}/> Encrypt the sound payload</label>
     <details><summary>Reliability settings</summary><label><input type="checkbox" checked={fec} onChange={e=>setFec(e.target.checked)}/> SECDED Hamming (8,4) payload protection · additional sound duration</label><label>Modem bit rate<select value={bitRate} onChange={e=>setBitRate(+e.target.value)}>{[100,200,400].map(v=><option key={v} value={v}>{v} bit/s</option>)}</select></label><button className="button secondary" disabled={busy} onClick={()=>action(async()=>{const d=await post('workspace/negotiate',{peer_rates:[100,200,400],robust:true,fec:true});setBitRate(d.bit_rate);setFec(d.fec);setNotice(d.protocol+'; selected robust shared profile. This is capability negotiation, not measured hardware adaptation.');})}>AgentLink · negotiate robust profile</button><button className="button secondary" disabled={busy} onClick={()=>action(async()=>{const d=await post('workspace/arq',{text,seed:42,data_loss:.2,ack_loss:.1,retries:3});setNotice(d.protocol+'; success='+d.success+', transmissions='+d.transmissions);})}>Run seeded ACK/retry simulation</button></details><label>Shared passphrase · 12–128 characters<input type="password" autoComplete="off" value={key} maxLength={128} onChange={e=>setKey(e.target.value)}/></label>
     <div className="button-row"><button className="button" disabled={busy} onClick={()=>action(sendWifi)}>Send original by Wi-Fi</button>
@@ -89,7 +104,8 @@ export function AcousticLink(){
   {tx&&<section className="panel"><h2>Transmit audio ready</h2><details><summary>Compare saved generations of this exact payload</summary><p>Same SHA-256 only. Generated WAV duration and envelope/framing/WAV-creation time are not a physical transfer benchmark. Different rate, FEC and encryption settings are shown explicitly.</p><table><thead><tr><th>Encryption</th><th>FEC</th><th>bit/s</th><th>Frames</th><th>WAV seconds</th><th>Generation ms</th></tr></thead><tbody>{history.filter(r=>r.sha256===tx.sha256&&r.duration_seconds!==undefined).map(r=><tr key={r.id}><td>{r.encrypted?'AES-GCM':'plain'}</td><td>{r.fec?'SECDED':'none'}</td><td>{r.bit_rate}</td><td>{r.packet_count}</td><td>{r.duration_seconds.toFixed(3)}</td><td>{r.generation_ms.toFixed(1)}</td></tr>)}</tbody></table></details><button className="button secondary" disabled={busy||retrying} onClick={()=>action(reliableSend)}>Replay until decoded ACK · max 3 attempts</button>{retrying&&<button className="button secondary" onClick={()=>{reliable.current?.abort();speaker.current?.pause();}}>Stop retries</button>}<audio controls src={tx.audio_url}/><a className="button secondary" href={tx.audio_url}>Save modem WAV</a>
     <p>{tx.payload_bytes} payload bytes · {tx.packet_count} frames · {tx.duration_seconds.toFixed(3)} s of generated audio. Keep playback volume comfortable.</p>
     <p className="exchange-hash">Payload SHA-256 {tx.sha256}</p>
-    <button className="button secondary" disabled={busy} onClick={()=>action(async()=>{const r=await fetch(tx.audio_url);if(!r.ok)throw Error('Generate again.');const f=new File([await r.blob()],'generated-codec-test.wav');setRx(await api('link/receive?preset='+filter,{method:'POST',headers:{'X-Orbit-Passphrase':b64(new TextEncoder().encode(key))},body:f}));await refresh();})}>Test generated WAV · codec only</button>
+    <button className="button secondary" disabled={busy} onClick={testGenerated}>{codecState==='running'?'Testing generated WAV…':'Test generated WAV · codec only'}</button>
+    {codecState!=='idle'&&<div aria-live="polite" aria-atomic="true">{codecState==='running'?<p role="status">Testing the generated file on this device. Wait for decoding; no sound is sent to the other device.</p>:codecState==='success'?<div role="status"><h3>File test passed · message recovered</h3>{rx?.received?.text?<blockquote>{rx.received.text}</blockquote>:<p>Content recovered. Open the reconstructed file below.</p>}<p>Generated-WAV codec test only. Physical speaker-to-microphone transfer still needs a separate recording.</p></div>:<p role="alert">File test failed: {codecError}</p>}</div>}
     <details><summary>Inspect transmit waveform and spectrum</summary><Trace values={tx.waveform} title="Transmit waveform" source={tx.source} xLabel="s" xEnd={tx.duration_seconds}/><Trace values={tx.spectrum_db_relative} title="Relative FFT power (dB)" source={tx.source} xLabel="Hz" xEnd={8000}/></details>
   </section>}
   <section className="panel"><h2>Receive sound &amp; reconstruct</h2><p>On the receiver, record first. Play the full transmit sound on the other device, stop, then decode. A generated WAV upload tests the codec; it does not prove speaker-to-microphone delivery.</p>
@@ -100,7 +116,7 @@ export function AcousticLink(){
     {rx&&<><h3>{rx.success?'Hash-checked content recovered':'No complete message recovered'}</h3><p>{rx.source} · {rx.reason||rx.protocol}</p>
       <p>Same-WAV comparison: raw {rx.before.crc_valid_packets} CRC-valid packets; selected filter {rx.after.crc_valid_packets}. {rx.elapsed_ms.toFixed(1)} ms computation. No ground-truth bits: BER unavailable.</p>
       <p>Filtered digital level: RMS {rx.rms_dbfs.toFixed(2)} dBFS; peak {rx.peak_dbfs.toFixed(2)} dBFS. These are not RF signal-strength measurements.</p>
-      {rx.acknowledgement_received&&<p>Return ACK authenticated for transmission {rx.acknowledgement_received.id}. Sender state updated after decoding.</p>}{rx.ack&&<div><p>{rx.ack.protocol}</p><audio controls src={rx.ack.audio_url}/><a className="button secondary" href={rx.ack.audio_url}>Save return ACK WAV</a></div>}{rx.received?.text&&<blockquote>{rx.received.text}</blockquote>}
+      {rx.received?.text&&<div><h3>Recovered message</h3><blockquote>{rx.received.text}</blockquote></div>}{rx.acknowledgement_received&&<p>Return ACK authenticated for transmission {rx.acknowledgement_received.id}. Sender state updated after decoding.</p>}{rx.ack&&<div><p>{rx.ack.protocol}</p><audio controls src={rx.ack.audio_url}/><a className="button secondary" href={rx.ack.audio_url}>Save return ACK WAV</a></div>}
       <details><summary>Inspect received waveform and FFT</summary><Trace values={rx.waveform} title="Receiver waveform · selected filter" source={rx.source} xLabel="s" xEnd={rx.duration_seconds}/><Trace values={rx.spectrum_db_relative} title="Relative FFT power (dB)" source={rx.source} xLabel="Hz" xEnd={8000}/></details>
     </>}
   </section>

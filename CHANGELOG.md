@@ -1,3 +1,7 @@
+# Acoustic result feedback fix · 2026-11-08
+
+- Show generated-WAV test progress, recovered text and failures beside its button. Show microphone-decoded text before return-ACK controls. Correct the speech-transcription help link.
+
 # 4.3 · 2026-11-08
 
 - Preserve the existing menus, themes and research gallery; add Ctrl+K search, favourites/recents and Connected workbench.
