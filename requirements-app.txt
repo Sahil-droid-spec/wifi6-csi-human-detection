@@ -11,3 +11,7 @@ qrcode==8.2
 zeroconf==0.151.5
 cryptography==46.0.7
 pillow==12.1.1
+
+-r requirements-speech.txt
+
+-r requirements-vision.txt

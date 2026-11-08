@@ -76,7 +76,7 @@ def main():
             [
                 str(executable),
                 "-c",
-                "from orbit.api import create_app; import numpy, scipy, sklearn, h5py; print('Orbit dependency imports passed')",
+                "from orbit.api import create_app; import numpy, scipy, sklearn, h5py, cv2, vosk, tempfile; from pathlib import Path; temporary=tempfile.TemporaryDirectory(); app=create_app(Path(temporary.name),'INSTALL-CHECK'); print('Orbit application initialization and dependency imports passed'); temporary.cleanup()",
             ],
             check=True,
             cwd=root,

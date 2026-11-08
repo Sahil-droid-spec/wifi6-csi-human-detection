@@ -1,3 +1,16 @@
+# 4.3 · 2026-11-08
+
+- Preserve the existing menus, themes and research gallery; add Ctrl+K search, favourites/recents and Connected workbench.
+- Add streaming shared media import, source-preserving export, parent-aware lifecycle and stale transfer-export revocation.
+- Add offline Vosk transcription, linked text output, two-channel ICA, browser recording previews and native system-camera capture.
+- Add same-input workflow records, JSON/CSV/print reports and parameterized signals, Fourier, sampling, quantisation, Hilbert, FIR, Laplace and modulation studies.
+- Add SECDED, 100/200/400 bit/s, decoded sender-bound ACK, bounded retries and deterministic AgentLink profile negotiation.
+- Add explicit local HTTPS setup, secure-context WebRTC signaling/media path, native media permission handling and current LAN address support.
+- Add bounded external CSI and SoapySDR adapters; do not claim hardware acceptance without devices.
+- Add supplied-reference retinal/pulse comparisons; no medical validation or invented original SmartCSI weights.
+- Verify ten MATLAB practical arrays and the 64-value Simulink gain fixture on installed R2026b; fix relative preferences-path normalization.
+- Bundle the offline speech runtime/model, extra wheels and labelled generated demo inputs; no existing user data/model replacement.
+
 # 4.2 · 2026-11-07
 
 - Send original fundus input to the shared laptop before processing; preserve one original across derived views.

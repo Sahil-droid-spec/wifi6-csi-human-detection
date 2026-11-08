@@ -13,6 +13,20 @@ from . import core
 
 
 def install(app, ctx):
+    from .workspace import install as install_workspace
+    install_workspace(app, ctx)
+    from .speech import install as install_speech
+    install_speech(app, ctx)
+    from .research_tools import install as install_research_tools
+    install_research_tools(app, ctx)
+    from .live_sessions import install as install_live_sessions
+    install_live_sessions(app, ctx)
+    from .hardware import install as install_hardware
+    install_hardware(app, ctx)
+    from .matlab_practicals import install as install_matlab_practicals
+    install_matlab_practicals(app, ctx)
+    from .secure_server import install as install_secure_server
+    install_secure_server(app, ctx)
     from .smartcsi import install as install_smartcsi
     install_smartcsi(app, ctx)
     from .receiver import install as install_receiver

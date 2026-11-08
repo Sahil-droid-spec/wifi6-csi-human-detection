@@ -19,7 +19,7 @@ export function AudioRecorder({onAudio,maxSeconds=60}:{onAudio:(file:File)=>void
   const dispose=async(deliver:boolean)=>{
     const q=ref.current;ref.current=null;setRecording(false);if(!q)return;
     clearTimeout(q.timer);q.node.disconnect();q.input.disconnect();q.stream.getTracks().forEach((t:MediaStreamTrack)=>t.stop());await q.ctx.close();
-    if(deliver&&q.length){const a=new Float32Array(q.length);let n=0;for(const chunk of q.chunks){a.set(chunk,n);n+=chunk.length;}callback.current(pcmWav(a,q.rate));}
+    if(deliver&&q.length&&alive.current){const a=new Float32Array(q.length);let n=0;for(const chunk of q.chunks){a.set(chunk,n);n+=chunk.length;}callback.current(pcmWav(a,q.rate));}
   };
   useEffect(()=>{
     alive.current=true;
@@ -41,7 +41,7 @@ export function AudioRecorder({onAudio,maxSeconds=60}:{onAudio:(file:File)=>void
       if(!alive.current||document.hidden){stream.getTracks().forEach(t=>t.stop());return;}
       ctx=new AudioContext();await ctx.resume();if(!alive.current||document.hidden){stream.getTracks().forEach(t=>t.stop());await ctx.close();return;}const input=ctx.createMediaStreamSource(stream),node=ctx.createScriptProcessor(4096,1,1);
       const q={stream,ctx,input,node,rate:ctx.sampleRate,chunks:[] as Float32Array[],length:0,timer:0};ref.current=q;
-      node.onaudioprocess=e=>{if(ref.current!==q)return;const a=new Float32Array(e.inputBuffer.getChannelData(0));q.chunks.push(a);q.length+=a.length;};
+      node.onaudioprocess=e=>{if(ref.current!==q)return;const input=e.inputBuffer.getChannelData(0),remaining=Math.max(0,Math.floor(q.rate*maxSeconds)-q.length);const a=new Float32Array(input.subarray(0,remaining));if(a.length){q.chunks.push(a);q.length+=a.length;}if(q.length>=q.rate*maxSeconds)dispose(true);};
       input.connect(node);node.connect(ctx.destination);setRecording(true);q.timer=window.setTimeout(()=>dispose(true),maxSeconds*1000);
     }catch{stream?.getTracks().forEach(t=>t.stop());ctx?.close();setError('Allow microphone access, or choose a PCM WAV recorded with another app.');}
   }

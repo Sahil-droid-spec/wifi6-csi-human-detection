@@ -58,6 +58,8 @@ import {Journey} from "./Journey";
 import {Transfer} from "./Transfer";
 import {Acoustic} from "./Acoustic";
 import {AcousticLink} from "./AcousticLink";
+import {Workbench} from "./Workbench";
+import {GlobalCommands} from "./GlobalCommands";
 import {PhoneFiles,Progression,ResearchCode,NotebookLinks} from "./Demo";
 import {CameraStudio} from "./CameraStudio";
 import {PresenceExperiment} from "./PresenceExperiment";
@@ -78,7 +80,7 @@ type Page =
   | "modes"
   | "settings"
   | "upload"
-  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs" | "smartcsi" | "receiver" | "journey" | "transfer" | "acoustic" | "camera" | "matlab" | "audio" | "presence" | "retina" | "link";
+  | "media" | "simulation" | "inbox" | "plan" | "guide" | "glossary" | "advanced" | "scshow" | "graphs" | "smartcsi" | "receiver" | "journey" | "transfer" | "acoustic" | "camera" | "matlab" | "audio" | "presence" | "retina" | "link" | "workbench";
 const stages = [
   "Receive",
   "Window",
@@ -110,6 +112,7 @@ const nav = [
   { id: "modes", label: "Sensing modes", icon: Radio },
   { id: "settings", label: "Connect", icon: Settings2 },
   {id:"transfer",label:"Transfer & chat",icon:Smartphone},
+  {id:"workbench",label:"Connected workbench",icon:FlaskConical},
   {id:"link",label:"AcousticLink",icon:LockKeyhole},
   {id:"acoustic",label:"Acoustic modem",icon:AudioLines},
   {id:"camera",label:"Camera Studio",icon:ScanLine},
@@ -862,7 +865,7 @@ function App() {
               <button className={page==='overview'?'active':''} onClick={()=>navigate('overview')}><LayoutDashboard size={19}/><span>Home</span></button>
               {[
                 {title:'Connect & share',ids:['settings','transfer','inbox']},
-                {title:'Signal lab',ids:['dsp','link','acoustic','audio','receiver','advanced','camera','retina','matlab']},
+                {title:'Signal lab',ids:['dsp','workbench','link','acoustic','audio','receiver','advanced','camera','retina','matlab']},
                 {title:'Data & learning',ids:['data','learning','presence','replay','smartcsi','simulation']},
                 {title:'Research & notebook',ids:['journey','graphs','results','media','modes','plan']},
                 {title:'Help',ids:['guide','glossary']}
@@ -892,6 +895,7 @@ function App() {
           </aside>
           <div className="workspace">
             <header className="topbar">
+              <GlobalCommands routes={[...nav.map(n=>({id:n.id,title:n.label,route:"/"+n.id})),{id:"speech",title:"Speech to text · offline transcription",route:"/workbench?tab=library"},{id:"record",title:"Start recording · microphone / screen / phone photo",route:"/workbench?tab=record"},{id:"diagnostics",title:"Device diagnostics and hardware adapters",route:"/workbench?tab=diagnostics"},{id:"practicals",title:"Fourier Laplace sampling quantisation modulation Hamming",route:"/workbench?tab=experiments"},{id:"notebook",title:"Resume recent experiments",route:"/workbench?tab=notebook"}]}/>
               <div className="breadcrumb">
                 <button
                   className="mobile-toggle icon-btn"
@@ -1265,6 +1269,7 @@ function App() {
               {["scshow","graphs","smartcsi"].includes(page)&&<div className="studio-source"><CaptureSelect {...common}/></div>}
               {page === "acoustic"&&<Acoustic/>}
               {page === "link"&&<AcousticLink/>}
+              {page === "workbench"&&<Workbench/>}
               {page === "camera"&&<CameraStudio/>}
               {page === "matlab"&&<MatlabStudio/>}
               {page === "audio"&&<AudioStudio/>}

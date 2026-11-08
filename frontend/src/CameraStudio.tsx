@@ -6,10 +6,12 @@ type Frame = {faces:Box[], eyes:Box[], qr:string, width:number, height:number};
 type Sample = [number,number,number,number,number];
 type Pulse = {bpm:number|null, duration_s:number, sample_rate_hz:number, reason:string, protocol:string,
   times?:number[],rgb?:number[][],filtered?:number[],frequency_hz?:number[],power?:number[]};
-type Capture = {url:string,name:string,video:boolean};
+type Capture = {url:string,name:string,video:boolean,blob:Blob};
 
 async function post<T>(path:string,body:BodyInit,contentType:string):Promise<T>{
-  const response=await fetch('/api/vision/'+path,{method:'POST',body,headers:{'Content-Type':contentType},signal:AbortSignal.timeout(6500)});
+  const laptop=['127.0.0.1','localhost','[::1]'].includes(location.hostname);
+  const endpoint=laptop?path:'shared-'+path+'?consent=true';
+  const response=await fetch('/api/vision/'+endpoint,{method:'POST',body,headers:{'Content-Type':contentType},signal:AbortSignal.timeout(6500)});
   const data=await response.json();
   if(!response.ok)throw Error(data.detail||'Try a new image or reopen Camera Studio.');
   return data;
@@ -24,7 +26,7 @@ export function CameraStudio(){
   const alive=useRef(false),epoch=useRef(0),pending=useRef(false),detected=useRef<Frame|null>(null);
   const recorder=useRef<MediaRecorder|null>(null),recordLimit=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
   const pulseRun=useRef<{start:number,samples:Sample[],lastVideoTime:number,previous:Uint8ClampedArray|null}|null>(null);
-  const allowed=location.hostname==='127.0.0.1'||location.hostname==='localhost'||location.hostname==='[::1]';
+  const allowed=window.isSecureContext;
   const supported=allowed&&!!navigator.mediaDevices?.getUserMedia;
 
   function stop(){
@@ -139,7 +141,7 @@ export function CameraStudio(){
     const v=video.current;if(!v?.videoWidth)return;
     const canvas=document.createElement('canvas');canvas.width=v.videoWidth;canvas.height=v.videoHeight;
     canvas.getContext('2d')!.drawImage(v,0,0);
-    canvas.toBlob(blob=>{if(blob&&alive.current)setCapture({url:URL.createObjectURL(blob),name:'Orbit-camera.jpg',video:false});},'image/jpeg',0.9);
+    canvas.toBlob(blob=>{if(blob&&alive.current)setCapture({url:URL.createObjectURL(blob),name:'Orbit-camera.jpg',video:false,blob});},'image/jpeg',0.9);
   }
   function record(){
     if(!camera.current||recorder.current||!window.MediaRecorder)return;
@@ -151,7 +153,7 @@ export function CameraStudio(){
         recorder.current=null;clearTimeout(recordLimit.current);
         if(!alive.current)return;
         setRecording(false);
-        if(chunks.length)setCapture({url:URL.createObjectURL(new Blob(chunks,{type:r.mimeType})),name:r.mimeType.includes('mp4')?'Orbit-camera.mp4':'Orbit-camera.webm',video:true});
+        if(chunks.length){const blob=new Blob(chunks,{type:r.mimeType});setCapture({url:URL.createObjectURL(blob),name:r.mimeType.includes('mp4')?'Orbit-camera.mp4':'Orbit-camera.webm',video:true,blob});}
       };
       r.start(500);setRecording(true);
       recordLimit.current=setTimeout(()=>{if(r.state==='recording')r.stop();},30000);
@@ -159,14 +161,14 @@ export function CameraStudio(){
   }
   return <div className="ultimate-tools">
     <section className="panel">
-      <span className="badge">LIVE · LAPTOP CAMERA</span><h2>Camera Studio</h2>
+      <span className="badge">LIVE · CONSENTED CAMERA</span><h2>Camera Studio</h2>
       <p>Preview a consented webcam feed, inspect face and eye candidate boxes, scan QR text, or save a local photo or short silent clip.</p>
       <label className="camera-consent"><input type="checkbox" checked={consent} disabled={on||opening} onChange={e=>setConsent(e.target.checked)}/> Everyone in view consents to local camera analysis.</label>
       <div className="button-row">
         <button className="button" disabled={!supported||!consent||on||opening} onClick={start}>{opening?'Waiting for camera…':'Start camera'}</button>
         <button className="button secondary" disabled={!on&&!opening} onClick={stop}>Stop camera</button>
       </div>
-      {!supported&&<p>Open Camera Studio on the laptop at localhost. To send a phone photo or clip, record it with the phone camera and upload it in <a href="#/transfer">Transfer & chat</a>.</p>}
+      {!supported&&<p>Use localhost on the laptop or trusted HTTPS on the phone. For ordinary phone HTTP, use Connected workbench → Record & preview → Take phone photo, or send an existing clip in <a href="#/transfer">Transfer & chat</a>.</p>}
       {error&&<p role="alert">{error}</p>}
       <video ref={video} hidden autoPlay playsInline muted/>
       <canvas ref={view} hidden={!on} className="camera-preview" aria-label="Live camera with face and eye boxes"/>
@@ -180,7 +182,7 @@ export function CameraStudio(){
         </div>
       </>}
       {capture&&<section><h3>Local capture</h3>{capture.video?<video className="camera-preview" src={capture.url} controls/>:<img className="camera-preview" src={capture.url} alt="Local camera capture"/>}
-        <div className="button-row"><a className="button" download={capture.name} href={capture.url}>Save to laptop</a><button className="button secondary" onClick={()=>setCapture(null)}>Discard preview</button></div>
+        <div className="button-row"><button className="button" onClick={async()=>{try{const form=new FormData();form.append('file',capture.blob,capture.name);form.append('source','CONSENTED CAMERA CAPTURE');const r=await fetch('/api/workspace/import',{method:'POST',body:form});const d=await r.json();if(!r.ok)throw Error(d.detail||'Try saving again.');setCapture(null);location.hash='/workbench?asset='+d.id;}catch(e){setError((e as Error).message);}}}>Save to shared laptop Library</button>{!navigator.userAgent.includes('OrbitCompanion/')&&<a className="button secondary" download={capture.name} href={capture.url}>Download capture</a>}<button className="button secondary" onClick={()=>setCapture(null)}>Discard preview</button></div>
       </section>}
       <p className="helper">Orbit keeps frame analysis on this laptop. The preview stops when this tab becomes hidden. Captures stay in memory until you save or discard them.</p>
     </section>

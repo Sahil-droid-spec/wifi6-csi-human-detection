@@ -4365,3 +4365,8 @@ html[data-theme] :is(.note,.essential,.historical-callout,.job-banner,.fuzzy-ver
 /* Tool panels share readable secondary controls across light and dark themes. */
 html[data-theme] .ultimate-tools .button.secondary{background:var(--surface);color:var(--text);border-color:var(--line)}
 html[data-theme] .ultimate-tools .button.secondary:hover:not(:disabled){background:var(--bg);color:var(--text)}
+
+/* Incremental command and workbench layout polish; existing navigation retained. */
+.command-trigger{width:auto!important;min-width:76px;white-space:nowrap;display:inline-flex;gap:5px;flex-shrink:0}
+.workbench-tabs{display:flex;flex-wrap:wrap;gap:6px}.workbench-tabs button{font-size:12px;white-space:nowrap}
+@media(max-width:800px){.command-trigger span{display:none}.command-trigger{min-width:40px}.workbench-tabs button{flex:1 1 140px}}

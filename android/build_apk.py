@@ -47,7 +47,7 @@ def main():
     res = build / "res"
     shutil.copytree(root / "app/src/main/res", res, dirs_exist_ok=True)
     domains = "".join("<domain>" + str(ipaddress.IPv4Address(host)) + "</domain>" for host in args.lan_host)
-    (res / "xml/network_security_config.xml").write_text('<network-security-config><base-config cleartextTrafficPermitted="false"/><domain-config cleartextTrafficPermitted="true">' + domains + '</domain-config></network-security-config>', encoding="utf-8")
+    (res / "xml/network_security_config.xml").write_text('<network-security-config><base-config cleartextTrafficPermitted="false"/><domain-config cleartextTrafficPermitted="true">' + domains + '<trust-anchors><certificates src="system"/><certificates src="user"/></trust-anchors></domain-config></network-security-config>', encoding="utf-8")
     # SDK package: no Gradle daemon or system-wide tool installation needed.
     resources = build / "resources.zip"
     unsigned = build / "unsigned.apk"
@@ -86,7 +86,7 @@ def main():
             if not source.is_file(): raise ValueError("Generate simulation examples before bundling the APK")
             shutil.copy2(source, assets / name)
         if args.transfer_dir:
-            for name in ("Orbit-Transfer-Sample.txt", "Orbit-Transfer-Research-Graph.png"):
+            for name in ("Orbit-Transfer-Sample.txt", "Orbit-Transfer-Research-Graph.png", "Orbit-Speech-Hello-Generated.wav", "Orbit-ICA-Mixture-Simulation.wav", "Orbit-Real-Retina-CC0.jpg"):
                 shutil.copy2(pathlib.Path(args.transfer_dir) / name, assets / name)
         # Re-link with the same compiled resources and embedded labelled examples.
         run([tools / ("aapt2" + suffix), "link", "-o", unsigned, "--manifest", root / "app/src/main/AndroidManifest.xml", "-I", android, "--auto-add-overlay", "-A", assets, resources])
@@ -218,9 +218,9 @@ def main():
         """import lab.orbit.companion.ServerAddress;
 public class ServerAddressChecks {
  public static void main(String[] args) throws Exception {
-  String[][] ok={{"192.168.1.20","http://192.168.1.20:8765"},{"http://10.1.2.3:9000/#/upload","http://10.1.2.3:9000"},{"172.31.2.3","http://172.31.2.3:8765"}};
+  String[][] ok={{"192.168.1.20","http://192.168.1.20:8765"},{"http://10.1.2.3:9000/#/upload","http://10.1.2.3:9000"},{"172.31.2.3","http://172.31.2.3:8765"},{"https://192.168.1.2","https://192.168.1.2:8766"}};
   for(String[] row:ok)if(!ServerAddress.normalize(row[0]).equals(row[1]))throw new AssertionError(row[0]);
-  String[] bad={"127.0.0.1","localhost","8.8.8.8","https://192.168.1.2","http://user:pass@10.0.0.1","172.32.1.1","10.0.0.999","javascript:alert(1)","example.com","http://10.1.2.3:70000"};
+  String[] bad={"127.0.0.1","localhost","8.8.8.8","http://user:pass@10.0.0.1","172.32.1.1","10.0.0.999","javascript:alert(1)","example.com","http://10.1.2.3:70000"};
   for(String value:bad){boolean rejected=false;try{ServerAddress.normalize(value);}catch(Exception expected){rejected=true;}if(!rejected)throw new AssertionError(value);}
   System.out.println("13 server-address checks passed.");
  }

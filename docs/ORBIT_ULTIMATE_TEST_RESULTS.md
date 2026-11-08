@@ -1,3 +1,28 @@
+# Professional integration checks — Orbit 4.3 — 2026-11-08
+
+- Full project suite: `python -m pytest tests -q` → **145 passed, 1 warning in 128.45s**. The warning is the upstream Starlette/httpx TestClient deprecation. Scope: software fixtures, authentication, file lifecycle, DSP reference calculations and generated acoustic codecs; not hardware acceptance.
+- `python -m ruff check orbit tests tools desktop.py build_desktop.py launch_orbit.py` → **All checks passed!**
+- `npm run build` in frontend → TypeScript and production build passed, 2,197 modules. Existing >500 kB bundle advisory remains; code splitting remains a performance refinement.
+- Frozen Windows EXE executed with isolated disposable data and two actual HTTP software sessions: one-time LAN pairing, verified SHA-256 upload, shared Library, band-pass derivative and reproducible CSV/HTML report passed. No existing user database was used.
+- Offline Vosk produced **hello orbit this is a local signal processing demonstration** from the supplied generated English WAV. Final frozen-run computation was 3,408.3 ms. One generated fixture only; no WER, human/accent accuracy or latency guarantee is inferred.
+- That actual transcript passed AES-GCM + extended Hamming (8,4) SECDED / 200 bit/s BFSK generation, exact decoded text and authenticated matching sender-bound return ACK. Generated sound duration **39.760 s**. This is generated-WAV software reconstruction, not speaker-to-microphone delivery.
+- SECDED tests correct all single-bit positions and reject double-bit errors. Retry-limit/erasure simulation reports failures honestly; sync/timing are not protected by the payload code. Wrong-sender ACK and ordinary data named ack.json are tested.
+- Generated stereo independent-mixture FastICA converged in 3 iterations and saved two linked outputs. Arbitrary mono or reverberant overlapping-voice separation remains unverified/unsupported.
+- Same-size generated 768×768 geometry/reference mask: Dice 0.999376, sensitivity 0.998884, specificity 0.999997. Synthetic matched fixture, not an independent fundus study or clinical accuracy.
+- Generated RGB 1.25 Hz pulse fixture: estimate 74.54909819639172 bpm against generated 75 bpm, absolute error 0.45090180360827503 bpm. Not a person or physiological validation.
+- Generated BPSK, seed 42, 4,096 reference bits, Eb/N0 5 dB: 27 errors, BER 0.006591796875. Six-point AWGN sweep stored. Generic communications simulation, not an IEEE 802.11ax radio measurement.
+- TLS listener passed actual local certificate-chain and IP-SAN verification without disabling certificate verification or modifying the OS trust store. WebRTC two-session consent/signaling passed; physical microphone/camera media was not started.
+- APK 4.3 compiled, aligned and v2/v3 signed with the existing signing identity. Thirteen private-address parser checks passed. New current-LAN and hotspot addresses are allowlisted; changing DHCP may require browser use or rebuilding. Installation and microphone acceptance on a handset are NOT EXECUTED.
+- Fresh Windows CPython 3.10 virtual environment without system packages installed the 40 pinned wheels with `--no-index`; `pip check` returned **No broken requirements found**. Actual app initialization, OpenCV import, Vosk import and generated-speech recognition passed there. This is this host's clean environment, not a separate factory-clean Windows machine.
+- MATLAB R2026b executed ten same-input DSP comparisons. Maximum absolute difference was 6.966649479522857e-15; identical designed filter coefficients, every returned element compared. See Orbit-4.3-MATLAB-Checks.json.
+- Simulink R2026b gain fixture executed 64 values with maximum absolute difference 0 against Python. An initial relative-prefdir invocation failed; resolving the workspace to an absolute path fixed it before the successful run. This fixed model does not implement arbitrary graphical Simulink authoring.
+- Browser checked the existing UI plus generated BPSK plot/metrics, Ctrl+K search/Enter navigation and diagnostics. Camera/microphone permissions were not granted by automation. Existing themes and research graph gallery were retained.
+- **NOT EXECUTED:** physical Android pairing/upload/download/mic/photo, both directions of room acoustic transfer, live call media, screen capture, supported SDR/CSI hardware, Wi-Fi 6 versus BF RF comparisons, human pulse/reference collection and clinical retinal evaluation. Original SmartCSI model/mask/fuzzy/preprocessing artifacts remain unavailable. These boundaries appear in the canonical checklist and release guide; no 100% completion claim.
+- Negative limitations: generated clean/noisy acoustic fixture filters did not show a decoding improvement; no new filter superiority is claimed. The global recording/model registry and advanced camera landmarks/gestures remain partial, as documented.
+- Release ZIP is checked for duplicate entries, CRC and every payload SHA-256. It excludes orbit-data, signing keys, TLS private keys and user recordings. CI configuration is retained; a remote CI run was NOT EXECUTED in this local verification.
+
+---
+
 # Connected transfer and acoustic checks · 2026-11-07
 
 - Project suite: `python -m pytest tests -q` → **122 passed**, one upstream Starlette TestClient deprecation warning, 122.94 s. Default pytest discovery now targets tests/ rather than vendored frozen libraries. An initial root-wide collection was stopped after collecting vendor tests with missing external fixtures; those are not project-test results.

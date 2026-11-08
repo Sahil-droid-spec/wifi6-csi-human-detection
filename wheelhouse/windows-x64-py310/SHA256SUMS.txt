@@ -1,7 +1,9 @@
 117bac03a25ede5df5440e855b32d556049ca169ead221505badf432fed4b101  wheelhouse/windows-x64-py310/annotated_doc-0.0.5-py3-none-any.whl
 f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0  wheelhouse/windows-x64-py310/annotated_types-0.8.0-py3-none-any.whl
 6152fdbbf9a77fdec97731721bebf7c4c44f7c29b424b0065826173efc7ed101  wheelhouse/windows-x64-py310/anyio-4.15.1-py3-none-any.whl
+027692e4402ad994f1c42e52a4997a9763c646b73e4096e4d5d6db8af1d6f0fa  wheelhouse/windows-x64-py310/certifi-2026.2.25-py3-none-any.whl
 b18a3ed7d5b3bd8d9ef7a8cb226502c6bf8308df1525e1cc676c3680e7176739  wheelhouse/windows-x64-py310/cffi-2.0.0-cp310-cp310-win_amd64.whl
+6696b7688f54f5af4462118f0bfa7c1621eeb87154f77fa04b9295ce7a8f2943  wheelhouse/windows-x64-py310/charset_normalizer-3.4.7-cp310-cp310-win_amd64.whl
 255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360  wheelhouse/windows-x64-py310/click-8.5.0-py3-none-any.whl
 9acb47f6afd73f60dc1df93bb801b472f05ff42fa6c84167d25cb206be1fbf4a  wheelhouse/windows-x64-py310/cloudpickle-3.1.2-py3-none-any.whl
 4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6  wheelhouse/windows-x64-py310/colorama-0.4.6-py2.py3-none-any.whl
@@ -14,6 +16,7 @@ ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c  wheelhouse/win
 085e0305cfe6f16ab12d72e2024030f5d52674afad6911bb1eee207177b8a748  wheelhouse/windows-x64-py310/ifaddr-0.2.0-py3-none-any.whl
 3dbbf9f6e4b592a2357b854608e980fe6390d131d7a82f011a377ef2ebef7aba  wheelhouse/windows-x64-py310/joblib-1.6.0-py3-none-any.whl
 f0fd6321b839904e15c46e0d257fdd101dd7f530fe03fd6359c1ea63738703f3  wheelhouse/windows-x64-py310/numpy-2.2.6-cp310-cp310-win_amd64.whl
+86b413bdd6c6bf497832e346cd5371995de148e579b9774f8eba686dee3f5528  wheelhouse/windows-x64-py310/opencv_python_headless-4.12.0.88-cp37-abi3-win_amd64.whl
 b31553efa588ae44bc306f863c785c5333a9ecc091248c6ee68b4b6c87fdedfb  wheelhouse/windows-x64-py310/opentelemetry_api-1.45.1-py3-none-any.whl
 c6008de247150668a705a6338156efb92334113421ceecf7438a12c9a12dab23  wheelhouse/windows-x64-py310/pillow-12.1.1-cp310-cp310-win_amd64.whl
 b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992  wheelhouse/windows-x64-py310/pycparser-3.0-py3-none-any.whl
@@ -21,11 +24,17 @@ b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992  wheelhouse/win
 2eedf82ee4753cdab8e50044c6bd569577eebc3859b11fecf4eb9223761ff966  wheelhouse/windows-x64-py310/pydantic_core-2.50.1-cp310-cp310-win_amd64.whl
 ff6d3f776f16878c894e52e107296ffc890e913c611b1a4ec6c44e2821fe2e23  wheelhouse/windows-x64-py310/python_multipart-0.0.32-py3-none-any.whl
 16e64e0716c14960108e85d853062c9e8bba5ca8252c0b4d0231b9df4060ff4f  wheelhouse/windows-x64-py310/qrcode-8.2-py3-none-any.whl
+4e6d1ef462f3626a1f0a0a9c42dd93c63bad33f9f1c1937509b8c5c8718ab56a  wheelhouse/windows-x64-py310/requests-2.33.1-py3-none-any.whl
 ca250e6836d10e6f402436d6463d6c0e4d8e0234cfb6a9a47835bd392b852ce5  wheelhouse/windows-x64-py310/scikit_learn-1.7.2-cp310-cp310-win_amd64.whl
 9d61e97b186a57350f6d6fd72640f9e99d5a4a2b8fbf4b9ee9a841eab327dc13  wheelhouse/windows-x64-py310/scipy-1.15.3-cp310-cp310-win_amd64.whl
+3ae8a5185b3bf61976ef1dc1688c7001e8bd16f8888e82e43dc2b623b5b146f9  wheelhouse/windows-x64-py310/srt-3.5.3-py3-none-any.whl
 67f8e99895493dd2911a03f11314af6ceebeae4e704bb9f43dfc6a9db151c93e  wheelhouse/windows-x64-py310/starlette-1.7.0-py3-none-any.whl
 cd8b60b5641b45c67bbf73c64c843235fc2d8a480c87389f52f5dbee893b86be  wheelhouse/windows-x64-py310/threadpoolctl-3.7.0-py3-none-any.whl
+c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73  wheelhouse/windows-x64-py310/tqdm-4.70.1-py3-none-any.whl
 481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8  wheelhouse/windows-x64-py310/typing_extensions-4.16.0-py3-none-any.whl
 65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147  wheelhouse/windows-x64-py310/typing_inspection-0.4.4-py3-none-any.whl
+bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4  wheelhouse/windows-x64-py310/urllib3-2.6.3-py3-none-any.whl
 505bdb0f318731d45f1f712071fc781a8981f6847a31c902c9f5e652d4f67faf  wheelhouse/windows-x64-py310/uvicorn-0.54.0-py3-none-any.whl
+6994ddc68556c7e5730c3b6f6bad13320e3519b13ce3ed2aa25a86724e7c10ac  wheelhouse/windows-x64-py310/vosk-0.3.45-py3-none-win_amd64.whl
+d57685547e0060cc6fd90ee6a28405d6bd395e525545f13c8d7cd99c78afd79f  wheelhouse/windows-x64-py310/websockets-16.1.1-cp310-cp310-win_amd64.whl
 1ff72dd4ba1549814dcd87104997f324989fc2319558e6f4461931c4fc7dacec  wheelhouse/windows-x64-py310/zeroconf-0.151.5-cp310-cp310-win_amd64.whl

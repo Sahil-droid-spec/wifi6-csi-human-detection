@@ -1,0 +1,26 @@
+import {useEffect,useRef,useState} from 'react';
+import {workApi} from './Workbench';
+type Entry={id:string,title:string,route:string,kind?:string};
+export function GlobalCommands({routes}:{routes:Entry[]}){
+  const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[files,setFiles]=useState<Entry[]>([]),[index,setIndex]=useState(0);
+  const [pins,setPins]=useState<string[]>(()=>{try{return JSON.parse(localStorage.getItem('orbit-pinned-tools')||'[]');}catch{return [];}});
+  const [recent,setRecent]=useState<Entry[]>(()=>{try{return JSON.parse(localStorage.getItem('orbit-recent')||'[]');}catch{return [];}});
+  const input=useRef<HTMLInputElement>(null),previous=useRef<HTMLElement|null>(null);
+  const entries=useRef<Entry[]>([]);entries.current=[...routes,...files];
+  function remember(entry:Entry){setRecent(current=>{const next=[entry,...current.filter(r=>r.route!==entry.route)].slice(0,12);localStorage.setItem('orbit-recent',JSON.stringify(next));return next;});}
+  useEffect(()=>{const hash=()=>{const path=location.hash.slice(1);const entry=entries.current.find(r=>r.route===path)||entries.current.find(r=>r.route===path.split('?')[0]);if(entry)remember({...entry,route:path});};const asset=(event:Event)=>{const entry=(event as CustomEvent).detail;if(entry&&typeof entry.title==='string'&&typeof entry.route==='string'&&entry.route.startsWith('/'))remember(entry);};window.addEventListener('hashchange',hash);window.addEventListener('orbit-recent',asset);return()=>{window.removeEventListener('hashchange',hash);window.removeEventListener('orbit-recent',asset);};},[]);
+  const all=[...routes,...files],found=all.filter(r=>(r.title+' '+r.id+' '+(r.kind||'')).toLowerCase().includes(query.toLowerCase()));
+  const results=query?found:[...all.filter(r=>pins.includes(r.id)),...recent,...routes].filter((r,i,a)=>a.findIndex(v=>v.route===r.route)===i).slice(0,14);
+  function choose(entry:Entry){const next=[entry,...recent.filter(r=>r.route!==entry.route)].slice(0,12);setRecent(next);localStorage.setItem('orbit-recent',JSON.stringify(next));location.hash=entry.route;setOpen(false);}
+  useEffect(()=>{const handler=(e:KeyboardEvent)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();previous.current=document.activeElement as HTMLElement;setOpen(v=>!v);}};window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler);},[]);
+  useEffect(()=>{if(open){input.current?.focus();workApi('workspace/search?q='+encodeURIComponent(query)).then(setFiles).catch(()=>{});}else previous.current?.focus();},[open]);
+  useEffect(()=>{setIndex(0);if(!open)return;let active=true;const timer=setTimeout(()=>workApi('workspace/search?q='+encodeURIComponent(query)).then(d=>{if(active)setFiles(d);}).catch(()=>{}),200);return()=>{active=false;clearTimeout(timer);};},[query]);
+  return <><button className="icon-btn command-trigger" aria-label="Search tools, files and experiments · Ctrl K" title="Search · Ctrl+K" onClick={()=>{previous.current=document.activeElement as HTMLElement;setOpen(true);}}>⌕ <span>Ctrl K</span></button>
+    {open&&<div className="modal-backdrop" onClick={()=>setOpen(false)}><section className="panel" role="dialog" aria-modal="true" aria-label="Orbit command search" style={{maxWidth:640,width:'95%',maxHeight:'85vh',overflow:'auto',margin:'6vh auto'}} onClick={e=>e.stopPropagation()} onKeyDown={e=>{
+      if(e.key==='Escape')setOpen(false);else if(e.key==='ArrowDown'){e.preventDefault();setIndex(i=>(i+1)%Math.max(1,results.length));}else if(e.key==='ArrowUp'){e.preventDefault();setIndex(i=>(i-1+results.length)%Math.max(1,results.length));}else if(e.key==='Enter'&&results[index]){e.preventDefault();choose(results[index]);}
+      else if(e.key==='Tab'){const buttons=Array.from(e.currentTarget.querySelectorAll<HTMLElement>('input,button'));const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}
+    }}><h2>Find a tool or resume work</h2><input ref={input} aria-label="Search all Orbit" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Try speech, Hamming, MATLAB, diagnostics, a filename…"/><p>↑ ↓ to navigate · Enter to open · Escape to close · ☆ pins a tool.</p>
+      <div role="listbox" aria-label="Matching commands">{results.map((r,i)=><div key={r.route} role="option" aria-selected={i===index} style={{display:'flex',gap:8,padding:6,border:i===index?'1px solid var(--blue)':'1px solid transparent',borderRadius:12}}><button className="button secondary" style={{flex:1,justifyContent:'flex-start'}} onClick={()=>choose(r)}>{r.title}</button><button className="button secondary" aria-label={'Pin '+r.title} onClick={()=>{const next=pins.includes(r.id)?pins.filter(v=>v!==r.id):[...pins,r.id];setPins(next);localStorage.setItem('orbit-pinned-tools',JSON.stringify(next));}}>{pins.includes(r.id)?'★':'☆'}</button></div>)}</div>
+      {!results.length&&<p>No match. Try another feature name or a saved filename.</p>}<button className="button secondary" onClick={()=>setOpen(false)}>Close</button></section></div>}
+  </>;
+}

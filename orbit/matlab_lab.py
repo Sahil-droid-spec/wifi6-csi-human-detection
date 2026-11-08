@@ -60,6 +60,7 @@ def matlab_executable() -> str | None:
 
 
 def compare(executable: str, workspace: Path, mode: str, audio: tuple | None = None) -> dict:
+    workspace = workspace.resolve()
     from scipy.io import savemat
 
     b = np.array([0.25, 0.5, 0.25])

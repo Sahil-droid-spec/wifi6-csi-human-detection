@@ -1,3 +1,13 @@
+# Current checkpoint · 4.3 · 2026-11-08
+
+Use [the canonical checklist](ORBIT_PROJECT_CHECKLIST.md) for current statuses and [the release guide](professional_release_4_3.md) for install/demo steps. Older entries below are historical checkpoints.
+
+Implemented this release: shared media lifecycle and context routing; Ctrl+K with saved-file/experiment search and favourites/recents; offline English speech; linked transcript-to-acoustic flow; two-channel ICA; recording previews; native photo capture; SECDED/rate profiles/decoded sender-bound ACK and bounded replay; generated DSP and digital-modulation practicals; reproducibility reports; actual diagnostics; local TLS and WebRTC path; bounded CSI/SDR adapters; supplied-reference research comparisons.
+
+Executed software evidence includes frozen Windows two-session workflows, offline speech on generated English input, actual TLS certificate-chain/SAN verification, encrypted/error-corrected waveform and return ACK decoding, generated ICA and reference studies, ten MATLAB practical cross-checks and a 64-value Simulink fixture. These are not physical phone, room-acoustic, live CSI or clinical validation.
+
+BLOCKED/UNVERIFIED: actual handset capture/calls and physical sound acceptance; compatible SDR/CSI equipment; original research SmartCSI artifacts; independent expert/reference clinical data. Deterministic AgentLink is not autonomous AI, generic OFDM is not 802.11ax, and two-channel ICA is not arbitrary mono speaker separation. No 100% project completion claim is made.
+
 # 2026-11-07 · connected input, AcousticLink and mixer
 
 Retinal Image Lab now offers **Send input to laptop** before processing. The shared original is reused when the laptop saves enhancement, mask and overlay. AcousticLink supports small binary/text files, AES-256-GCM, sequenced BFSK frames, CRC32, reconstructed SHA-256 verification and a shared received inbox. Reconstructed WAV opens in Audio Studio; fundus imports require consent. Wi-Fi remains the practical original-file transport.

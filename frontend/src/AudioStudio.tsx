@@ -72,7 +72,7 @@ export function AudioStudio(){
     }
     return()=>{active=false;};
   },[selected?.id,parent?.id]);
-  useEffect(()=>{setTitle(selected?.title||'');},[selected?.title,selected?.id]);
+  useEffect(()=>{setTitle(selected?.title||'');if(selected)window.dispatchEvent(new CustomEvent('orbit-recent',{detail:{id:selected.id,title:selected.title,route:'/audio?item='+selected.id,kind:'file'}}));},[selected?.title,selected?.id]);
   async function action(work:()=>Promise<void>){
     setBusy(true);setError('');
     try{await work();}catch(e){setError(e instanceof Error?e.message:'Try again with a supported WAV.');}

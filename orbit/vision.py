@@ -120,3 +120,17 @@ def install(app, ctx):
     def pulse(body: PulseInput, request: Request):
         require_laptop(request)
         return analyse_pulse(body.samples)
+
+    @app.post("/api/vision/shared-frame")
+    async def shared_frame(request:Request,consent:bool=False):
+        if not consent:raise ValueError("Confirm local camera-analysis consent first.")
+        raw=bytearray()
+        async for chunk in request.stream():
+            if len(raw)+len(chunk)>FRAME_LIMIT:raise HTTPException(413,"Choose a smaller JPEG/PNG camera frame.")
+            raw.extend(chunk)
+        return await run_in_threadpool(inspect_frame,bytes(raw))
+
+    @app.post("/api/vision/shared-pulse")
+    def shared_pulse(body:PulseInput,consent:bool=False):
+        if not consent:raise ValueError("Confirm experimental pulse-analysis consent first.")
+        return analyse_pulse(body.samples)

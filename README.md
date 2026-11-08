@@ -2,6 +2,12 @@
 
 A local research lab for recorded Wi-Fi CSI, DSP, machine learning, and soft computing. A laptop hosts the app and phone workspace. Orbit keeps recorded detection experiments, ns-3 research, and ordinary file transfers distinct.
 
+## App checkpoint · 4.3
+
+The existing interface and research gallery are retained. Connected workbench adds shared file lifecycle, offline English transcription, reproducible DSP workflows, generated modulation/BER practicals, reference-based research tools and device diagnostics. AcousticLink adds SECDED, selectable rates and a sender-bound decoded ACK path; APK 4.3 adds preview-first native photo/voice workflows and secure media permission support.
+
+[Current checklist and remaining boundaries](docs/ORBIT_PROJECT_CHECKLIST.md) · [Install and test guide](docs/professional_release_4_3.md). Physical phone/audio/CSI/SDR acceptance, missing original SmartCSI artifacts and independent clinical validation are not asserted as completed. Wi-Fi transfer is not evidence of live CSI or AX/BF superiority.
+
 ## Research at a glance
 
 ![Research pipeline from CSI through DSP, modelling and evaluation](assets/assets/project_pipeline.svg)

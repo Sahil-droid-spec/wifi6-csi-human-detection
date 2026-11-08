@@ -21,6 +21,7 @@ function ImageTile({values,title}:{values:number[][],title:string}){
 }
 
 export function MatlabStudio(){
+  const [practicalResult,setPracticalResult]=useState<any>(null),[practicalBusy,setPracticalBusy]=useState(false);
   const [status,setStatus]=useState<{available:boolean,can_run:boolean}|null>(null);
   const [busy,setBusy]=useState<Mode|null>(null),[error,setError]=useState(''),[result,setResult]=useState<Result|null>(null);
   useEffect(()=>{
@@ -41,12 +42,12 @@ export function MatlabStudio(){
     <section className="panel"><span className="badge">GENERATED VALIDATION INPUT</span><h2>MATLAB Studio</h2>
       <p>Run a fixed experiment in MATLAB or Simulink on this laptop. Orbit compares each returned value with Python using the same input. MATLAB and the required toolboxes must be licensed on this laptop.</p>
       <p>{!status?'Checking installation…':!status.can_run?'Open this page on the laptop.':status.available?'MATLAB installation found. Each run checks whether its required toolbox starts.':'MATLAB was not found. Install a licensed MATLAB or add it to PATH.'}</p>
-      <div className="button-row">
+      <div className="button-row"><button className="button secondary" disabled={!status?.available||!status?.can_run||!!busy||practicalBusy} onClick={async()=>{setPracticalBusy(true);setError('');try{const r=await fetch('/api/matlab/practicals',{method:'POST',signal:AbortSignal.timeout(200000)});const d=await r.json();if(!r.ok)throw Error(d.detail||'Check the MATLAB license.');setPracticalResult(d);}catch(e){setError((e as Error).message);}finally{setPracticalBusy(false);}}}>Cross-check all DSP practicals</button>
         <button className="button" disabled={!status?.available||!status?.can_run||!!busy} onClick={()=>run('fir')}>Compare FIR filter</button>
         <button className="button secondary" disabled={!status?.available||!status?.can_run||!!busy} onClick={()=>run('image')}>Compare image processing</button>
         <button className="button secondary" disabled={!status?.available||!status?.can_run||!!busy} onClick={()=>run('simulink')}>Run Simulink gain model</button>
       </div>
-      {busy&&<p role="status">Waiting for MATLAB to finish the {busy} experiment. Startup can take a minute.</p>}
+      {practicalBusy&&<p role="status">Running fixed same-input DSP practicals in MATLAB…</p>}{practicalResult&&<><p>{practicalResult.protocol}</p><table><thead><tr><th>Operation</th><th>Samples</th><th>Maximum absolute difference</th></tr></thead><tbody>{practicalResult.comparisons.map((r:any)=><tr key={r.operation}><td>{r.operation}</td><td>{r.samples}</td><td>{r.max_abs_difference.toExponential(4)}</td></tr>)}</tbody></table></>}{busy&&<p role="status">Waiting for MATLAB to finish the {busy} experiment. Startup can take a minute.</p>}
       {error&&<p role="alert">{error}</p>}
     </section>
     {result&&<section className="panel"><h2>Python and MATLAB comparison</h2>

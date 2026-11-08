@@ -53,6 +53,8 @@ public class MainActivity extends Activity {
     private String launchUrl;
     private String browserPairUrl;
     private AudioBridge audioBridge;
+    private PhotoBridge photoBridge;
+    private android.webkit.PermissionRequest webPermission;
     private boolean foreground;
     private ArrayList<Uri> shared = new ArrayList<>();
 
@@ -71,9 +73,9 @@ public class MainActivity extends Activity {
         if(target!=null && target.startsWith("orbit://connect")) target=Uri.parse(target).getQueryParameter("url");
         String previous=getPreferences(MODE_PRIVATE).getString("server","");
         try{
-            if(target!=null && target.startsWith("http://")){
+            if(target!=null && (target.startsWith("http://") || target.startsWith("https://"))){
                 base=ServerAddress.normalize(target);
-                if(!NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted(new URI(base).getHost())){
+                if(base.startsWith("http://") && !NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted(new URI(base).getHost())){
                     if(isServerUrl(target) && target.startsWith(base+"/#/pair?token="))browserPairUrl=target;
                     throw new Exception("The laptop is on a new Wi-Fi address. Tap Open in phone browser to use this pairing link.");
                 }
@@ -83,7 +85,7 @@ public class MainActivity extends Activity {
             }
             else if(!previous.isEmpty()){
                 base=ServerAddress.normalize(previous);
-                if(!NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted(new URI(base).getHost()))
+                if(base.startsWith("http://") && !NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted(new URI(base).getHost()))
                     throw new Exception("Scan a fresh QR for the laptop’s current Wi-Fi address.");
                 showWorkspace();
             }
@@ -152,12 +154,12 @@ public class MainActivity extends Activity {
         card.addView(text("The laptop must remain on. This app transfers files and opens the local lab; it does not capture Wi-Fi CSI directly from your phone.",13,Color.rgb(92,110,133)));
     }
     private void saveExample(){
-        String[] names={"Small text file", "Saved research graph", "Simulation · empty", "Simulation · still", "Simulation · moving", "Simulation · two people"};
-        String[] files={"Orbit-Transfer-Sample.txt","Orbit-Transfer-Research-Graph.png","Simulation-Empty.zip","Simulation-One-Still.zip","Simulation-One-Moving.zip","Simulation-Two-People.zip"};
+        String[] names={"Small text file", "Saved research graph", "Simulation · empty", "Simulation · still", "Simulation · moving", "Simulation · two people", "Generated English speech", "ICA stereo mixture · Simulation", "Real CC0 fundus photo"};
+        String[] files={"Orbit-Transfer-Sample.txt","Orbit-Transfer-Research-Graph.png","Simulation-Empty.zip","Simulation-One-Still.zip","Simulation-One-Moving.zip","Simulation-Two-People.zip","Orbit-Speech-Hello-Generated.wav","Orbit-ICA-Mixture-Simulation.wav","Orbit-Real-Retina-CC0.jpg"};
         new AlertDialog.Builder(this).setTitle("Orbit transfer examples").setItems(names,(dialog,which)->{
             downloadUrl="asset:"+files[which];downloadCookie=null;
             Intent save=new Intent(Intent.ACTION_CREATE_DOCUMENT);save.addCategory(Intent.CATEGORY_OPENABLE);
-            save.setType(which==0?"text/plain":which==1?"image/png":"application/zip");save.putExtra(Intent.EXTRA_TITLE,files[which]);
+            save.setType(which==0?"text/plain":which==1?"image/png":which==6||which==7?"audio/wav":which==8?"image/jpeg":"application/zip");save.putExtra(Intent.EXTRA_TITLE,files[which]);
             try{startActivityForResult(save,SAVE_FILE);}catch(ActivityNotFoundException e){Toast.makeText(this,"Open this phone's document picker to save the example.",Toast.LENGTH_LONG).show();}
         }).show();
     }
@@ -166,13 +168,13 @@ public class MainActivity extends Activity {
             String entered=address.getText().toString();
             base=ServerAddress.normalize(entered);
             launchUrl=entered.contains("#/pair?")?entered:null;
-            if(!NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted(new URI(base).getHost())) throw new Exception("This APK is restricted to the laptop addresses allowed at build time. Use the phone browser with the new LAN address, or rebuild the APK for that address.");
+            if(base.startsWith("http://") && !NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted(new URI(base).getHost())) throw new Exception("This APK is restricted to the laptop addresses allowed at build time. Use the phone browser with the new LAN address, or rebuild the APK for that address.");
             getPreferences(MODE_PRIVATE).edit().putString("server",base).apply();
             showWorkspace();
         } catch(Exception e) { Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show(); }
     }
     private boolean isServerUrl(String value) {
-        try { URI u=new URI(value), expected=new URI(base); return "http".equalsIgnoreCase(u.getScheme()) && expected.getHost().equals(u.getHost()) && expected.getPort()==u.getPort() && u.getRawUserInfo()==null; }
+        try { URI u=new URI(value), expected=new URI(base); return expected.getScheme().equalsIgnoreCase(u.getScheme()) && expected.getHost().equals(u.getHost()) && expected.getPort()==u.getPort() && u.getRawUserInfo()==null; }
         catch(Exception e) { return false; }
     }
     private void showWorkspace() {
@@ -188,14 +190,30 @@ public class MainActivity extends Activity {
         status=text("Connecting to "+base,11,Color.rgb(92,110,133)); status.setPadding(dp(12),0,dp(12),dp(5)); outer.addView(status);
         web=new WebView(this); outer.addView(web,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,0,1));
         WebSettings settings=web.getSettings(); settings.setJavaScriptEnabled(true); settings.setDomStorageEnabled(true);
-        settings.setUserAgentString(settings.getUserAgentString()+" OrbitCompanion/4.2");
+        settings.setUserAgentString(settings.getUserAgentString()+" OrbitCompanion/4.3");
         audioBridge=new AudioBridge(this,web,()->foreground&&web!=null&&isServerUrl(web.getUrl()));
         web.addJavascriptInterface(audioBridge,"OrbitAudio");
+        photoBridge=new PhotoBridge(this,web,()->web!=null&&isServerUrl(web.getUrl()));
+        web.addJavascriptInterface(photoBridge,"OrbitPhoto");
         settings.setAllowFileAccess(false); settings.setAllowContentAccess(true);
         settings.setAllowFileAccessFromFileURLs(false); settings.setAllowUniversalAccessFromFileURLs(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         CookieManager.getInstance().setAcceptCookie(true); CookieManager.getInstance().setAcceptThirdPartyCookies(web,false);
         web.setWebChromeClient(new WebChromeClient(){
+            @Override public void onPermissionRequest(android.webkit.PermissionRequest request){runOnUiThread(()->{
+                if(!isServerUrl(request.getOrigin().toString())||!base.startsWith("https://")){request.deny();return;}
+                new AlertDialog.Builder(MainActivity.this).setTitle("Share live camera or microphone?")
+                    .setMessage("Only the paired secure laptop workspace can receive these live media permissions. You can stop the call at any time.")
+                    .setPositiveButton("Allow",(dialog,which)->{
+                        ArrayList<String> permissions=new ArrayList<>();
+                        for(String resource:request.getResources()){
+                            if(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)&&checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.RECORD_AUDIO);
+                            if(android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)&&checkSelfPermission(android.Manifest.permission.CAMERA)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions.add(android.Manifest.permission.CAMERA);
+                        }
+                        if(permissions.isEmpty())grantMedia(request);else{webPermission=request;requestPermissions(permissions.toArray(new String[0]),621);}
+                    }).setNegativeButton("Deny",(dialog,which)->request.deny()).setOnCancelListener(dialog->request.deny()).show();
+            });}
+            @Override public void onPermissionRequestCanceled(android.webkit.PermissionRequest request){if(webPermission==request)webPermission=null;}
             @Override public boolean onShowFileChooser(WebView view,ValueCallback<Uri[]> callback,FileChooserParams params){
                 if(!shared.isEmpty()){callback.onReceiveValue(shared.toArray(new Uri[0]));shared.clear();return true;}
                 if(fileCallback!=null) fileCallback.onReceiveValue(null); fileCallback=callback;
@@ -239,6 +257,7 @@ public class MainActivity extends Activity {
     }
     @Override protected void onActivityResult(int request,int result,Intent data){
         super.onActivityResult(request,result,data);
+        if(request==PhotoBridge.REQUEST&&photoBridge!=null)photoBridge.result(result,data);
         if(request==PICK_FILE && fileCallback!=null){
             Uri[] values=null;
             if(result==RESULT_OK && data!=null){
@@ -272,7 +291,17 @@ public class MainActivity extends Activity {
         }
     }
     @Override public void onBackPressed(){if(web!=null && web.canGoBack())web.goBack();else if(web!=null)showConnect(null);else super.onBackPressed();}
+    private void grantMedia(android.webkit.PermissionRequest request){
+        if(web==null||!isServerUrl(request.getOrigin().toString())||!base.startsWith("https://")){request.deny();return;}
+        ArrayList<String> allowed=new ArrayList<>();
+        for(String resource:request.getResources())if(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)||android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource))allowed.add(resource);
+        if(allowed.isEmpty())request.deny();else request.grant(allowed.toArray(new String[0]));
+    }
+    @Override public void onRequestPermissionsResult(int code,String[] permissions,int[] results){
+        super.onRequestPermissionsResult(code,permissions,results);
+        if(code==621&&webPermission!=null){android.webkit.PermissionRequest request=webPermission;webPermission=null;boolean ok=results.length>0;for(int value:results)ok&=value==android.content.pm.PackageManager.PERMISSION_GRANTED;if(ok)grantMedia(request);else request.deny();}
+    }
     @Override protected void onResume(){super.onResume();foreground=true;}
-    @Override protected void onPause(){foreground=false;if(audioBridge!=null)audioBridge.cancel();super.onPause();}
+    @Override protected void onPause(){foreground=false;if(audioBridge!=null)audioBridge.cancel();if(web!=null&&webPermission==null)web.evaluateJavascript("window.dispatchEvent(new Event('orbit-native-background'));",null);super.onPause();}
     @Override protected void onDestroy(){destroyWeb();super.onDestroy();}
 }

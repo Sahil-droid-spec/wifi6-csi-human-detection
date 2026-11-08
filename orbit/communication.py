@@ -192,6 +192,8 @@ def install(app, ctx):
 
     @app.get("/api/exchange/files/{ident}/download")
     def download(ident: str):
+        if any(r["id"]=="exchange:"+ident for r in rows("revoked_export")):
+            raise HTTPException(404,"This Library-linked export was revoked. Restore it in the Library.")
         r = get("exchange", ident)
         if r["status"] != "complete":
             raise HTTPException(409, "Wait for hash verification before downloading.")

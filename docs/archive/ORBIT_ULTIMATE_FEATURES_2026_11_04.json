@@ -1,0 +1,115 @@
+{
+  "updated": "2026-11-04",
+  "features": [
+    {
+      "feature": "qr_pairing",
+      "status": "IMPLEMENTED_AND_TESTED",
+      "evidence": "One-use token/session tests; physical phone pairing NOT VERIFIED"
+    },
+    {
+      "feature": "session_expiry",
+      "status": "IMPLEMENTED_AND_TESTED",
+      "evidence": "Server-side 12-hour expiry and logout; restart clears sessions"
+    },
+    {
+      "feature": "generic_file_transfer",
+      "status": "IMPLEMENTED_NOT_HARDWARE_VERIFIED",
+      "evidence": "Chunk/offset resume, 256 MiB files, SHA-256, duplicate/cancel, downloads; two real HTTP TestClient sessions tested; physical phone roundtrip pending"
+    },
+    {
+      "feature": "local_text_chat",
+      "status": "IMPLEMENTED_NOT_HARDWARE_VERIFIED",
+      "evidence": "Persistent messages, attachments and second-session load acknowledgements; not human read receipts"
+    },
+    {
+      "feature": "application_metrics",
+      "status": "PARTIALLY_IMPLEMENTED",
+      "evidence": "Verified-byte receipts, accepted payload rate, client wall time/retries, HTTP RTT and successive variation; no wire-byte counter or aggregate success-rate history"
+    },
+    {
+      "feature": "voice_notes",
+      "status": "PARTIALLY_IMPLEMENTED",
+      "evidence": "Upload/play existing audio files; integrated note recording not implemented"
+    },
+    {
+      "feature": "webrtc_calls_screen_share",
+      "status": "MISSING",
+      "evidence": "Needs signaling, secure contexts and hardware tests"
+    },
+    {
+      "feature": "bfsk_modem",
+      "status": "IMPLEMENTED_NOT_HARDWARE_VERIFIED",
+      "evidence": "Preamble/sync/length/CRC32; noncoherent timing search; generated audio, noise loopback, PCM WAV decode and secure-browser microphone capture; physical speaker/microphone validation pending"
+    },
+    {
+      "feature": "acoustic_ack_retry",
+      "status": "MISSING",
+      "evidence": "No automatic bidirectional acoustic ACK/retransmission"
+    },
+    {
+      "feature": "agentlink_ai",
+      "status": "MISSING",
+      "evidence": "Do not describe the DSP modem as autonomous AI; no external dependency added"
+    },
+    {
+      "feature": "sdr_generated_recorded",
+      "status": "IMPLEMENTED_AND_TESTED",
+      "evidence": "Existing AM/FM, tuning, spectral peaks, IQ NPY, WAV export retained"
+    },
+    {
+      "feature": "live_sdr",
+      "status": "BLOCKED_BY_HARDWARE",
+      "evidence": "No supported receiver/driver identified or tested"
+    },
+    {
+      "feature": "matlab_engine",
+      "status": "MISSING",
+      "evidence": "MATLAB R2026b installation found, Python engine package absent in Orbit runtime; license/toolboxes not tested"
+    },
+    {
+      "feature": "simulink",
+      "status": "MISSING",
+      "evidence": "Installation not license-verified; no runnable app integration"
+    },
+    {
+      "feature": "existing_dsp_sc",
+      "status": "IMPLEMENTED_AND_TESTED",
+      "evidence": "Existing filters, FFT, convolution, spectrum, resampling and teaching models retained; no new scientific accuracy claim"
+    },
+    {
+      "feature": "advanced_digital_modulation",
+      "status": "MISSING",
+      "evidence": "Full ASK/PSK/QAM/DPSK/OFDM laboratory remains a future milestone; BFSK implemented separately"
+    },
+    {
+      "feature": "research_journey",
+      "status": "IMPLEMENTED_AND_TESTED",
+      "evidence": "Archived 19-graph source-labelled journey/report/presentation retained"
+    },
+    {
+      "feature": "smartcsi",
+      "status": "PARTIALLY_IMPLEMENTED",
+      "evidence": "Rule and strict score import verified; missing original research RF/mask/fuzzy artifacts prevent fresh equivalent research inference"
+    },
+    {
+      "feature": "sage_v3_live",
+      "status": "MISSING",
+      "evidence": "Archived ns-3 evidence retained; not an operational radio controller"
+    },
+    {
+      "feature": "adaptive_transport",
+      "status": "MISSING",
+      "evidence": "No hardware MCS control or cross-transport policy benchmark"
+    },
+    {
+      "feature": "multimedia_processing",
+      "status": "PARTIALLY_IMPLEMENTED",
+      "evidence": "Verified media previews and existing notebook uploads; no new video processing/SSIM pipeline"
+    },
+    {
+      "feature": "offline_guide",
+      "status": "IMPLEMENTED_AND_TESTED",
+      "evidence": "Existing rule-based guide retained; no generative provider configured"
+    }
+  ]
+}

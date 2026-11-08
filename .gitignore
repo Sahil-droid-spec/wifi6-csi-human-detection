@@ -33,3 +33,4 @@ build-desktop/
 dist-desktop/
 *.spec
 .ruff_cache/
+speech-models/

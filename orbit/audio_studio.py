@@ -193,6 +193,8 @@ def install(app, ctx):
                 "Start-aligned; B resampled to A; mono duplicated for stereo; tails zero-padded. No blind separation or normalization.",
                 parent_id=first["id"],
                 secondary_parent_id=second["id"],
+                synthetic=bool(first.get("synthetic") or second.get("synthetic")),
+                mixed_provenance=bool(first.get("synthetic")) != bool(second.get("synthetic")),
                 mix=body.model_dump(),
                 source="DERIVED MIX · input provenance retained by parent links",
                 sample_rate=rate_a,
@@ -253,6 +255,7 @@ def install(app, ctx):
                 row["name"],
                 "Hash-checked acoustic reconstruction; physical channel unverified.",
                 link_received_id=row["id"],
+                synthetic=bool(row.get("synthetic")),
                 source="RECONSTRUCTED WAV · " + row["source"],
                 sample_rate=rate,
                 channels=samples.shape[1],
@@ -263,7 +266,7 @@ def install(app, ctx):
         with lock:
             row = item(ident)
             rate, x = load(row)
-        return {**analyse(rate, x), "source": row.get("source", "UPLOADED WAV")}
+        return {**analyse(rate, x), "source": ("SIMULATION · " if row.get('synthetic') else '')+row.get("source", "UPLOADED WAV")}
 
     @app.post("/api/audio/{ident}/filter")
     def run(ident: str, body: Filter):
@@ -278,6 +281,7 @@ def install(app, ctx):
                 "Causal filter with zero initial state; stored as PCM16.",
                 parent_id=ident,
                 filter=body.model_dump(),
+                synthetic=bool(row.get("synthetic")),
                 sample_rate=rate,
                 channels=x.shape[1],
                 clipped_samples=clipped,
@@ -302,6 +306,7 @@ def install(app, ctx):
             row = item(ident)
             row["trashed"] = True
             put("media", row)
+            ctx["revoke_asset"](row)
         return {"ok": True}
 
     @app.post("/api/audio/{ident}/restore")
@@ -312,6 +317,7 @@ def install(app, ctx):
             row = item(ident, trash=True)
             row.pop("trashed")
             put("media", row)
+            ctx["unrevoke_asset"](row)
         return {"ok": True}
 
     @app.delete("/api/audio/{ident}")
@@ -328,5 +334,6 @@ def install(app, ctx):
                     409, "Delete linked audio versions before permanently deleting the original."
                 )
             (data / row["path"]).unlink(missing_ok=True)
+            ctx["revoke_asset"](row)
             delete("media", ident)
         return {"ok": True}

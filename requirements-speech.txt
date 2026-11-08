@@ -1,0 +1,10 @@
+# Offline English recognition; no automatic model download.
+-c requirements-offline-win-py310.txt
+vosk==0.3.45
+srt==3.5.3
+tqdm==4.70.1
+requests==2.33.1
+websockets==16.1.1
+urllib3==2.6.3
+charset-normalizer==3.4.7
+certifi==2026.2.25

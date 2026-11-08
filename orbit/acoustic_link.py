@@ -25,6 +25,7 @@ from scipy import signal
 from scipy.io import wavfile
 from starlette.concurrency import run_in_threadpool
 
+from . import acoustic_protocol as fec_codec
 from .acoustic import PREFIX, RATE, plots
 
 SPS = 40
@@ -46,7 +47,15 @@ def derive(passphrase: str, salt: bytes) -> bytes:
     )
 
 
-def envelope(payload: bytes, name: str, encrypted: bool, passphrase: str, fundus=False) -> bytes:
+def envelope(
+    payload: bytes,
+    name: str,
+    encrypted: bool,
+    passphrase: str,
+    fundus=False,
+    role="data",
+    synthetic=False,
+) -> bytes:
     if not 0 < len(payload) <= MAX_CONTENT:
         raise ValueError(
             "Acoustic payloads support 1–8192 bytes. Use Wi-Fi for larger originals or explicitly create a small teaching copy."
@@ -55,7 +64,13 @@ def envelope(payload: bytes, name: str, encrypted: bool, passphrase: str, fundus
     if len(name) > 120 or not name or any(ord(c) < 32 for c in name):
         raise ValueError("Use a short plain filename.")
     metadata = json.dumps(
-        {"name": name, "sha256": hashlib.sha256(payload).hexdigest(), "fundus": fundus},
+        {
+            "name": name,
+            "sha256": hashlib.sha256(payload).hexdigest(),
+            "fundus": fundus,
+            "role": role,
+            "synthetic": bool(synthetic),
+        },
         ensure_ascii=False,
         separators=(",", ":"),
     ).encode()
@@ -110,40 +125,51 @@ def open_envelope(raw: bytes, passphrase: str):
     return raw[5:21].hex(), metadata, content, bool(raw[4])
 
 
-def frame_audio(payload: bytes) -> np.ndarray:
+def frame_audio(payload: bytes, sps: int = SPS) -> np.ndarray:
     body = struct.pack(">H", len(payload)) + payload
     wire = PREFIX + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
     bits = np.unpackbits(np.frombuffer(wire, dtype=np.uint8))
-    t = np.arange(SPS) / RATE
+    t = np.arange(sps) / RATE
     tones = np.array([0.6 * np.sin(2 * np.pi * f * t) for f in TONES])
     return tones[bits].reshape(-1)
 
 
-def modulate(raw: bytes):
+def modulate(raw: bytes, fec: bool = False, bit_rate: int = BIT_RATE):
+    if bit_rate not in (100, 200, 400):
+        raise ValueError("Choose 100, 200 or 400 bit/s.")
+    chunk = 48 if fec else CHUNK
     ident = raw[5:21]
-    total = math.ceil(len(raw) / CHUNK)
+    total = math.ceil(len(raw) / chunk)
     frames = []
     for i in range(total):
         packet = (
             b"L2"
             + ident
             + struct.pack(">HHI", i, total, len(raw))
-            + raw[i * CHUNK : (i + 1) * CHUNK]
+            + raw[i * chunk : (i + 1) * chunk]
         )
-        frames.append(np.r_[np.zeros(320), frame_audio(packet)])
-    return np.concatenate([np.zeros(1600), *frames, np.zeros(1600)]), total
+        if fec:
+            protected = packet + struct.pack(">I", zlib.crc32(packet) & 0xFFFFFFFF)
+            packet = b"F3" + fec_codec.encode(protected)
+        frames.append(np.r_[np.zeros(320), frame_audio(packet, RATE // bit_rate)])
+    audio = np.concatenate([np.zeros(1600), *frames, np.zeros(1600)])
+    if len(audio) > RATE * MAX_SECONDS:
+        raise ValueError(
+            "This framing exceeds 300 seconds. Use a smaller payload, faster rate, or Wi-Fi explicitly."
+        )
+    return audio, total
 
 
-def decode_packets(audio: np.ndarray):
-    t = np.arange(SPS) / RATE
+def _decode_at_rate(audio: np.ndarray, sps: int):
+    t = np.arange(sps) / RATE
     kernels = np.array([np.exp(-2j * np.pi * f * t) for f in TONES]).T
     sync = "".join(map(str, np.unpackbits(np.frombuffer(PREFIX, dtype=np.uint8))))
-    frames, rejected = {}, 0
-    for offset in range(0, SPS, 4):
-        count = (len(audio) - offset) // SPS
+    frames, rejected, corrected = {}, 0, 0
+    for offset in range(0, sps, max(1, sps // 10)):
+        count = (len(audio) - offset) // sps
         if count <= 0:
             continue
-        symbols = audio[offset : offset + count * SPS].reshape(count, SPS)
+        symbols = audio[offset : offset + count * sps].reshape(count, sps)
         energy = abs(symbols @ kernels) ** 2
         bits = (energy[:, 1] > energy[:, 0]).astype(np.uint8)
         stream = "".join(map(str, bits))
@@ -156,11 +182,23 @@ def decode_packets(audio: np.ndarray):
                 if 26 < size <= 160 and end <= len(bits):
                     body = np.packbits(bits[pos : end - 32]).tobytes()
                     crc = int.from_bytes(np.packbits(bits[end - 32 : end]).tobytes(), "big")
-                    if zlib.crc32(body) & 0xFFFFFFFF == crc and body[2:4] == b"L2":
-                        packet = body[2:]
+                    packet = body[2:]
+                    valid = zlib.crc32(body) & 0xFFFFFFFF == crc
+                    if packet[:2] == b"F3":
+                        try:
+                            protected, count_corrected = fec_codec.decode(packet[2:])
+                            packet = protected[:-4]
+                            valid = zlib.crc32(packet) & 0xFFFFFFFF == int.from_bytes(
+                                protected[-4:], "big"
+                            )
+                            if valid:
+                                corrected += count_corrected
+                        except ValueError:
+                            valid = False
+                    if valid and packet[:2] == b"L2":
                         ident = packet[2:18].hex()
                         seq, total, length = struct.unpack(">HHI", packet[18:26])
-                        if 0 <= seq < total <= 80 and 0 < length <= MAX_ENVELOPE:
+                        if 0 <= seq < total <= 200 and 0 < length <= MAX_ENVELOPE:
                             key = (ident, seq)
                             part = {"total": total, "length": length, "bytes": packet[26:]}
                             if key in frames and frames[key] != part:
@@ -189,7 +227,20 @@ def decode_packets(audio: np.ndarray):
         "crc_valid_packets": len(frames),
         "crc_rejected_candidates": rejected,
         "complete_messages": len(complete),
+        "corrected_bit_candidates": corrected,
+        "bit_rate": RATE // sps,
     }
+
+
+def decode_packets(audio: np.ndarray):
+    best = None
+    for sps in (40, 80, 160):
+        complete, report = _decode_at_rate(audio, sps)
+        if complete:
+            return complete, report
+        if best is None or report["crc_valid_packets"] > best[1]["crc_valid_packets"]:
+            best = (complete, report)
+    return best
 
 
 def samples(raw: bytes):
@@ -224,6 +275,9 @@ class Transmit(BaseModel):
     encrypted: bool = True
     passphrase: str = Field(default="", max_length=128)
     fundus: bool = False
+    fec: bool = False
+    synthetic: bool = False
+    bit_rate: Literal[100, 200, 400] = 400
 
 
 def install(app, ctx):
@@ -241,6 +295,7 @@ def install(app, ctx):
     def status():
         return {
             "received": ctx["rows"]("link_received"),
+            "transmissions": ctx["rows"]("link_tx")[:100],
             "max_payload_bytes": MAX_CONTENT,
             "bit_rate": BIT_RATE,
             "sample_rate": RATE,
@@ -248,7 +303,8 @@ def install(app, ctx):
         }
 
     @app.post("/api/link/transmit")
-    def transmit(body: Transmit):
+    def transmit(body: Transmit, request: Request):
+        started = time.perf_counter()
         if body.file_base64 and body.text:
             raise ValueError("Choose either text or a file for this transmission.")
         try:
@@ -265,10 +321,33 @@ def install(app, ctx):
             body.encrypted,
             body.passphrase,
             body.fundus,
+            synthetic=body.synthetic,
         )
-        audio, total = modulate(raw)
+        audio, total = modulate(raw, body.fec, body.bit_rate)
         ident = secrets.token_hex(12)
         wavfile.write(root / (ident + ".wav"), RATE, np.int16(audio * 32767))
+        ctx["put"](
+            "link_tx",
+            {
+                "id": ident,
+                "message_id": raw[5:21].hex(),
+                "sender": hashlib.sha256(
+                    request.cookies.get("orbit_session", "").encode()
+                ).hexdigest()[:20],
+                "sha256": hashlib.sha256(payload).hexdigest(),
+                "encrypted": body.encrypted,
+                "attempts": 1,
+                "acknowledged": False,
+                "created": ctx["now"](),
+                "payload_bytes": len(payload),
+                "bit_rate": body.bit_rate,
+                "fec": body.fec,
+                "packet_count": total,
+                "duration_seconds": len(audio) / RATE,
+                "generation_ms": (time.perf_counter() - started) * 1000,
+                "protocol": "Same-payload hash comparison; generated envelope/framing/WAV-creation wall time and WAV duration, not measured physical delivery latency.",
+            },
+        )
         return {
             "id": ident,
             "audio_url": "/api/link/audio/" + ident,
@@ -277,7 +356,8 @@ def install(app, ctx):
             "sha256": hashlib.sha256(payload).hexdigest(),
             "encrypted": body.encrypted,
             "source": "GENERATED TRANSMIT AUDIO",
-            "bit_rate": BIT_RATE,
+            "bit_rate": body.bit_rate,
+            "fec": body.fec,
             "algorithm": "BFSK, sequence framing and CRC32; AES-256-GCM when selected",
             "physical_verified": False,
             **snapshot(audio),
@@ -292,7 +372,41 @@ def install(app, ctx):
             raise HTTPException(404, "Generate the transmission again.")
         return FileResponse(path, media_type="audio/wav", filename="Orbit-AcousticLink.wav")
 
-    def recover(raw, passphrase, preset, source):
+    @app.get("/api/link/transmissions/{ident}")
+    def transmission(ident: str):
+        return ctx["get"]("link_tx", ident)
+
+    @app.post("/api/link/transmissions/{ident}/retry")
+    def retry(ident: str):
+        with save_lock:
+            row = ctx["get"]("link_tx", ident)
+            if row["acknowledged"]:
+                return {**row, "audio_url": None}
+            if row["attempts"] >= 3:
+                raise HTTPException(
+                    409, "Three attempts used. Check the receiver and start a fresh transmission."
+                )
+            row["attempts"] += 1
+            ctx["put"]("link_tx", row)
+        return {**row, "audio_url": "/api/link/audio/" + ident}
+
+    def acknowledgement(row, phrase):
+        ack = json.dumps(
+            {"type": "ACK", "for": row["message_id"], "sha256": row["sha256"]},
+            separators=(",", ":"),
+        ).encode()
+        wave, _ = modulate(
+            envelope(ack, "ack.json", row["encrypted"], phrase, role="ack"), False, 400
+        )
+        ident = secrets.token_hex(12)
+        wavfile.write(root / (ident + ".wav"), RATE, np.int16(wave * 32767))
+        return {
+            "audio_url": "/api/link/audio/" + ident,
+            "duration_s": len(wave) / RATE,
+            "protocol": "Generated return ACK. Sender must decode this audio before its matching transmission is acknowledged; generation/playback alone is not delivery.",
+        }
+
+    def recover(raw, passphrase, preset, source, receiver_session):
         began = time.perf_counter()
         x = samples(raw)
         before, baseline = decode_packets(x)
@@ -327,6 +441,36 @@ def install(app, ctx):
                 "elapsed_ms": (time.perf_counter() - began) * 1000,
             }
         ident, metadata, content, encrypted = open_envelope(envelopes[0], passphrase)
+        if metadata.get("role") == "ack":
+            try:
+                ack = json.loads(content)
+            except ValueError:
+                raise ValueError("The ACK content is invalid.")
+            if not isinstance(ack, dict):
+                raise ValueError("The ACK must describe a matching transmission.")
+            with save_lock:
+                tx = next(
+                    (r for r in ctx["rows"]("link_tx") if r["message_id"] == ack.get("for")), None
+                )
+                if (
+                    not tx
+                    or ack.get("type") != "ACK"
+                    or ack.get("sha256") != tx["sha256"]
+                    or encrypted != tx["encrypted"]
+                ):
+                    raise ValueError("This ACK does not authenticate a matching transmission.")
+                if tx.get("sender") != receiver_session:
+                    raise ValueError(
+                        "Decode the return ACK on the original sending session, or start a fresh transmission after re-pairing."
+                    )
+                tx["acknowledged"] = True
+                ctx["put"]("link_tx", tx)
+            return {
+                **report,
+                "success": True,
+                "acknowledgement_received": tx,
+                "elapsed_ms": (time.perf_counter() - began) * 1000,
+            }
         with save_lock:
             seen = next((r for r in ctx["rows"]("link_received") if r["message_id"] == ident), None)
             if seen:
@@ -335,6 +479,7 @@ def install(app, ctx):
                     "success": True,
                     "duplicate": True,
                     "received": seen,
+                    "ack": acknowledgement(seen, passphrase),
                     "elapsed_ms": (time.perf_counter() - began) * 1000,
                 }
             record_id = secrets.token_hex(12)
@@ -356,6 +501,7 @@ def install(app, ctx):
                 "name": name,
                 "size": len(content),
                 "sha256": hashlib.sha256(content).hexdigest(),
+                "synthetic": bool(metadata.get("synthetic")),
                 "encrypted": encrypted,
                 "type": mime,
                 "source": source,
@@ -379,6 +525,7 @@ def install(app, ctx):
             "success": True,
             "duplicate": False,
             "received": row,
+            "ack": acknowledgement(row, passphrase),
             "elapsed_ms": (time.perf_counter() - began) * 1000,
         }
 
@@ -403,12 +550,23 @@ def install(app, ctx):
         if not operation_lock.acquire(blocking=False):
             raise HTTPException(409, "Wait for the current acoustic decode to finish.")
         try:
-            return await run_in_threadpool(recover, bytes(raw), phrase, preset, source)
+            return await run_in_threadpool(
+                recover,
+                bytes(raw),
+                phrase,
+                preset,
+                source,
+                hashlib.sha256(request.cookies.get("orbit_session", "").encode()).hexdigest()[:20],
+            )
         finally:
             operation_lock.release()
 
     @app.get("/api/link/received/{ident}")
     def received_file(ident: str):
+        if any(r["id"] == "link_received:" + ident for r in ctx["rows"]("revoked_export")):
+            raise HTTPException(
+                404, "This Library-linked export was revoked. Restore it in the Library."
+            )
         row = ctx["get"]("link_received", ident)
         return FileResponse(
             root / (row["id"] + ".bin"),

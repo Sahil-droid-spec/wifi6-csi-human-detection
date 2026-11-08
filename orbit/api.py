@@ -192,7 +192,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     app = FastAPI(
         title="Orbit Wi-Fi Sensing Lab",
-        version="4.1.0",
+        version="4.3.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
@@ -262,7 +262,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     def health():
         return {
             "status": "online",
-            "version": "4.1.0",
+            "version": "4.3.0",
             "local_only": True,
             "instance_id": app.state.instance_id,
         }
@@ -318,7 +318,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             "lan": sharing["enabled"],
             "media": [row for row in rows("media") if not row.get("trashed")],
             "references": rows("reference"),
-            "version": "4.1.0",
+            "version": "4.3.0",
         }
 
     cancelled = set()
@@ -1126,6 +1126,14 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     download_root = Path(os.environ.get("ORBIT_DOWNLOADS_DIR", ROOT.parent)).resolve()
     downloads_allowed = {
+        "Orbit-Speech-Hello-Generated.wav": ("Generated English speech · offline recognition test", "audio/wav"),
+        "Orbit-ICA-Mixture-Simulation.wav": ("Simulation · independent two-channel mixtures for ICA", "audio/wav"),
+        "Orbit-ICA-Source-A-Simulation.wav": ("Simulation · ICA reference source A", "audio/wav"),
+        "Orbit-ICA-Source-B-Simulation.wav": ("Simulation · ICA reference source B", "audio/wav"),
+        "Orbit-IQ-Simulation.npy": ("Simulation · complex I/Q at 64000 samples/s", "application/octet-stream"),
+        "Orbit-Retina-Geometry-Simulation.png": ("Simulation · geometric retinal-style teaching input", "image/png"),
+        "Orbit-Retina-Reference-Simulation.png": ("Simulation · matched geometry reference mask", "image/png"),
+        "Orbit-Pulse-Simulation.json": ("Simulation · RGB pulse samples and generated 75 bpm reference", "application/json"),
         "Orbit-Real-Retina-CC0.jpg": ("Real fundus photo · CC0 · source in demo guide", "image/jpeg"),
         "Orbit-Audio-Demo-Generated.wav": ("Generated two-tone audio for filtering", "audio/wav"),
         "Orbit-Link-Image-Teaching.jpg": ("64 px resized teaching copy · unsuitable for medical analysis", "image/jpeg"),
