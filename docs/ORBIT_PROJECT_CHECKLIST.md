@@ -1,4 +1,4 @@
-# Orbit canonical checklist — 4.3 — 2026-11-08
+# Orbit canonical checklist — 4.4 — 2026-11-08
 
 This replaces the active checklist. The [4.2 checklist](archive/ORBIT_PROJECT_CHECKLIST_4_2.md) is preserved as history. A software test is not physical phone, RF or medical acceptance. No 100% completion claim is made.
 
@@ -6,6 +6,7 @@ Statuses: **VERIFIED WORKING**, **IMPLEMENTED / HARDWARE UNVERIFIED**, **PARTIAL
 
 | Scope | Status | Evidence and remaining boundary |
 |---|---|---|
+| Command center and spatial explainer | VERIFIED WORKING (software) | Actual selected-data graphs, gap-aware contiguous filtering/spectrum, run save/export, desktop/phone-width browser checks. Procedural human scene is illustration, not inferred pose. Physical handset acceptance remains unverified. |
 | Existing menus, themes, navigation, interactions and research graphs | VERIFIED WORKING | Existing design retained; additive workbench and Ctrl+K. Browser checked real generated result and search-to-diagnostics navigation. |
 | Local server, QR, normal file exchange, SHA-256, resume, duplicates, chat | VERIFIED WORKING (software) | Regression suite and two native Windows HTTP software sessions. Actual handset acceptance remains unverified. |
 | APK phone connection/upload/download/microphone | IMPLEMENTED / HARDWARE UNVERIFIED | APK 4.3 build/sign/alignment and private-address parser checks. Requires a physical phone. |
@@ -14,7 +15,7 @@ Statuses: **VERIFIED WORKING**, **IMPLEMENTED / HARDWARE UNVERIFIED**, **PARTIAL
 | Streaming import, save/discard, rename, provenance export, Trash/restore/delete | VERIFIED WORKING for shared media | Size/free-space checks, parent protection and linked exchange/acoustic export revocation. Already downloaded copies cannot be remotely erased; transfer originals can be retained independently on disk. |
 | File transfer graphs | VERIFIED WORKING | Actual accepted offsets/timestamps, hash and browser application timing. Not RF strength or PHY throughput. |
 | Laptop WLAN snapshot | VERIFIED WORKING on this host | Actual Windows radio type, link rates and signal percentage; no SSID/MAC retained. Does not compare AX with BF. |
-| AES-GCM BFSK text/binary reconstruction | VERIFIED WORKING (codec) | Exact supplied-WAV reconstruction, hash, tamper, wrong-key and incomplete-recording tests. Maximum payload 8192 bytes; slower/FEC profiles can hit the 300-second cap earlier. |
+| AES-GCM BFSK text/binary reconstruction | VERIFIED WORKING (codec) | Exact supplied-WAV reconstruction, hash, tamper, wrong-key and incomplete-recording tests; clipped-preamble repair verified against supplied screen-recording audio. Not a microphone acceptance claim. Maximum payload 8192 bytes; slower/FEC profiles can hit the 300-second cap earlier. |
 | SECDED FEC and modem rates | VERIFIED WORKING | Hamming (8,4), every single-bit position corrected in tests, double-bit rejection plus inner CRC; 100/200/400 bit/s. Sync/length are not fully error protected. |
 | Return ACK, sender binding and bounded retries | VERIFIED WORKING (software protocol) | Matching decoded ACK must come from original sender session; generated/playback alone is not acknowledgement. Three-attempt playback loop, cancellation, no Wi-Fi fallback. |
 | Physical sound in both directions | IMPLEMENTED / HARDWARE UNVERIFIED | Must test the real phone speaker and laptop microphone, then reverse direction. Generated WAV tests are not this result. |

@@ -152,7 +152,8 @@ def modulate(raw: bytes, fec: bool = False, bit_rate: int = BIT_RATE):
             protected = packet + struct.pack(">I", zlib.crc32(packet) & 0xFFFFFFFF)
             packet = b"F3" + fec_codec.encode(protected)
         frames.append(np.r_[np.zeros(320), frame_audio(packet, RATE // bit_rate)])
-    audio = np.concatenate([np.zeros(1600), *frames, np.zeros(1600)])
+    # Allow browser output routing and receiver input to settle before sync.
+    audio = np.concatenate([np.zeros(RATE), *frames, np.zeros(RATE // 5)])
     if len(audio) > RATE * MAX_SECONDS:
         raise ValueError(
             "This framing exceeds 300 seconds. Use a smaller payload, faster rate, or Wi-Fi explicitly."
@@ -163,7 +164,10 @@ def modulate(raw: bytes, fec: bool = False, bit_rate: int = BIT_RATE):
 def _decode_at_rate(audio: np.ndarray, sps: int):
     t = np.arange(sps) / RATE
     kernels = np.array([np.exp(-2j * np.pi * f * t) for f in TONES]).T
-    sync = "".join(map(str, np.unpackbits(np.frombuffer(PREFIX, dtype=np.uint8))))
+    # The alternating training bytes can be cut off when recording starts.
+    # Search the final 16-bit marker; length, payload CRC, L2 framing and the
+    # encrypted envelope/hash remain mandatory. No missing payload is guessed.
+    sync = "".join(map(str, np.unpackbits(np.frombuffer(PREFIX[-2:], dtype=np.uint8))))
     frames, rejected, corrected = {}, 0, 0
     for offset in range(0, sps, max(1, sps // 10)):
         count = (len(audio) - offset) // sps
@@ -229,6 +233,17 @@ def _decode_at_rate(audio: np.ndarray, sps: int):
         "complete_messages": len(complete),
         "corrected_bit_candidates": corrected,
         "bit_rate": RATE // sps,
+        "packet_groups": [
+            {
+                "message_id": ident,
+                "received": sorted(parts),
+                "expected": next(iter(parts.values()))["total"],
+                "missing": [
+                    i for i in range(next(iter(parts.values()))["total"]) if i not in parts
+                ],
+            }
+            for ident, parts in groups.items()
+        ],
     }
 
 

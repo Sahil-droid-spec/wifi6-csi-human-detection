@@ -74,6 +74,31 @@ def test_clock_search_does_not_invent_silent_or_truncated_payload():
     assert not decode_packets(x[: len(x) // 3], clock_search=True)[0]
 
 
+@pytest.mark.parametrize("lost_training_bits", [8, 24, 32])
+def test_clipped_training_prefix_still_requires_payload_crc(lost_training_bits):
+    raw = envelope(b"Clipped training prefix", "message.txt", True, KEY)
+    x, total = modulate(raw)
+    # Synthetic reproduction of the user's screen-clip boundary, not a room test.
+    cropped = x[RATE + 320 + lost_training_bits * 40 :]
+    result, report = decode_packets(cropped)
+    assert result == [raw] and report["crc_valid_packets"] == total
+    assert report["packet_groups"][0]["missing"] == []
+    # Damage the first frame's payload: the shorter sync cannot waive its CRC.
+    broken = cropped.copy()
+    broken[2400:4800] = 0
+    assert not decode_packets(broken)[0]
+
+
+def test_missing_payload_reports_missing_packet_without_guessing():
+    raw = envelope(b"No fabricated missing bytes", "message.txt", True, KEY)
+    x, total = modulate(raw)
+    result, report = decode_packets(x[RATE + 320 + 50 * 40 :])
+    assert not result
+    assert total == 2 and report["crc_valid_packets"] == 1
+    assert report["packet_groups"][0]["received"] == [1]
+    assert report["packet_groups"][0]["missing"] == [0]
+
+
 def test_api_two_sessions_reconstruction_replay_and_library(tmp_path, monkeypatch):
     monkeypatch.setenv("ORBIT_DISABLE_MDNS", "1")
     with TestClient(create_app(tmp_path, "LINK", lan=True)) as laptop:

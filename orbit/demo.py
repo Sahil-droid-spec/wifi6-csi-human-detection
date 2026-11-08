@@ -15,6 +15,8 @@ from . import core
 def install(app, ctx):
     from .workspace import install as install_workspace
     install_workspace(app, ctx)
+    from .control_room import install as install_control_room
+    install_control_room(app, ctx)
     from .speech import install as install_speech
     install_speech(app, ctx)
     from .research_tools import install as install_research_tools

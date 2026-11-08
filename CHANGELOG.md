@@ -1,3 +1,10 @@
+# 4.4 · 2026-11-08
+
+- Add the responsive Command center, procedural 3D illustration with three styles and scenario controls, actual same-input graphs and source-labelled saved model evidence.
+- Preserve packet gaps: reset filter state on contiguous runs and disclose the single contiguous FFT range. Save/export the actual processing settings.
+- Recover truncated training preambles using the final sync marker plus unchanged CRC/AEAD/hash checks; add one-second pre-roll, play-from-start and received/missing packet diagnostics.
+- Fix oversized checkbox controls. Preserve existing menus, source libraries and research gallery; existing APK remains compatible.
+
 # Acoustic microphone recovery · 2026-11-08
 
 - Add opt-in bounded clock-offset correction, microphone selection and a measured input-level display. Keep receiver WAVs available for explicit replay/save/download; distinguish zero valid frames from missing frames. Physical room acceptance remains unverified.

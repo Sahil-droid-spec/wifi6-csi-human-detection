@@ -1,3 +1,16 @@
+# Command center and clipped-preamble repair — 4.4 — 2026-11-08
+
+- Full project suite: 160 passed, one upstream Starlette TestClient warning in 138.90s. Ruff and TypeScript/Vite passed; existing >500 kB bundle advisory remains.
+- Actual supplied 8.6-second screen recording: extracted AAC audio with FFmpeg, identified a clipped first training preamble. Before repair: one CRC-valid packet (sequence 2/2), no whole envelope. After repair: two valid packets and exact 223 encrypted-envelope bytes, compared byte-for-byte with the matching original generated WAV. No private message decryption or physical microphone claim.
+- Synthetic clipped-prefix tests cover 8/24/32 lost training bits, mandatory payload CRC and missing-packet failure. Existing clock-mismatch, wrong-key, tamper and all prior regression tests remain.
+- Gap-aware DSP unit tests compare FIR, Butterworth and moving average with SciPy; verify filter state reset at gaps, withheld short islands and exact longest-contiguous FFT range. Saved runs retain source, parameters and spectral packet bounds. No gaps are stitched or zero-filled for these graphs.
+- Native Windows HTTP API recovered a clipped-prefix generated encrypted message and a +1000 ppm generated clock-stretch fixture with exact text and unchanged CRC/AEAD/hash requirements. Neither is a physical room-acoustic acceptance result.
+- Browser on isolated explicitly generated CSI: selected input, actual paired graphs, pause/scenario controls, saved DSP settings, source labels, desktop layout and 390px phone-width layout checked. No horizontal page overflow at tested widths. No camera/microphone permission granted by automation. Physical handset graphics/capture acceptance remains NOT EXECUTED.
+- Added no external browser/3D dependencies or diagnostic model. Human animation is procedural illustration, independent of recording labels and classifier inference. Existing research gallery and source separation preserved.
+- Local matching installation and replacement ZIPs preserve orbit-data, models and recordings. Package CRC and SHA-256 checked; no raw user video, signing keys or private certificates included.
+
+---
+
 # Acoustic clock recovery — 2026-11-08
 
 - User reports physical phone playback → laptop microphone failure with 0 CRC-valid packets. The actual failed recording has not yet been supplied; its cause is not confirmed.

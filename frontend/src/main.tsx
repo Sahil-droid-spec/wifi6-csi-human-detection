@@ -60,6 +60,7 @@ import {Acoustic} from "./Acoustic";
 import {AcousticLink} from "./AcousticLink";
 import {Workbench} from "./Workbench";
 import {GlobalCommands} from "./GlobalCommands";
+import {ControlRoom} from "./ControlRoom";
 import {PhoneFiles,Progression,ResearchCode,NotebookLinks} from "./Demo";
 import {CameraStudio} from "./CameraStudio";
 import {PresenceExperiment} from "./PresenceExperiment";
@@ -75,7 +76,7 @@ type Page =
   | "data"
   | "dsp"
   | "learning"
-  | "replay"
+  | "replay" | "control"
   | "results"
   | "modes"
   | "settings"
@@ -103,6 +104,7 @@ const stagePages: Page[] = [
 ];
 const nav = [
   { id: "overview", label: "Home", icon: LayoutDashboard },
+  { id: "control", label: "Command center", icon: Activity },
   { id: "data", label: "Library", icon: Database },
   { id: "media", label: "Lab notebook", icon: FolderOpen },
   { id: "dsp", label: "Signal Studio", icon: AudioLines },
@@ -865,7 +867,7 @@ function App() {
               <button className={page==='overview'?'active':''} onClick={()=>navigate('overview')}><LayoutDashboard size={19}/><span>Home</span></button>
               {[
                 {title:'Connect & share',ids:['settings','transfer','inbox']},
-                {title:'Signal lab',ids:['dsp','workbench','link','acoustic','audio','receiver','advanced','camera','retina','matlab']},
+                {title:'Signal lab',ids:['control','dsp','workbench','link','acoustic','audio','receiver','advanced','camera','retina','matlab']},
                 {title:'Data & learning',ids:['data','learning','presence','replay','smartcsi','simulation']},
                 {title:'Research & notebook',ids:['journey','graphs','results','media','modes','plan']},
                 {title:'Help',ids:['guide','glossary']}
@@ -1029,6 +1031,7 @@ function App() {
               )}
               {page === "overview" && (
                 <>
+                  <section className="control-home-link"><div><h3>Your new Command center</h3><p>A spatial explainer, same-input DSP graphs and saved model evidence in one view.</p></div><button className="button" onClick={()=>navigate('control')}>Open Command center <ArrowRight size={16}/></button></section>
                   <div className="mode-toolbar">
                     <div className="mode-switch">
                       {[
@@ -1270,6 +1273,7 @@ function App() {
               {page === "acoustic"&&<Acoustic/>}
               {page === "link"&&<AcousticLink/>}
               {page === "workbench"&&<Workbench/>}
+              {page === "control"&&<ControlRoom state={state} capture={capture} onSelect={setSelected} onNavigate={p=>navigate(p as Page)} reduced={!motion}/>}
               {page === "camera"&&<CameraStudio/>}
               {page === "matlab"&&<MatlabStudio/>}
               {page === "audio"&&<AudioStudio/>}

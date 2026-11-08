@@ -2,7 +2,9 @@
 
 A local research lab for recorded Wi-Fi CSI, DSP, machine learning, and soft computing. A laptop hosts the app and phone workspace. Orbit keeps recorded detection experiments, ns-3 research, and ordinary file transfers distinct.
 
-## App checkpoint · 4.3
+## App checkpoint · 4.4
+
+Command center adds a procedural 3D explainer, gap-aware same-input DSP graphs, subcarrier maps and links to matched model evidence. The acoustic receiver now handles a clipped training preamble while retaining CRC/AEAD/hash validation. [4.4 guide](docs/command_center_release_4_4.md).
 
 The existing interface and research gallery are retained. Connected workbench adds shared file lifecycle, offline English transcription, reproducible DSP workflows, generated modulation/BER practicals, reference-based research tools and device diagnostics. AcousticLink adds SECDED, selectable rates and a sender-bound decoded ACK path; APK 4.3 adds preview-first native photo/voice workflows and secure media permission support.
 

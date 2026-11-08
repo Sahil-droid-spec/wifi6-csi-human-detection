@@ -1,3 +1,7 @@
+# Current checkpoint · 4.4 · 2026-11-08
+
+Command center and clipped-preamble repair are implemented. Use the [4.4 install/test guide](command_center_release_4_4.md). Existing APK 4.3 remains compatible. Physical microphone delivery remains unverified; supplied screen-clip framing recovery is not a room-acoustic test. Earlier entries below are historical.
+
 # Current checkpoint · 4.3 · 2026-11-08
 
 Use [the canonical checklist](ORBIT_PROJECT_CHECKLIST.md) for current statuses and [the release guide](professional_release_4_3.md) for install/demo steps. Older entries below are historical checkpoints.

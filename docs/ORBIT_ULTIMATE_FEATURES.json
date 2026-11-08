@@ -1,8 +1,13 @@
 {
   "updated": "2026-11-08",
-  "version": "4.3.0",
+  "version": "4.4.0",
   "canonical_checklist": "docs/ORBIT_PROJECT_CHECKLIST.md",
   "features": [
+    {
+      "feature": "Command center and spatial explainer",
+      "status": "VERIFIED WORKING (software)",
+      "evidence": "Actual selected-data graphs, gap-aware contiguous filtering/spectrum, run save/export, desktop/phone-width browser checks. Procedural human scene is illustration, not inferred pose. Physical handset acceptance remains unverified."
+    },
     {
       "feature": "Existing menus, themes, navigation, interactions and research graphs",
       "status": "VERIFIED WORKING",
@@ -46,7 +51,7 @@
     {
       "feature": "AES-GCM BFSK text/binary reconstruction",
       "status": "VERIFIED WORKING (codec)",
-      "evidence": "Exact supplied-WAV reconstruction, hash, tamper, wrong-key and incomplete-recording tests. Maximum payload 8192 bytes; slower/FEC profiles can hit the 300-second cap earlier."
+      "evidence": "Exact supplied-WAV reconstruction, hash, tamper, wrong-key and incomplete-recording tests; clipped-preamble repair verified against supplied screen-recording audio. Not a microphone acceptance claim. Maximum payload 8192 bytes; slower/FEC profiles can hit the 300-second cap earlier."
     },
     {
       "feature": "SECDED FEC and modem rates",
