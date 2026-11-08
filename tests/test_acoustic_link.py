@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 from scipy.io import wavfile
+from scipy.signal import resample
 
 from orbit.acoustic_link import RATE, decode_packets, envelope, modulate, open_envelope
 from orbit.api import create_app
@@ -50,6 +51,27 @@ def test_decoder_requires_complete_crc_checked_samples():
     # A microphone starts at an arbitrary sample position. Check all phases.
     for shift in (1, 7, 19, 37):
         assert decode_packets(np.r_[np.zeros(shift), x])[0] == [raw]
+
+
+@pytest.mark.parametrize("ppm", [1000, -1000, 2000, -2000])
+def test_bounded_clock_search_on_generated_drift_only(ppm):
+    raw = envelope(b"Physical clock check", "message.txt", True, KEY)
+    x, total = modulate(raw)
+    # Explicit generated impairment, not a captured phone/speaker measurement.
+    received = np.r_[np.zeros(873), resample(x, round(len(x) * (1 + ppm / 1e6)))]
+    assert not decode_packets(received)[0]
+    recovered, report = decode_packets(received, clock_search=True)
+    assert recovered == [raw]
+    assert report["crc_valid_packets"] == total
+    assert report["clock_adjustment_ppm"] == ppm
+    assert open_envelope(recovered[0], KEY)[2] == b"Physical clock check"
+
+
+def test_clock_search_does_not_invent_silent_or_truncated_payload():
+    assert not decode_packets(np.zeros(RATE), clock_search=True)[0]
+    raw = envelope(b"short", "message.txt", True, KEY)
+    x, _ = modulate(raw)
+    assert not decode_packets(x[: len(x) // 3], clock_search=True)[0]
 
 
 def test_api_two_sessions_reconstruction_replay_and_library(tmp_path, monkeypatch):

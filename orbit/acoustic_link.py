@@ -232,14 +232,33 @@ def _decode_at_rate(audio: np.ndarray, sps: int):
     }
 
 
-def decode_packets(audio: np.ndarray):
+def decode_packets(audio: np.ndarray, clock_search: bool = False):
     best = None
     for sps in (40, 80, 160):
         complete, report = _decode_at_rate(audio, sps)
         if complete:
-            return complete, report
+            return complete, {**report, "clock_adjustment_ppm": 0}
         if best is None or report["crc_valid_packets"] > best[1]["crc_valid_packets"]:
             best = (complete, report)
+    # Speaker/ADC clocks need not agree with WAV metadata. Keep the nominal
+    # path unchanged; bounded fallback never bypasses CRC, AEAD or SHA checks.
+    if clock_search and len(audio) <= RATE * 60 and np.max(np.abs(audio)) > 1e-7:
+        for ppm in (1000, -1000, 2000, -2000, 500, -500, 250, -250):
+            divisor = math.gcd(1000000, 1000000 + ppm)
+            adjusted = signal.resample_poly(audio, 1000000 // divisor, (1000000 + ppm) // divisor)
+            for sps in (40, 80, 160):
+                complete, report = _decode_at_rate(adjusted, sps)
+                report["clock_adjustment_ppm"] = ppm
+                if complete:
+                    return complete, report
+                if report["crc_valid_packets"] > best[1]["crc_valid_packets"]:
+                    best = (complete, report)
+    best[1].setdefault("clock_adjustment_ppm", 0)
+    best[1]["clock_search"] = (
+        "Eight fixed clock corrections, at most 60 seconds of input."
+        if clock_search and len(audio) <= RATE * 60
+        else "Not requested or recording exceeds the 60-second fallback bound."
+    )
     return best
 
 
@@ -406,10 +425,10 @@ def install(app, ctx):
             "protocol": "Generated return ACK. Sender must decode this audio before its matching transmission is acknowledged; generation/playback alone is not delivery.",
         }
 
-    def recover(raw, passphrase, preset, source, receiver_session):
+    def recover(raw, passphrase, preset, source, receiver_session, clock_search):
         began = time.perf_counter()
         x = samples(raw)
-        before, baseline = decode_packets(x)
+        before, baseline = decode_packets(x, clock_search=clock_search)
         if preset == "bandpass":
             processed = signal.sosfilt(
                 signal.butter(4, [800, 2800], btype="bandpass", fs=RATE, output="sos"), x
@@ -423,7 +442,11 @@ def install(app, ctx):
             processed = signal.lfilter(b, a, x)
         else:
             processed = x
-        envelopes, after = (before, baseline) if preset == "raw" else decode_packets(processed)
+        envelopes, after = (
+            (before, baseline)
+            if preset == "raw"
+            else decode_packets(processed, clock_search=clock_search)
+        )
         report = {
             "source": source,
             "filter": preset,
@@ -437,7 +460,11 @@ def install(app, ctx):
             return {
                 **report,
                 "success": False,
-                "reason": "A complete message was not recovered. Record the full transmission, or try the raw signal.",
+                "reason": (
+                    "No valid packets found. Check that the selected microphone heard the full modem beeps, not speech; save this recording for diagnosis."
+                    if after["crc_valid_packets"] == 0
+                    else "Some packets passed CRC, but the whole message is incomplete. Record every frame, including the end; try a shorter message and 100/200 bit/s with SECDED."
+                ),
                 "elapsed_ms": (time.perf_counter() - began) * 1000,
             }
         ident, metadata, content, encrypted = open_envelope(envelopes[0], passphrase)
@@ -534,6 +561,7 @@ def install(app, ctx):
         request: Request,
         preset: Literal["raw", "bandpass", "lowpass", "notch"] = "raw",
         source: Literal["UPLOADED MODEM WAV", "MICROPHONE RECORDING"] = "UPLOADED MODEM WAV",
+        clock_search: bool = False,
     ):
         key = request.headers.get("x-orbit-passphrase", "")
         if len(key) > 700:
@@ -557,6 +585,7 @@ def install(app, ctx):
                 preset,
                 source,
                 hashlib.sha256(request.cookies.get("orbit_session", "").encode()).hexdigest()[:20],
+                clock_search,
             )
         finally:
             operation_lock.release()

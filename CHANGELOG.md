@@ -1,3 +1,7 @@
+# Acoustic microphone recovery · 2026-11-08
+
+- Add opt-in bounded clock-offset correction, microphone selection and a measured input-level display. Keep receiver WAVs available for explicit replay/save/download; distinguish zero valid frames from missing frames. Physical room acceptance remains unverified.
+
 # Acoustic result feedback fix · 2026-11-08
 
 - Show generated-WAV test progress, recovered text and failures beside its button. Show microphone-decoded text before return-ACK controls. Correct the speech-transcription help link.

@@ -1,3 +1,15 @@
+# Acoustic clock recovery — 2026-11-08
+
+- User reports physical phone playback → laptop microphone failure with 0 CRC-valid packets. The actual failed recording has not yet been supplied; its cause is not confirmed.
+- Reproduced a decoder weakness on explicitly generated +1000, -1000, +2000 and -2000 ppm clock-stretched WAVs with an 873-sample start offset. Nominal fixed-clock decoding failed these fixtures; bounded correction recovered exact encrypted payloads. These are Simulation fixtures, not room measurements.
+- Optional microphone/upload recovery searches eight fixed clock corrections on at most 60 seconds of input. Nominal path, CRC, AES-GCM authentication and SHA-256 are retained. Silence and incomplete messages are rejected; no universal acoustic reliability claim.
+- Added selectable browser microphones, actual sample-derived live dBFS display, receiver recording replay and explicit Library save/download for troubleshooting. Native phone recording behavior is retained.
+- Full project regression: 150 passed, 1 upstream Starlette warning in 138.71s. Ruff passed. TypeScript/Vite build passed with the existing large-bundle advisory.
+- Frozen Windows HTTP API reproduced +1000 ppm failure then exact recovery with clock_search=true, preserving Simulation and physical_verified=false. Physical handset acceptance of the fix remains NOT EXECUTED.
+- Matching backend/static files installed into the existing Downloads/ORBIT with backups outside user data; restart is required. Small recovery ZIP verified by CRC and payload SHA-256.
+
+---
+
 # Acoustic result visibility check — 2026-11-08
 
 - Inspected the running installed laptop app: actual generated-file result showed Hash-checked content recovered, 2 CRC-valid packets and Hello Orbit. The message was below the ACK controls; no physical audio success inferred.

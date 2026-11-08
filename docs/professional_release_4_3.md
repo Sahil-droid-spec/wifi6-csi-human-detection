@@ -139,3 +139,7 @@ Original SmartCSI inference remains blocked without its original trained RF, fea
 - [ ] Supported CSI/SDR hardware and independent research references tested separately, or explicitly marked unavailable.
 
 Physical handset/media/room-acoustic acceptance is **NOT EXECUTED** by the software tests. Exact original SmartCSI and independent clinical validation are **BLOCKED** by missing inputs. Use the canonical checklist for all partial scope rather than calling the whole project 100% complete.
+
+## If a real phone recording returns zero valid packets
+
+Restart the laptop server after installing the acoustic recovery update, then reopen the phone page. On laptop select Raw baseline and Refresh microphone choices; choose the intended built-in/USB microphone. Record first and check that the measured input level responds to the phone modem sound. On phone choose the room-test profile (200 bit/s + SECDED), regenerate a short Hello message and play it completely. Stop the laptop recording after playback ends. Clock fallback is bounded to 60-second recordings and does not guarantee success. If it still fails, choose Save recording to Library for diagnosis, then Download saved receiver WAV; provide that WAV for investigation. Generated-WAV success is not physical delivery.
