@@ -407,7 +407,7 @@ def install(app, ctx):
             ]
             if row
             else [],
-            "software_version": "Orbit 4.4",
+            "software_version": "Orbit 5.0",
             "limitations": [],
             "notes": body.notes,
         }

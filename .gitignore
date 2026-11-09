@@ -34,3 +34,5 @@ dist-desktop/
 *.spec
 .ruff_cache/
 speech-models/
+
+frontend/.timeline-test/

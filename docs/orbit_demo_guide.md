@@ -1,38 +1,27 @@
-# Orbit: tomorrow's demo
+# ORBIT 5.0 — simple demo
 
-Open the application at **http://127.0.0.1:8765** after starting the local server. Enter the access code printed in your local terminal. Normal launcher restarts print a new code.
+1. Close Orbit and its server, apply the update to the existing folder containing Orbit.exe, keep orbit-data, and restart Start-Orbit-Server.cmd for phone access. The server is still necessary and retained. In-app updates require a server restart, not just a page refresh.
+2. Open **Signal lab → 3D Sensing Studio** (or Ctrl+K → 3D Sensing Studio). Select **Simulation library → One person walking → Apply & restart simulation**.
+3. Say: “This is a generated complex-channel experiment. The 3D person explains the scenario; this is not a body or position reconstructed from Wi-Fi.”
+4. Press **Play**. The packet counter, scene label, generated movement, graph cursor and motion card use one timeline. Pause, Step packet or scrub to inspect the same sample. Low-quality windows show a gap, not an invented result.
+5. Drag the room to orbit; use Zoom+/−, Pan arrows, Top/Front/Side, Human focus and Reset. Try solid, wireframe and hologram. Expand Scene controls to toggle room/grid/signals/person. Change the global theme: the room, cards and text should follow it.
+6. Open **CSI explorer**: amplitude heatmap and phase when the input actually contains complex values. Amplitude-only recordings correctly say phase unavailable.
+7. Open **DSP laboratory**. Compare raw and filtered data; select FIR/Hamming or Butterworth. Cutoff is cycles per packet; LP/HP/band and notch have different purposes. Say: “A smoother graph does not prove better detection.” Coefficients and response are calculated by real code.
+8. Open **FFT & STFT**. Explain frequency content and time-varying spectrum. Spectrum uses one stated contiguous valid segment. Hz needs a known sample rate; recorded untimed data use cycles per packet.
+9. Open **Motion analytics**. Show threshold crossings and Jump here. This is a motion proxy, not a trained human-presence probability. Still people may not trigger motion, and gain/noise changes can trigger false events.
+10. Open **Experiments**. Change seed/noise/loss/speed and Apply; same seed+settings reproduce the same channel. Save comparison summaries; do not describe them as an accuracy leaderboard. Empty baseline calibration is synthetic, separate from recorded validation.
+11. Open **Record & export → Save NPZ to Library**. Download NPZ/JSON/CSV. Reopen the exported JSON/NPZ using the file control above. NPZ preserves complex channel; JSON is the median-trace summary. Files retain Simulation metadata. Shared file management is **Connected workbench → Library** (rename/export/trash/restore).
+12. To show your own CSI, use the saved-input selector above, choose **Selected saved CSI recording**, then Load. The avatar is an illustration and recording remains unchanged. If an evaluated model has held-out windows for that capture, load it explicitly: its actual saved decision appears only within those windows. Use existing Replay/Evidence for the full validation report. No compatible model means no invented prediction.
+13. Diagnostics checks the actual server and displays the real configuration; Theory & viva gives searchable formulas and explanations.
 
-## What is already saved
+## Connect your phone
 
-- **20MHz.zip:** 15 actual captures, 1,920 accepted windows.
-- **40MHz.zip:** 11 actual captures, 382 accepted windows.
-- **Seven trained models:** Logistic Regression, Random Forest and ANN for both bandwidths, plus GA + Random Forest for 20 MHz.
-- The supplied repository ZIP is stored as a downloadable project reference.
-- The app's **orbit-data** folder contains the local originals, capture cache, trained artifacts and SQLite library. Leave this folder in place so the saved data remains available after restarting. It is excluded from GitHub and the source-only downloadable app ZIP.
+Keep laptop and phone on the same reachable Wi-Fi or laptop hotspot. Start-Orbit-Server.cmd, open Connect, create a fresh QR and scan it. localhost/127.0.0.1 on a phone points to the phone, not the laptop. Use the laptop's current LAN address. Use Connection Doctor if client isolation/firewall blocks it; do not disable authentication or expose the server publicly.
 
-## A simple presentation flow
+Existing signed companion APK4.3 loads the updated UI from the laptop. This release changes web/backend code, not native Java. A physical handset's pairing, upload, GPU performance and microphone transfer still need acceptance. Phone camera/microphone commonly need trusted HTTPS; normal file transfer does not prove live CSI.
 
-1. In **Data & captures → Saved datasets**, select 20MHz.zip and click **Run recording**. You can also select the saved dataset and capture directly in Replay.
-2. In **Detect & replay**, choose **Raw CSI**, a single classifier, or **Compare all available classifiers**, then press the run button. Comparison cards are clickable; each opens that model's real window timeline.
-3. Press **Play recording** or move through the actual packet windows. The P(presence) value is a model output, not evaluation accuracy. A training recording is labelled accordingly; held-out accuracy is in Learning Lab.
-4. Open **Learning Lab**. The ANN/model bench has the saved trained models and loss curves. Genetic Algorithms shows the saved GA result and its random-feature baseline. Fuzzy Logic is an interactive educational rule system: change inputs or rules and observe the computed score.
-5. Use the top-right theme menu: **Google Light**, **Soft Sage**, **Orbit Midnight**, **Classic Dark**. Presentation mode reduces routine pop-ups and folds long explanations under Method & data notes. Essential mismatch/errors and research caveats remain available.
-6. **Recordings & media** stores experiment photos, video and audio. Add a title, notes, and optional links to the dataset/capture. Native playback and opening the original file are available.
-7. In **Server & settings**, use the LAN address/QR for a phone on the same Wi-Fi. The same session code works on the phone. A real Sharing switch turns remote access on/off from the laptop.
+## The Wi-Fi6 engineering story
 
-## Send new data from a phone
+“Our original experiment studies how human presence changes recorded Wi-Fi channel measurements. Orbit lets us inspect those measurements, process them and evaluate models with recording/date separation. The 3D simulator explains the signal path; the DSP lab shows what filters do to the same samples. Phone uploads connect our devices, but uploaded application bytes are different from radio CSI. AcousticLink is a separate sound-modem experiment. We compare measured results only under their stated protocol, including negative findings.”
 
-- Open a displayed LAN address, enter the session code, then choose **New data**.
-- Upload a compatible CSI ZIP with config.json, or a MATLAB v7.3/HDF5 capture. For a single MAT without metadata, explicitly choose its actual AX/20 MHz or AX/40 MHz profile. The unlabelled setting supports inference; known labels can be supplied for training. Unsupported schemas are reported rather than silently interpreted.
-- Use **Photos & videos** for experiment media. Images and video are stored as references; they are not converted into Wi-Fi CSI measurements.
-- CSI upload limit: 2 GiB; media file limit: 1 GiB.
-
-## Restart later
-
-Double-click **Start-Orbit-Server.cmd** in the Orbit folder for laptop + phone access. Use **Start-Orbit.cmd** for laptop-only mode. Python 3.10+ is required; the launcher installs its private environment on first use. Keep the server terminal running. The session code is printed in that terminal.
-
-## Research context
-
-AX is the recorded CSI analysis mode. BF is the network-simulator research mode, not a physical BF presence detector. The 40 MHz dataset is date/class confounded and evaluated by capture; 20 MHz evaluation holds out recording dates but contains only two dates. New local model scores are kept separate from the original historical CSVs. Hardware/live through-wall claims remain unverified.
-
-Current update: 36 backend tests pass, the production frontend builds, and real recordings were imported and used for training and inference. A physical phone upload still depends on your network/firewall and needs a real-device check.
+Existing SAGE/SmartCSI research results, MATLAB/Simulink, audio/mixer/speech, SDR and consented camera/retinal pages remain in their previous menus. Imported scores are not equivalent to rerunning original trained SmartCSI artifacts. No promise of medical diagnosis, webcam blood pressure, verified native802.11bf or through-wall localization.

@@ -1,3 +1,21 @@
+# ORBIT canonical checklist — 5.0 spatial milestone — 2026-11-09
+
+This is a merged progress entry; all earlier rows remain below. The new authoritative requirements are recorded in the [parity matrix](REFERENCE_VIDEO_FEATURE_MATRIX.md). **The project is not100%complete.** Hardware acceptance and explicit PARTIAL rows remain.
+
+| Scope | Status | Evidence / remaining limit |
+|---|---|---|
+| Genuine 3D articulated human/room, orbit/pan/zoom, TX/RX, styles | IMPLEMENTED & TESTED | SpatialScene WebGL render, controls and source-labelled export; visual audit below. |
+| Shared simulation/recorded packet cursor, CSI/DSP/spectrum/motion tabs | IMPLEMENTED & TESTED | Source-bound software tests and real browser renders; no inferred recorded pose. |
+| Reproducible seeded complex multipath simulation and13controls | IMPLEMENTED & TESTED | Determinism, effects of channel controls, jitter, missing packets, buffer bounds. |
+| Gap-safe FIR/Butterworth/notch, LP/HP/BP/BS, FFT/STFT | IMPLEMENTED & TESTED | Same-window SciPy/NumPy reference tests and stated processing protocol. |
+| JSON/NPZ reopen; CSV/JSON/NPZ source-preserving export; Library save | IMPLEMENTED & TESTED | Roundtrip, hashes, source flags and hostile archive rejection tests. |
+| Full reference-video parity | PARTIAL | Every observed page/control is accounted for in the parity matrix; no silent optional downgrade. |
+| Physical phone, acoustic both ways, live RF/CSI, clinical validation | IMPLEMENTED / HARDWARE UNVERIFIED or BLOCKED | Unchanged explicit physical/artifact limitations; software clients do not establish acceptance. |
+
+Detailed evidence: [acceptance results](ORBIT_ACCEPTANCE_RESULTS.md), [visual audit](ORBIT_VISUAL_AUDIT.md), [demo](ORBIT_DEMO_GUIDE.md). Earlier progress follows verbatim.
+
+---
+
 # Orbit canonical checklist — 4.4 — 2026-11-08
 
 This replaces the active checklist. The [4.2 checklist](archive/ORBIT_PROJECT_CHECKLIST_4_2.md) is preserved as history. A software test is not physical phone, RF or medical acceptance. No 100% completion claim is made.

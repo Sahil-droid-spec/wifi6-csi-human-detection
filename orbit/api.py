@@ -192,7 +192,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     app = FastAPI(
         title="Orbit Wi-Fi Sensing Lab",
-        version="4.4.0",
+        version="5.0.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
@@ -262,7 +262,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
     def health():
         return {
             "status": "online",
-            "version": "4.4.0",
+            "version": "5.0.0",
             "local_only": True,
             "instance_id": app.state.instance_id,
         }
@@ -318,7 +318,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             "lan": sharing["enabled"],
             "media": [row for row in rows("media") if not row.get("trashed")],
             "references": rows("reference"),
-            "version": "4.4.0",
+            "version": "5.0.0",
         }
 
     cancelled = set()

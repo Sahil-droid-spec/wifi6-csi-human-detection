@@ -1,3 +1,9 @@
+# Current checkpoint — 5.0 spatial milestone — 2026-11-09
+
+Actual WebGL 3D scene replaces the former projected2Dcanvas. Dedicated3DSensingStudio adds shared packet replay, complex-channel simulation, source-aware CSI/phase, DSP, FFT/STFT, motion events, bounded experiments, safe session roundtrip and shared Library saving. Existing server, phone transfer and all older menus remain. Themes now flow through the scene and Command center rather than a fixed dark override.
+
+Use the [canonical checklist](ORBIT_PROJECT_CHECKLIST.md) and [reference parity matrix](REFERENCE_VIDEO_FEATURE_MATRIX.md). PARTIAL rows remain explicit: full stream recording UX, persistent filter-comparison gallery, some motion/diagnostic cards, exhaustive theme/accessibility/performance acceptance and hardware tests. This is a working implementation milestone, **not a claim that all master requirements or physical experiments are finished**. Older statuses below are historical and should not override this entry.
+
 # Current checkpoint · 4.4 · 2026-11-08
 
 Command center and clipped-preamble repair are implemented. Use the [4.4 install/test guide](command_center_release_4_4.md). Existing APK 4.3 remains compatible. Physical microphone delivery remains unverified; supplied screen-clip framing recovery is not a room-acoustic test. Earlier entries below are historical.

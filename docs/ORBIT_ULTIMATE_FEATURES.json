@@ -1,8 +1,13 @@
 {
-  "updated": "2026-11-08",
-  "version": "4.4.0",
+  "updated": "2026-11-09",
+  "version": "5.0.0",
   "canonical_checklist": "docs/ORBIT_PROJECT_CHECKLIST.md",
   "features": [
+    {
+      "feature": "WebGL3D sensing studio and reference parity",
+      "status": "PARTIAL",
+      "evidence": "Genuine WebGL scene and numerical pipeline implemented and software-tested; see docs/REFERENCE_VIDEO_FEATURE_MATRIX.md for per-control acceptance and remaining boundaries."
+    },
     {
       "feature": "Command center and spatial explainer",
       "status": "VERIFIED WORKING (software)",
@@ -94,7 +99,7 @@
       "evidence": "Local Vosk model produced actual words and timings; no cloud service or unmeasured WER. Human/accent accuracy requires references."
     },
     {
-      "feature": "Speech → text → encrypted modem → text → ACK",
+      "feature": "Speech \u2192 text \u2192 encrypted modem \u2192 text \u2192 ACK",
       "status": "VERIFIED WORKING (software)",
       "evidence": "Full chain executed in frozen Windows build using generated speech."
     },
@@ -140,7 +145,7 @@
     },
     {
       "feature": "Basic signals, DFT/inverse/phase, sampling/aliasing/sinc, quantisation/SNR, Hilbert",
-      "status": "VERIFIED WORKING — SIMULATION",
+      "status": "VERIFIED WORKING \u2014 SIMULATION",
       "evidence": "Parameterized numerical practicals with actual outputs, source labels and finite-record limits."
     },
     {
@@ -150,7 +155,7 @@
     },
     {
       "feature": "Laplace s-plane responses",
-      "status": "VERIFIED WORKING — SIMULATION",
+      "status": "VERIFIED WORKING \u2014 SIMULATION",
       "evidence": "Proper rational coefficients, actual continuous impulse/step and poles/zeros; distinct from digital z-plane."
     },
     {
@@ -160,7 +165,7 @@
     },
     {
       "feature": "ASK/BPSK/DPSK/QPSK/16QAM/generic OFDM",
-      "status": "VERIFIED WORKING — SIMULATION",
+      "status": "VERIFIED WORKING \u2014 SIMULATION",
       "evidence": "Known bits, seeded AWGN, actual errors/counts/BER and sweep. Generic OFDM is not IEEE 802.11ax."
     },
     {

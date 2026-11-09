@@ -17,6 +17,8 @@ def install(app, ctx):
     install_workspace(app, ctx)
     from .control_room import install as install_control_room
     install_control_room(app, ctx)
+    from .sensing_studio import install as install_sensing_studio
+    install_sensing_studio(app, ctx)
     from .speech import install as install_speech
     install_speech(app, ctx)
     from .research_tools import install as install_research_tools

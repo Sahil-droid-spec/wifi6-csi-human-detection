@@ -1,5 +1,5 @@
 # Orbit Android companion
-Native Android WebView companion for the paired local laptop server. It supports private IPv4 addresses, Orbit login, Android file selection/upload and authenticated downloads saved through Android's document UI. It does not contain Python models or acquire CSI from a phone's Wi-Fi chipset. Only INTERNET permission is requested; record media with the phone camera app, then select it for upload.
+Native Android WebView companion for the paired local laptop server. It supports private IPv4 addresses, Orbit login, Android file selection/upload and authenticated downloads saved through Android's document UI. It does not contain Python models or acquire CSI from a phone's Wi-Fi chipset. INTERNET, CAMERA and RECORD_AUDIO permissions are declared; camera and microphone access remain explicit user actions, never background capture.
 
 Intended minimum: Android 8/API 26 with up-to-date Android System WebView. Compile/target SDK: 35. The classroom APK uses a local test signing key. Verification covers v2/v3 signatures, alignment, package metadata and 13 address-parser cases. Physical-device runtime validation is still needed.
 
@@ -12,3 +12,5 @@ Phone and laptop must share a trusted network. Start laptop LAN mode, enter its 
 
 
 Step 1: build with --lan-host for each exact RFC1918 laptop IPv4 allowed for HTTP. Default cleartext is denied; WebView subresources stay on the paired origin. Changed IP: rebuild the APK or use the browser. Physical-device policy verification: NOT EXECUTED.
+
+5.0 spatial milestone: versionCode10, explicit hardware acceleration, existing signing identity. Build-time LAN list was refreshed for the current laptop Wi-Fi address and hotspot. A physical handset is still required to accept pairing, WebGL rendering, uploads and microphone capture. A later DHCP address change may require a rebuild or the phone browser; no universal automatic discovery claim.

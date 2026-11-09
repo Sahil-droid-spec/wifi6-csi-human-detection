@@ -1,0 +1,3 @@
+# Added3D runtime licenses
+
+Pinned npm metadata: three0.187.0 MIT; @react-three/fiber9.8.2 MIT. Installed MIT license files are preserved here for Three.js and new supporting runtime packages. Fiber npm archive omits its LICENSE file; the official upstream LICENSE was retrieved via GitHub Contents API. npm gitHead was not retrievable upstream; no pinned-commit license verification is claimed. Official source: https://github.com/pmndrs/react-three-fiber/blob/master/LICENSE . No third-party models/textures are bundled. Remaining React/ECharts/other existing notices retain their earlier distribution attribution.

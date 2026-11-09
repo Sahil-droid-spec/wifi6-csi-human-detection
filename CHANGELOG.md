@@ -1,3 +1,10 @@
+# 5.0 spatial milestone — 2026-11-09
+
+- Replace projected2Dfigure with procedural WebGL3D human/room, real camera controls, three styles, source-labelled exports, fallback and theme-linked materials.
+- Add dedicated3DSensingStudio and shared packet timeline, generated positions, explicit held-out prediction loading, CSI amplitude/valid phase, motion proxy/events, FFT/STFT and same-input filters.
+- Add bounded seeded multipath/noise/AGC/drift/jitter/loss experiments, safe JSON/NPZ reopening and hashed source-preserving exports/Library save.
+- Remove Command center's fixed dark palette, preserve existing menus/search/data/models and document full video-parity gaps honestly.
+
 # 4.4 · 2026-11-08
 
 - Add the responsive Command center, procedural 3D illustration with three styles and scenario controls, actual same-input graphs and source-labelled saved model evidence.

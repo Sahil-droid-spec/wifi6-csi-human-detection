@@ -76,7 +76,7 @@ type Page =
   | "data"
   | "dsp"
   | "learning"
-  | "replay" | "control"
+  | "replay" | "control" | "studio3d"
   | "results"
   | "modes"
   | "settings"
@@ -105,6 +105,7 @@ const stagePages: Page[] = [
 const nav = [
   { id: "overview", label: "Home", icon: LayoutDashboard },
   { id: "control", label: "Command center", icon: Activity },
+  { id: "studio3d", label: "3D Sensing Studio", icon: Waves },
   { id: "data", label: "Library", icon: Database },
   { id: "media", label: "Lab notebook", icon: FolderOpen },
   { id: "dsp", label: "Signal Studio", icon: AudioLines },
@@ -867,7 +868,7 @@ function App() {
               <button className={page==='overview'?'active':''} onClick={()=>navigate('overview')}><LayoutDashboard size={19}/><span>Home</span></button>
               {[
                 {title:'Connect & share',ids:['settings','transfer','inbox']},
-                {title:'Signal lab',ids:['control','dsp','workbench','link','acoustic','audio','receiver','advanced','camera','retina','matlab']},
+                {title:'Signal lab',ids:['control','studio3d','dsp','workbench','link','acoustic','audio','receiver','advanced','camera','retina','matlab']},
                 {title:'Data & learning',ids:['data','learning','presence','replay','smartcsi','simulation']},
                 {title:'Research & notebook',ids:['journey','graphs','results','media','modes','plan']},
                 {title:'Help',ids:['guide','glossary']}
@@ -1274,6 +1275,7 @@ function App() {
               {page === "link"&&<AcousticLink/>}
               {page === "workbench"&&<Workbench/>}
               {page === "control"&&<ControlRoom state={state} capture={capture} onSelect={setSelected} onNavigate={p=>navigate(p as Page)} reduced={!motion}/>}
+              {page === "studio3d"&&<ControlRoom key="studio3d" studio state={state} capture={capture} onSelect={setSelected} onNavigate={p=>navigate(p as Page)} reduced={!motion}/>}
               {page === "camera"&&<CameraStudio/>}
               {page === "matlab"&&<MatlabStudio/>}
               {page === "audio"&&<AudioStudio/>}
