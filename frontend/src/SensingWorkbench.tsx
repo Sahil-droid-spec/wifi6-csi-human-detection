@@ -6,6 +6,7 @@ import {
   packetAt,
   heldOutAt,
   qualityAt,
+  scenarioForFrame,
 } from "./sensingTimeline";
 const SpatialScene = lazy(() => import("./SpatialScene"));
 type D = Record<string, any>;
@@ -292,6 +293,40 @@ export function SensingWorkbench({
     packetAt(cursor, session?.packets || 0),
     session?.capture_id || null,
   );
+  useEffect(() => {
+    const asset = new URLSearchParams(location.hash.split("?")[1] || "").get(
+      "asset",
+    );
+    if (!asset || !/^[a-f0-9]{24}$/.test(asset)) return;
+    let active = true;
+    setBusy(true);
+    fetch("/api/sensing/recordings/" + asset + "/open", { method: "POST" })
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok)
+          throw Error(
+            d.detail || "Choose a valid Orbit sensing export in the Library.",
+          );
+        if (active) {
+          setSession(d);
+          setCursor(0);
+          setAnalysis(null);
+          setPlaying(false);
+          setNotice(
+            "Opened the shared Library asset. Source metadata and saved generated positions are retained.",
+          );
+        }
+      })
+      .catch((e) => {
+        if (active) setError(e.message);
+      })
+      .finally(() => {
+        if (active) setBusy(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   async function refreshRecordings() {
     try {
       const r = await fetch("/api/sensing/recordings"),
@@ -437,8 +472,9 @@ export function SensingWorkbench({
     score = session?.score[p],
     valid = session?.trace[p] !== null,
     time = session?.time[p] || 0;
-  const scenario = session?.config?.scenario || "still",
+  const scenario = scenarioForFrame(session?.config?.scenario,predictionWindow,!!valid),
     simulated = session?.config?.scenario !== undefined;
+  const monochrome=["paper","graphite"].includes(document.documentElement.dataset.theme||"");
   const colors = useMemo(() => {
     const s = getComputedStyle(document.documentElement);
     return {
@@ -484,7 +520,7 @@ export function SensingWorkbench({
     type: "line",
     showSymbol: false,
     connectNulls: false,
-    lineStyle: { color, type: dashed ? "dashed" : "solid" },
+    lineStyle: { color:monochrome?colors.text:color, type: dashed ? "dashed" : "solid" },
     data,
     markLine: marker,
   });
@@ -574,7 +610,7 @@ export function SensingWorkbench({
       min: data.length ? Math.min(...data.map((d) => d[2])) : 0,
       max: data.length ? Math.max(...data.map((d) => d[2])) : 1,
       show: false,
-      inRange: { color: ["#182d55", "#0072B2", "#56B4E9", "#E69F00"] },
+      inRange: { color: monochrome?["#eeeeee","#222222"]:["#182d55", "#0072B2", "#56B4E9", "#E69F00"] },
     },
     series: [
       {
@@ -817,14 +853,14 @@ export function SensingWorkbench({
         <>
           <div className="sensing-scene-layout">
             <Suspense fallback={<p>Loading the WebGL environment…</p>}>
-              <SpatialScene
+              <SpatialScene onTogglePlay={()=>setPlaying(v=>!v)} onRestart={()=>{setCursor(0);setPlaying(false);}}
                 frame={{
                   time,
                   packet: p,
                   scenario,
                   positions: simulated
                     ? session.positions.map((person: number[][]) => person[p])
-                    : [[0, 0, 0]],
+                    : scenario==='still'?[[0, 0, 0]]:[],
                   playing,
                   reduced,
                   source: session.source,
@@ -848,7 +884,7 @@ export function SensingWorkbench({
                 {qualityAt(session.trace, session.score, p) !== "usable"
                   ? qualityAt(session.trace, session.score, p)
                   : session.threshold == null
-                    ? "Uncalibrated recorded input"
+                    ? "Empty baseline not calibrated"
                     : score > session.threshold
                       ? "Motion proxy above threshold"
                       : "Below motion threshold"}
@@ -939,7 +975,9 @@ export function SensingWorkbench({
                     <p>
                       Validation protocol: {prediction.validation_protocol}.
                       Each decision is displayed only inside its actual saved
-                      window. This model does not control the avatar.
+                      window. Saved predictions use the model’s original trained
+                      preprocessing. These filter experiments do not retrain or
+                      change those predictions. A valid saved decision controls only an illustrative presence cue, never a recovered pose, count or location.
                     </p>
                   )}
                   {!availableModels.length && (
@@ -1242,7 +1280,7 @@ export function SensingWorkbench({
                   {
                     ...line(
                       "Group delay",
-                      analysis?.group_delay_samples.map(
+                      analysis?.group_delay_samples?.map(
                         (v: number, i: number) => [analysis.response[i][0], v],
                       ) || [],
                       "#009E73",
@@ -1252,6 +1290,27 @@ export function SensingWorkbench({
                 ],
               }}
               label="Calculated filter group delay"
+            />
+            <Plot
+              option={{
+                ...base,
+                xAxis: { ...base.xAxis, name: analysis?.frequency_unit },
+                yAxis: { ...base.yAxis, name: "unwrapped phase · rad" },
+                series: [
+                  {
+                    ...line(
+                      "Filter phase",
+                      analysis?.response_phase?.map((v: number, i: number) => [
+                        analysis.response[i][0],
+                        v,
+                      ]) || [],
+                      "#CC79A7",
+                    ),
+                    markLine: undefined,
+                  },
+                ],
+              }}
+              label="Calculated filter phase response"
             />
             <Plot
               option={{
@@ -1279,14 +1338,14 @@ export function SensingWorkbench({
                     type: "scatter",
                     symbol: "cross",
                     symbolSize: 10,
-                    itemStyle: { color: "#D55E00" },
+                    itemStyle: { color: monochrome?colors.text:"#D55E00" },
                     data: analysis?.poles || [],
                   },
                   {
                     name: "Zeros",
                     type: "scatter",
                     symbolSize: 9,
-                    itemStyle: { color: "#0072B2" },
+                    itemStyle: { color: monochrome?colors.text:"#0072B2" },
                     data: analysis?.zeros || [],
                   },
                 ],
@@ -1523,6 +1582,13 @@ export function SensingWorkbench({
                 <button
                   disabled={!recordingSegment}
                   onClick={() => {
+                    setClipEnd(
+                      Math.min(
+                        session.packets,
+                        Math.floor(cursor) + 1,
+                        clipStart + 10000,
+                      ),
+                    );
                     setRecordingSegment(false);
                     setPlaying(false);
                   }}

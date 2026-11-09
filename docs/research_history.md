@@ -311,7 +311,7 @@ This project uses a different dataset and adapts general CSI-processing concepts
 
 ## Orbit v1.1: saved datasets, themes and Learning Lab
 
-The app now includes saved-dataset selection, new-data drop/upload, a photo/video/audio library, four persistent themes, a quiet presentation view, single/all-classifier replay, and real phone-sharing controls. **Soft Computing** is now **Learning Lab**. Use `Start-Orbit-Server.cmd` to launch laptop + phone mode. See [the demo guide](docs/orbit_demo_guide.md).
+The app now includes saved-dataset selection, new-data drop/upload, a photo/video/audio library, four persistent themes, a quiet presentation view, single/all-classifier replay, and real phone-sharing controls. **Soft Computing** is now **Learning Lab**. Use `Start-Orbit-Server.cmd` to launch laptop + phone mode. See [the demo guide](ORBIT_DEMO_GUIDE.md).
 
 Data and trained model artifacts are stored only in the local `orbit-data/` folder. They are not committed to GitHub.
 

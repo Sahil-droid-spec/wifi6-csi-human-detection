@@ -168,8 +168,9 @@ def test_session_import_roundtrip_and_hostile_archives():
             imported = response.json()
             assert imported["synthetic"] and imported["source"] == "SIMULATION IMPORT"
             assert imported["trace"] == row["trace"] and imported["time"] == row["time"]
-            assert imported["threshold"] is None and imported["capture_id"] is None
+            assert imported["threshold"] == row["threshold"] and imported["capture_id"] is None
             if fmt == "npz":
+                np.testing.assert_allclose(imported["positions"], row["positions"])
                 r = c.post(f"/api/sensing/sessions/{imported['id']}/analyze", json={}).json()
                 assert r["phase"] is not None
         bad = io.BytesIO()
@@ -214,6 +215,7 @@ def test_segment_save_library_replay_analysis_and_motion_metrics(tmp_path):
             "save_asset": save,
             "rows": lambda kind: [r for r, _ in assets.values()],
             "load_asset": lambda ident: assets[ident],
+            "put": lambda kind, row: assets.update({row["id"]: (row, assets[row["id"]][1])}),
         },
     )
     with TestClient(app) as c:
@@ -236,6 +238,12 @@ def test_segment_save_library_replay_analysis_and_motion_metrics(tmp_path):
         opened = c.post(f"/api/sensing/recordings/{row['id']}/open").json()
         assert opened["packets"] == 96 and opened["trace"] == s["trace"][32:128]
         assert opened["source"] == "SIMULATION IMPORT"
+        assets[row["id"]][0]["synthetic"] = False
+        c.post(f"/api/sensing/recordings/{row['id']}/open")
+        assert assets[row["id"]][0]["synthetic"] is True
+        np.testing.assert_allclose(
+            np.asarray(opened["positions"]), np.asarray(s["positions"])[:, 32:128]
+        )
         analysis = c.post(
             f"/api/sensing/sessions/{ident}/analyze", json={"operation": "fir"}
         ).json()

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {advanceTimeline,packetAt,heldOutAt,qualityAt} from '../.timeline-test/sensingTimeline.js';
+import {advanceTimeline,packetAt,heldOutAt,qualityAt,scenarioForFrame} from '../.timeline-test/sensingTimeline.js';
 
 test('packet cursor clamps to the same finite buffer for scene, plots and verdict',()=>{
   assert.equal(packetAt(40.9,100),40);assert.equal(packetAt(-4,100),0);
@@ -26,4 +26,12 @@ test('quality state distinguishes warm-up, missing packet, gap-affected window a
   assert.equal(qualityAt(trace,score,25),'Window skipped · quality');
   assert.equal(qualityAt(trace,score,30),'Window skipped · quality');
   assert.equal(qualityAt(trace,score,35),'usable');
+});
+test('recorded avatars reflect an actual valid decision, while simulation remains explicit ground truth',()=>{
+  const yes={start:0,end:32,prediction:1},no={...yes,prediction:0};
+  assert.equal(scenarioForFrame(undefined,null,true),'unknown');
+  assert.equal(scenarioForFrame(undefined,yes,false),'unknown');
+  assert.equal(scenarioForFrame(undefined,yes,true),'still');
+  assert.equal(scenarioForFrame(undefined,no,true),'empty');
+  assert.equal(scenarioForFrame('walking',no,true),'walking');
 });

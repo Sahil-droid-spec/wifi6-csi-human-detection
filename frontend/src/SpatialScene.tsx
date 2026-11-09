@@ -14,6 +14,8 @@ import {
   CanvasTexture,
   Color,
   Group,
+  Euler,
+  Quaternion,
   Line,
   LineBasicMaterial,
   Vector3,
@@ -101,8 +103,8 @@ function palette(): Palette {
     surface: v("surface", "#ffffff"),
     text: v("text", "#18263c"),
     muted: v("muted", "#5e697b"),
-    blue: v("blue", "#0072b2"),
-    cyan: v("cyan", "#009e73"),
+    blue: ["paper","graphite"].includes(document.documentElement.dataset.theme||"")?v("text","#222222"):v("blue", "#0072b2"),
+    cyan: ["paper","graphite"].includes(document.documentElement.dataset.theme||"")?v("muted","#555555"):v("cyan", "#009e73"),
     line: v("line", "#b8c3d4"),
   };
 }
@@ -122,9 +124,20 @@ class SceneBoundary extends Component<
     return this.state.failed ? null : this.props.children;
   }
 }
-function ContextGuard({onLoss}:{onLoss:()=>void}){const {gl}=useThree();useEffect(()=>{const handler=(event:Event)=>{event.preventDefault();onLoss();};gl.domElement.addEventListener('webglcontextlost',handler);return()=>gl.domElement.removeEventListener('webglcontextlost',handler);},[gl,onLoss]);return null;}
+function ContextGuard({ onLoss }: { onLoss: () => void }) {
+  const { gl } = useThree();
+  useEffect(() => {
+    const handler = (event: Event) => {
+      event.preventDefault();
+      onLoss();
+    };
+    gl.domElement.addEventListener("webglcontextlost", handler);
+    return () => gl.domElement.removeEventListener("webglcontextlost", handler);
+  }, [gl, onLoss]);
+  return null;
+}
 function Controls({ options }: { options: Options }) {
-  const { camera, gl, invalidate } = useThree();
+  const { camera, gl, invalidate, size } = useThree();
   const ref = useRef<OrbitControls | null>(null);
   useEffect(() => {
     const c = new OrbitControls(camera, gl.domElement);
@@ -132,7 +145,7 @@ function Controls({ options }: { options: Options }) {
     c.enableDamping = true;
     c.dampingFactor = 0.08;
     c.minDistance = 2;
-    c.maxDistance = 24;
+    c.maxDistance = 48;
     c.maxPolarAngle = Math.PI * 0.49;
     ref.current = c;
     return () => {
@@ -148,11 +161,14 @@ function Controls({ options }: { options: Options }) {
       front: [0, 2.5, 10],
       side: [10, 2.5, 0],
     };
-    camera.position.fromArray(p[options.preset] || p.perspective);
+    const aspect=size.width/Math.max(1,size.height);
+    const fit=options.preset==='human'?Math.max(1,.65/aspect):Math.max(1,1.2/aspect)*Math.max(1,options.width/7,options.depth/5);
+    const target=new Vector3(0,1,0);
+    camera.position.fromArray(p[options.preset] || p.perspective).sub(target).multiplyScalar(fit).add(target);
     ref.current?.target.set(0, 1, 0);
     ref.current?.update();
     invalidate();
-  }, [options.preset, options.reset, camera, invalidate]);
+  }, [options.preset, options.reset, options.width, options.depth, size.width, size.height, camera, invalidate]);
   const lastPan = useRef(options.pan);
   useEffect(() => {
     const shift = options.pan - lastPan.current;
@@ -168,12 +184,15 @@ function Controls({ options }: { options: Options }) {
   useFrame(() => ref.current?.update());
   return null;
 }
+/** Display interpolation only; data/model windows are never resampled. */
+function SmoothGroup({position=[0,0,0],rotation=[0,0,0],snap=false,children}:{position?:number[];rotation?:number[];snap?:boolean;children?:ReactNode}){const object=useRef<Group>(null),ready=useRef(false);const target=useMemo(()=>new Vector3().fromArray(position),[position[0],position[1],position[2]]),q=useMemo(()=>new Quaternion().setFromEuler(new Euler(rotation[0],rotation[1],rotation[2])),[rotation[0],rotation[1],rotation[2]]);useFrame((_,dt)=>{const g=object.current;if(!g)return;if(snap||!ready.current){g.position.copy(target);g.quaternion.copy(q);ready.current=true;}else{const amount=1-Math.exp(-25*Math.min(dt,.1));g.position.lerp(target,amount);g.quaternion.slerp(q,amount);}});return <group ref={object}>{children}</group>;}
 function Limb({
   position,
   rotation,
   color,
   wire,
   joints,
+  snap,
   length = 0.5,
 }: {
   position: [number, number, number];
@@ -181,10 +200,11 @@ function Limb({
   color: string;
   wire: boolean;
   joints: boolean;
+  snap: boolean;
   length?: number;
 }) {
   return (
-    <group position={position} rotation={rotation}>
+    <SmoothGroup snap={snap} position={position} rotation={rotation}>
       <mesh position={[0, -length / 2, 0]}>
         <capsuleGeometry args={[0.075, length - 0.15, 5, 12]} />
         <meshStandardMaterial
@@ -200,7 +220,7 @@ function Limb({
           <meshStandardMaterial color={color} />
         </mesh>
       )}
-    </group>
+    </SmoothGroup>
   );
 }
 function Person({
@@ -210,6 +230,7 @@ function Person({
   color,
   moving,
   joints,
+  snap,
 }: {
   position: number[];
   phase: number;
@@ -217,11 +238,12 @@ function Person({
   color: string;
   moving: boolean;
   joints: boolean;
+  snap: boolean;
 }) {
   const swing = moving ? Math.sin(phase * 5) * 0.65 : 0,
     wire = style === "wireframe";
   return (
-    <group
+    <SmoothGroup snap={snap}
       position={[position[0] || 0, 0, position[1] || 0]}
       rotation={[0, position[2] || 0, 0]}
     >
@@ -268,37 +290,37 @@ function Person({
         rotation={[swing, 0, -0.08]}
         color={color}
         wire={wire}
-        joints={joints}
+        joints={joints} snap={snap}
       />
       <Limb
         position={[0.29, 1.53, 0]}
         rotation={[-swing, 0, 0.08]}
         color={color}
         wire={wire}
-        joints={joints}
+        joints={joints} snap={snap}
       />
-      <group position={[-0.29, 1.53, 0]} rotation={[swing, 0, -0.08]}>
+      <SmoothGroup snap={snap} position={[-0.29, 1.53, 0]} rotation={[swing, 0, -0.08]}>
         <Limb
           position={[0, -0.5, 0]}
           rotation={[-0.2, 0, 0]}
           length={0.36}
           color={color}
           wire={wire}
-          joints={joints}
+          joints={joints} snap={snap}
         />
-      </group>
-      <group position={[0.29, 1.53, 0]} rotation={[-swing, 0, 0.08]}>
+      </SmoothGroup>
+      <SmoothGroup snap={snap} position={[0.29, 1.53, 0]} rotation={[-swing, 0, 0.08]}>
         <Limb
           position={[0, -0.5, 0]}
           rotation={[-0.2, 0, 0]}
           length={0.36}
           color={color}
           wire={wire}
-          joints={joints}
+          joints={joints} snap={snap}
         />
-      </group>
+      </SmoothGroup>
       {[-1, 1].map((sign) => (
-        <group
+        <SmoothGroup snap={snap}
           key={sign}
           position={[sign * 0.13, 1.03, 0]}
           rotation={[sign * swing * 0.7, 0, 0]}
@@ -308,9 +330,9 @@ function Person({
             length={0.48}
             color={color}
             wire={wire}
-            joints={joints}
+            joints={joints} snap={snap}
           />
-          <group
+          <SmoothGroup snap={snap}
             position={[0, -0.48, 0]}
             rotation={[Math.max(0, -sign * swing), 0, 0]}
           >
@@ -319,14 +341,14 @@ function Person({
               length={0.46}
               color={color}
               wire={wire}
-              joints={joints}
+              joints={joints} snap={snap}
             />
             <mesh position={[0, -0.44, 0.07]}>
               <boxGeometry args={[0.16, 0.1, 0.29]} />
               <meshStandardMaterial color={color} wireframe={wire} />
             </mesh>
-          </group>
-        </group>
+          </SmoothGroup>
+        </SmoothGroup>
       ))}
       {style === "hologram" &&
         Array.from({ length: 15 }, (_, i) => (
@@ -344,7 +366,7 @@ function Person({
             />
           </mesh>
         ))}
-    </group>
+    </SmoothGroup>
   );
 }
 function NodeLabel({
@@ -460,7 +482,7 @@ function World({
       frame.scenario,
     ),
     count =
-      frame.scenario === "empty"
+      (frame.scenario === "empty" || frame.scenario === "unknown")
         ? 0
         : frame.scenario === "two" || frame.scenario === "crossing"
           ? 2
@@ -639,18 +661,20 @@ function World({
             color={i ? colors.blue : colors.cyan}
             moving={moving && options.pose === "scenario"}
             joints={options.joints}
+            snap={frame.reduced||!frame.playing}
           />
         ))}
     </>
   );
 }
-export default function SpatialScene({ frame }: { frame: SceneFrame }) {
+export default function SpatialScene({ frame,onTogglePlay,onRestart }: { frame: SceneFrame;onTogglePlay?:()=>void;onRestart?:()=>void }) {
   const [options, setOptions] = useState(initial),
     [colors, setColors] = useState(palette),
     [fps, setFps] = useState(0),
     [failed, setFailed] = useState(false),
     [message, setMessage] = useState(""),
-    [recording, setRecording] = useState(false);
+    [recording, setRecording] = useState(false),
+    [expanded, setExpanded] = useState(false);
   const root = useRef<HTMLDivElement>(null),
     canvas = useRef<HTMLCanvasElement | null>(null),
     recorder = useRef<MediaRecorder | null>(null),
@@ -665,7 +689,7 @@ export default function SpatialScene({ frame }: { frame: SceneFrame }) {
     const observer = new MutationObserver(sync);
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["data-theme", "style"],
+      attributeFilter: ["data-theme", "style", "data-effects"],
     });
     return () => {
       window.removeEventListener("orbit-theme", sync);
@@ -681,7 +705,30 @@ export default function SpatialScene({ frame }: { frame: SceneFrame }) {
     },
     [],
   );
-  useEffect(()=>{if(failed&&recorder.current?.state==='recording')recorder.current.stop();},[failed]);
+  useEffect(() => {
+    if (failed && recorder.current?.state === "recording")
+      recorder.current.stop();
+  }, [failed]);
+  useEffect(() => {
+    if (!expanded) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const key = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setExpanded(false);
+    };
+    window.addEventListener("keydown", key);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", key);
+    };
+  }, [expanded]);
+  const effectsReduced = document.documentElement.dataset.effects === "reduced";
+  const effectiveOptions = {
+    ...options,
+    quality: effectsReduced ? "low" : options.quality,
+    particles: options.particles && !effectsReduced,
+    scan: options.scan && !effectsReduced,
+  };
   const update = <K extends keyof Options>(key: K, value: Options[K]) =>
     setOptions((o) => ({ ...o, [key]: value }));
   const download = (blob: Blob, name: string) => {
@@ -781,11 +828,12 @@ export default function SpatialScene({ frame }: { frame: SceneFrame }) {
   };
   return (
     <section
-      className="spatial-studio"
+      className={"spatial-studio" + (expanded ? " spatial-expanded" : "")}
       ref={root}
       aria-label="Interactive WebGL 3D sensing environment"
     >
       <div className="spatial-toolbar">
+        {onTogglePlay&&<button title="Play or pause the same timeline used by the signal graphs. This does not start physical acquisition." onClick={onTogglePlay}>{frame.playing?'Pause scene':'Play scene'}</button>}{onRestart&&<button title="Restart the shared replay timeline without changing saved data." onClick={onRestart}>Restart replay</button>}
         <span className="spatial-chip">
           {failed ? "2D fallback" : "WEBGL · 3D"}
         </span>
@@ -797,6 +845,7 @@ export default function SpatialScene({ frame }: { frame: SceneFrame }) {
               v +
               " view. Drag to orbit; right-drag or two-finger drag to pan; scroll to zoom."
             }
+            disabled={failed}
             aria-pressed={options.preset === v}
             onClick={() => update("preset", v)}
           >
@@ -874,6 +923,7 @@ export default function SpatialScene({ frame }: { frame: SceneFrame }) {
                 fill="none"
                 stroke="currentColor"
               />
+              {Array.from({length:['empty','unknown'].includes(frame.scenario)?0:['two','crossing'].includes(frame.scenario)?2:1},(_,i)=><g key={i} transform={'translate('+(['two','crossing'].includes(frame.scenario)?(i?50:-50):0)+' 0)'}>
               <circle
                 cx="250"
                 cy="65"
@@ -886,6 +936,7 @@ export default function SpatialScene({ frame }: { frame: SceneFrame }) {
                 stroke="currentColor"
                 strokeWidth="6"
               />
+              </g>)}
             </svg>
           </div>
         ) : (
@@ -893,9 +944,9 @@ export default function SpatialScene({ frame }: { frame: SceneFrame }) {
             <Suspense fallback={<p>Preparing the 3D renderer…</p>}>
               <Canvas
                 dpr={
-                  options.quality === "low"
+                  effectiveOptions.quality === "low"
                     ? 1
-                    : options.quality === "high"
+                    : effectiveOptions.quality === "high"
                       ? [1, 2]
                       : [1, 1.5]
                 }
@@ -907,13 +958,12 @@ export default function SpatialScene({ frame }: { frame: SceneFrame }) {
                 }}
                 onCreated={({ gl }) => {
                   canvas.current = gl.domElement;
-
                 }}
               >
-                <ContextGuard onLoss={()=>setFailed(true)}/>
+                <ContextGuard onLoss={() => setFailed(true)} />
                 <World
                   frame={frame}
-                  options={options}
+                  options={effectiveOptions}
                   colors={colors}
                   onFps={setFps}
                 />
@@ -934,8 +984,8 @@ export default function SpatialScene({ frame }: { frame: SceneFrame }) {
             <span>● TX · transmitter</span>
             <span>● RX · receiver</span>
             <span>
-              {frame.scenario === "empty"
-                ? "Empty room"
+              {frame.scenario === "unknown" ? "No model verdict · avatar withheld" : frame.scenario === "empty"
+                ? "No person in this illustrated scenario/verdict"
                 : "Procedural avatar · not a recovered pose"}
             </span>
           </div>
@@ -976,15 +1026,23 @@ export default function SpatialScene({ frame }: { frame: SceneFrame }) {
         </button>
         <button
           onClick={() => {
-            const p = root.current?.requestFullscreen();
-            p?.catch(() =>
-              setMessage(
-                "Fullscreen is unavailable in this window. Open Orbit in a browser.",
-              ),
-            );
+            if (expanded) {
+              setExpanded(false);
+              if (document.fullscreenElement === root.current)
+                void document.exitFullscreen();
+              return;
+            }
+            setExpanded(true);
+            root.current
+              ?.requestFullscreen()
+              ?.catch(() =>
+                setMessage(
+                  "Expanded inside Orbit. Native fullscreen is restricted by this host. Use Exit expanded view or Escape to return.",
+                ),
+              );
           }}
         >
-          Fullscreen
+          {expanded ? "Exit expanded view" : "Fullscreen"}
         </button>
       </div>
       <details className="spatial-options">
@@ -1072,6 +1130,12 @@ export default function SpatialScene({ frame }: { frame: SceneFrame }) {
           settings are separate and explicitly applied.
         </p>
       </details>
+      {effectsReduced && (
+        <p>
+          Reduced effects limits render scale and suppresses decorative
+          particles and scanning plane.
+        </p>
+      )}
       {message && <p role="status">{message}</p>}
     </section>
   );

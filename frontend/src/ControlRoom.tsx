@@ -98,6 +98,7 @@ export function ControlRoom({
     globalThis.addEventListener("orbit-theme", f);
     return () => globalThis.removeEventListener("orbit-theme", f);
   }, []);
+  const mono=["paper","graphite"].includes(document.documentElement.dataset.theme||"");
   const themeStyle = getComputedStyle(document.documentElement),
     ink = themeStyle.getPropertyValue("--text").trim(),
     muted = themeStyle.getPropertyValue("--muted").trim(),
@@ -211,7 +212,7 @@ export function ControlRoom({
           type: "line",
           showSymbol: false,
           connectNulls: false,
-          lineStyle: { color: "#56B4E9", width: 1.7 },
+          lineStyle: { color: mono?ink:"#56B4E9", width: 1.7 },
           data:
             window?.packet.map((p: number, i: number) => [
               p,
@@ -222,7 +223,7 @@ export function ControlRoom({
           name: "Filtered",
           type: "line",
           showSymbol: false,
-          lineStyle: { color: "#E69F00", type: "dashed", width: 1.8 },
+          lineStyle: { color: mono?ink:"#E69F00", type: "dashed", width: 1.8 },
           data:
             dsp?.processed?.map((v: number, i: number) => [start + i, v]) || [],
         },
@@ -240,7 +241,7 @@ export function ControlRoom({
           name: "Original",
           type: "line",
           showSymbol: false,
-          lineStyle: { color: "#56B4E9" },
+          lineStyle: { color: mono?ink:"#56B4E9" },
           data:
             dsp?.frequency.map((v: number, i: number) => [
               v,
@@ -251,7 +252,7 @@ export function ControlRoom({
           name: "Filtered",
           type: "line",
           showSymbol: false,
-          lineStyle: { color: "#E69F00", type: "dashed" },
+          lineStyle: { color: mono?ink:"#E69F00", type: "dashed" },
           data:
             dsp?.frequency.map((v: number, i: number) => [
               v,
@@ -272,7 +273,7 @@ export function ControlRoom({
           name: "Filter response",
           type: "line",
           showSymbol: false,
-          lineStyle: { color: "#009E73" },
+          lineStyle: { color: mono?ink:"#009E73" },
           data:
             dsp?.response_frequency.map((v: number, i: number) => [
               v,
@@ -313,7 +314,7 @@ export function ControlRoom({
         bottom: 0,
         left: "center",
         textStyle: { color: ink },
-        inRange: { color: ["#102b46", "#0072B2", "#56B4E9", "#E69F00"] },
+        inRange: { color: mono?["#eeeeee","#222222"]:["#102b46", "#0072B2", "#56B4E9", "#E69F00"] },
       },
       series: [
         {
@@ -458,7 +459,7 @@ export function ControlRoom({
               </button>
             </div>
             <Suspense fallback={<p>Loading the WebGL 3D environment…</p>}>
-              <SpatialScene
+              <SpatialScene onTogglePlay={()=>setPlaying(v=>!v)} onRestart={()=>{setSceneTime(0);setPlaying(false);}}
                 frame={{
                   time: sceneTime,
                   scenario,

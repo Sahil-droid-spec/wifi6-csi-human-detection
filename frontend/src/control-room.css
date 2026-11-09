@@ -14,3 +14,5 @@
 
 .workspace-main:has(>.control-room)>.page-heading{display:none}
 .control-room :is(h1,h2,h3,h4,strong,b,th,td,summary){color:var(--text)!important}.control-room :is(p,small){color:var(--muted)!important}.control-room label{color:var(--text)!important}
+
+.control-room .control-error{background:var(--surface);color:var(--text)!important;border-color:var(--orange)}

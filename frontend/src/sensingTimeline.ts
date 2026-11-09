@@ -68,3 +68,10 @@ export function qualityAt(
       : "Window skipped · quality";
   return "usable";
 }
+
+/** Simulation ground truth is separate from recorded-model decisions. */
+export function scenarioForFrame(generated:string|undefined,decision:Window|null,usable:boolean):string{
+  if(generated)return generated;
+  if(!usable||!decision)return 'unknown';
+  return decision.prediction===1?'still':decision.prediction===0?'empty':'unknown';
+}

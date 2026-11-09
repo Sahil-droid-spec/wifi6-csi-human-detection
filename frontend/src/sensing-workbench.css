@@ -178,7 +178,7 @@
     transform: none !important;
   }
 }
-html[data-motion="reduce"] .sensing-workbench button {
+html[data-motion="reduced"] .sensing-workbench button {
   transition: none;
   transform: none !important;
 }

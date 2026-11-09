@@ -384,6 +384,7 @@ def install(app, ctx: dict) -> None:
                 invalid = ~np.isfinite(trace)
                 timestamps = np.asarray(metadata["time"], dtype=float)
                 channel = None
+                imported_positions = []
             elif file.filename and file.filename.lower().endswith(".npz"):
                 with zipfile.ZipFile(io.BytesIO(raw)) as z:
                     items = z.infolist()
@@ -396,6 +397,7 @@ def install(app, ctx: dict) -> None:
                         "metadata.npy",
                         "csi_real.npy",
                         "csi_imag.npy",
+                        "positions.npy",
                     }
                     if len({i.filename for i in items}) != len(items):
                         raise ValueError("The NPZ contains duplicate array entries.")
@@ -433,6 +435,7 @@ def install(app, ctx: dict) -> None:
                 with np.load(io.BytesIO(raw), allow_pickle=False) as z:
                     metadata = json.loads(str(z["metadata"]))
                     amplitude, invalid, timestamps = z["amplitude"], z["invalid"], z["timestamps"]
+                    imported_positions = list(z["positions"]) if "positions" in z else []
                     channel = (
                         z["csi_real"] + 1j * z["csi_imag"]
                         if "csi_real" in z and "csi_imag" in z
@@ -440,8 +443,10 @@ def install(app, ctx: dict) -> None:
                     )
             else:
                 raise ValueError("Choose an Orbit .json or .npz session export.")
-            if metadata.get("schema") != "orbit.sensing.v1" or not isinstance(
-                metadata.get("synthetic"), bool
+            if (
+                not isinstance(metadata, dict)
+                or metadata.get("schema") != "orbit.sensing.v1"
+                or not isinstance(metadata.get("synthetic"), bool)
             ):
                 raise ValueError("Use an Orbit export with explicit source metadata.")
             if (
@@ -490,8 +495,40 @@ def install(app, ctx: dict) -> None:
             }
             if channel is not None:
                 session["channel"] = channel
-            return register(session)
-        except (KeyError, TypeError, OSError, zipfile.BadZipFile, json.JSONDecodeError) as exc:
+            threshold = None
+            if session["synthetic"]:
+                if len(imported_positions) > 2 or any(
+                    p.shape != (n, 3)
+                    or p.dtype.kind not in "fiu"
+                    or not np.isfinite(p).all()
+                    or (np.abs(p) > 1000).any()
+                    for p in imported_positions
+                ):
+                    raise ValueError(
+                        "Use generated ground-truth positions matching the synthetic packet count."
+                    )
+                session["positions"] = imported_positions
+                config = metadata.get("config", {})
+                if not isinstance(config, dict):
+                    raise ValueError("Use an Orbit export with dictionary configuration metadata.")
+                if imported_positions or config.get("scenario") == "empty":
+                    session["config"] = config
+                threshold = metadata.get("calibrated_threshold")
+                if threshold is not None and (
+                    not isinstance(threshold, (int, float))
+                    or not np.isfinite(threshold)
+                    or not 0 <= threshold <= 1e6
+                ):
+                    raise ValueError("The saved synthetic calibration threshold is invalid.")
+            return register(session, threshold)
+        except (
+            KeyError,
+            TypeError,
+            OSError,
+            zipfile.BadZipFile,
+            json.JSONDecodeError,
+            RecursionError,
+        ) as exc:
             raise ValueError(
                 "Choose an intact Orbit session export; this file could not be read safely."
             ) from exc
@@ -520,6 +557,10 @@ def install(app, ctx: dict) -> None:
         metadata = {
             "schema": "orbit.sensing.v1",
             "packet_range": {"start": start, "end": end, "end_exclusive": True},
+            "calibrated_threshold": original.get("threshold") if original["synthetic"] else None,
+            "calibration_protocol": "Saved paired same-seed empty-simulation mean+kSD; not independently validated"
+            if original.get("threshold") is not None
+            else None,
             "synthetic": session["synthetic"],
             "source": session["source"],
             "capture_id": session["capture_id"],
@@ -535,6 +576,8 @@ def install(app, ctx: dict) -> None:
                 "timestamps": session["timestamps"],
                 "metadata": np.array(json.dumps(metadata)),
             }
+            if original["synthetic"] and original.get("positions"):
+                content["positions"] = np.asarray([p[start:end] for p in original["positions"]])
             if "channel" in session:
                 content.update(csi_real=session["channel"].real, csi_imag=session["channel"].imag)
             np.savez_compressed(buf, **content)
@@ -567,7 +610,7 @@ def install(app, ctx: dict) -> None:
             for i, t in enumerate(session["timestamps"]):
                 writer.writerow(
                     [
-                        i,
+                        i + start,
                         t,
                         session["synthetic"],
                         session["source"],
@@ -604,6 +647,7 @@ def install(app, ctx: dict) -> None:
             "Orbit-sensing-" + ident + ".npz",
             "sensing-studio",
             synthetic=session["synthetic"],
+            parent_id=session.get("asset_id"),
             capture_id=session["capture_id"],
             packet_range={"start": start, "end": end or session["amplitude"].shape[1]},
             notes="Complex-channel experiment. Synthetic flag embedded in NPZ metadata. Original capture unchanged.",
@@ -623,11 +667,20 @@ def install(app, ctx: dict) -> None:
     @app.post("/api/sensing/recordings/{ident}/open")
     async def open_recording(ident: str):
         row, path = ctx["load_asset"](ident)
-        if row.get("source") != "sensing-studio" or path.stat().st_size > 32 * 1024**2:
-            raise ValueError("Open a supported saved sensing session below 32 MiB.")
-        return await import_session(
+        if path.suffix.lower() not in (".json", ".npz") or path.stat().st_size > 32 * 1024**2:
+            raise ValueError("Open an Orbit JSON/NPZ session below 32 MiB from the Library.")
+        result = await import_session(
             UploadFile(file=io.BytesIO(path.read_bytes()), filename=row["name"])
         )
+        get_session(result["id"])["asset_id"] = ident
+        if row.get("synthetic") and not result["synthetic"]:
+            session = get_session(result["id"])
+            session.update(synthetic=True, source="SIMULATION IMPORT")
+            return register(session)
+        if result["synthetic"] and not row.get("synthetic"):
+            latest, _ = ctx["load_asset"](ident)
+            ctx["put"]("media", {**latest, "synthetic": True})
+        return result
 
     @app.post("/api/sensing/sessions/{ident}/save-analysis")
     def save_analysis(ident: str, body: Analysis):
@@ -647,6 +700,7 @@ def install(app, ctx: dict) -> None:
             "Orbit-filter-comparison-" + ident + ".json",
             "sensing-analysis",
             synthetic=session["synthetic"],
+            parent_id=session.get("asset_id"),
             capture_id=session["capture_id"],
             notes=result["protocol"],
         )

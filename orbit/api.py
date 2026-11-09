@@ -880,9 +880,7 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             "enabled": sharing["enabled"],
             "bound_for_lan": lan,
             "addresses": (
-                [f"http://{ip}:{port}/#/transfer" for ip in addresses]
-                if sharing["enabled"]
-                else []
+                [f"http://{ip}:{port}/#/transfer" for ip in addresses] if sharing["enabled"] else []
             ),
             "local_url": f"http://127.0.0.1:{port}",
             "max_upload_mib": MAX_UPLOAD // 1024**2,
@@ -1126,33 +1124,87 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
 
     download_root = Path(os.environ.get("ORBIT_DOWNLOADS_DIR", ROOT.parent)).resolve()
     downloads_allowed = {
-        "Orbit-Speech-Hello-Generated.wav": ("Generated English speech · offline recognition test", "audio/wav"),
-        "Orbit-ICA-Mixture-Simulation.wav": ("Simulation · independent two-channel mixtures for ICA", "audio/wav"),
+        "Orbit-Speech-Hello-Generated.wav": (
+            "Generated English speech · offline recognition test",
+            "audio/wav",
+        ),
+        "Orbit-ICA-Mixture-Simulation.wav": (
+            "Simulation · independent two-channel mixtures for ICA",
+            "audio/wav",
+        ),
         "Orbit-ICA-Source-A-Simulation.wav": ("Simulation · ICA reference source A", "audio/wav"),
         "Orbit-ICA-Source-B-Simulation.wav": ("Simulation · ICA reference source B", "audio/wav"),
-        "Orbit-IQ-Simulation.npy": ("Simulation · complex I/Q at 64000 samples/s", "application/octet-stream"),
-        "Orbit-Retina-Geometry-Simulation.png": ("Simulation · geometric retinal-style teaching input", "image/png"),
-        "Orbit-Retina-Reference-Simulation.png": ("Simulation · matched geometry reference mask", "image/png"),
-        "Orbit-Pulse-Simulation.json": ("Simulation · RGB pulse samples and generated 75 bpm reference", "application/json"),
-        "Orbit-Real-Retina-CC0.jpg": ("Real fundus photo · CC0 · source in demo guide", "image/jpeg"),
+        "Orbit-IQ-Simulation.npy": (
+            "Simulation · complex I/Q at 64000 samples/s",
+            "application/octet-stream",
+        ),
+        "Orbit-Retina-Geometry-Simulation.png": (
+            "Simulation · geometric retinal-style teaching input",
+            "image/png",
+        ),
+        "Orbit-Retina-Reference-Simulation.png": (
+            "Simulation · matched geometry reference mask",
+            "image/png",
+        ),
+        "Orbit-Pulse-Simulation.json": (
+            "Simulation · RGB pulse samples and generated 75 bpm reference",
+            "application/json",
+        ),
+        "Orbit-Real-Retina-CC0.jpg": (
+            "Real fundus photo · CC0 · source in demo guide",
+            "image/jpeg",
+        ),
         "Orbit-Audio-Demo-Generated.wav": ("Generated two-tone audio for filtering", "audio/wav"),
-        "Orbit-Link-Image-Teaching.jpg": ("64 px resized teaching copy · unsuitable for medical analysis", "image/jpeg"),
-        "Orbit-Link-Hello-Encrypted.wav": ("Generated encrypted modem WAV · key in demo guide", "audio/wav"),
-        "Orbit-Link-Hello-Noisy.wav": ("Simulated noisy encrypted modem WAV · key in demo guide", "audio/wav"),
+        "Orbit-Link-Image-Teaching.jpg": (
+            "64 px resized teaching copy · unsuitable for medical analysis",
+            "image/jpeg",
+        ),
+        "Orbit-Link-Hello-Encrypted.wav": (
+            "Generated encrypted modem WAV · key in demo guide",
+            "audio/wav",
+        ),
+        "Orbit-Link-Hello-Noisy.wav": (
+            "Simulated noisy encrypted modem WAV · key in demo guide",
+            "audio/wav",
+        ),
         "Orbit-Transfer-Sample.txt": ("General file-transfer test document", "text/plain"),
-        "Orbit-Transfer-Research-Graph.png": ("Archived research graph for a transfer test", "image/png"),
+        "Orbit-Transfer-Research-Graph.png": (
+            "Archived research graph for a transfer test",
+            "image/png",
+        ),
         "Orbit-Acoustic-Hello.wav": ("Generated BFSK Hello Orbit transmit waveform", "audio/wav"),
         "Orbit-Windows.zip": ("Native Windows desktop application", "application/zip"),
         "Simulation-set-A.zip": (
             "Simulation set A · all generated classes and sessions",
             "application/zip",
         ),
+        "Simulation-Empty.npz": (
+            "3D Studio · Simulation empty · complex CSI",
+            "application/octet-stream",
+        ),
+        "Simulation-Still.npz": (
+            "3D Studio · Simulation one person still · complex CSI",
+            "application/octet-stream",
+        ),
+        "Simulation-Walking.npz": (
+            "3D Studio · Simulation one person walking · complex CSI",
+            "application/octet-stream",
+        ),
         "Simulation-Empty.zip": ("Simulation · empty channel", "application/zip"),
         "Simulation-One-Still.zip": ("Simulation · one person still", "application/zip"),
         "Simulation-One-Moving.zip": ("Simulation · one person moving", "application/zip"),
-        "Orbit-Demo-1-Empty.zip": ("Classroom Simulation · empty · three sessions", "application/zip"),
-        "Orbit-Demo-2-Still.zip": ("Classroom Simulation · one still · three sessions", "application/zip"),
-        "Orbit-Demo-3-Moving.zip": ("Classroom Simulation · one moving · three sessions", "application/zip"),
+        "Orbit-Demo-1-Empty.zip": (
+            "Classroom Simulation · empty · three sessions",
+            "application/zip",
+        ),
+        "Orbit-Demo-2-Still.zip": (
+            "Classroom Simulation · one still · three sessions",
+            "application/zip",
+        ),
+        "Orbit-Demo-3-Moving.zip": (
+            "Classroom Simulation · one moving · three sessions",
+            "application/zip",
+        ),
         "Simulation-Two-People.zip": ("Simulation · two people", "application/zip"),
         "Orbit-Phone-Companion.apk": (
             "Android phone app",

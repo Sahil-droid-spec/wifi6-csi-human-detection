@@ -12,6 +12,8 @@ This is a merged progress entry; all earlier rows remain below. The new authorit
 | Full reference-video parity | PARTIAL | Every observed page/control is accounted for in the parity matrix; no silent optional downgrade. |
 | Physical phone, acoustic both ways, live RF/CSI, clinical validation | IMPLEMENTED / HARDWARE UNVERIFIED or BLOCKED | Unchanged explicit physical/artifact limitations; software clients do not establish acceptance. |
 
+Additional verified this checkpoint: scene-level shared transport, portrait camera fit, all18palette/body-contrast checks, manual2Drecovery, source-labelled PNG/WebM, exact segment boundary, saved generated trajectories/calibration and one-click shared-Library routing. Full regression180passed; frontend cursor tests5passed; Android address tests13passed. Physical acceptance remains NOTEXECUTED.
+
 Detailed evidence: [acceptance results](ORBIT_ACCEPTANCE_RESULTS.md), [visual audit](ORBIT_VISUAL_AUDIT.md), [demo](ORBIT_DEMO_GUIDE.md). Earlier progress follows verbatim.
 
 ---
