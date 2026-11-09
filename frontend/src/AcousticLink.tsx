@@ -22,6 +22,7 @@ export function AcousticLink(){
   const [receiver,setReceiver]=useState<{file:File,mic:boolean}|null>(null);
   const [receiverUrl,setReceiverUrl]=useState('');
   const [savedReceiver,setSavedReceiver]=useState('');
+  const [receiverSave,setReceiverSave]=useState<{path?:string,error?:string}>({});
   useEffect(()=>{if(!receiver){setReceiverUrl('');return;}const url=URL.createObjectURL(receiver.file);setReceiverUrl(url);return()=>URL.revokeObjectURL(url);},[receiver]);
   const reliable=useRef<AbortController|null>(null),speaker=useRef<HTMLAudioElement|null>(null),transmitPlayer=useRef<HTMLAudioElement|null>(null);
   useEffect(()=>()=>{reliable.current?.abort();speaker.current?.pause();transmitPlayer.current?.pause();},[]);
@@ -56,7 +57,13 @@ export function AcousticLink(){
     setWifi({sha256:hash,size:f.size,ms,duplicate,id:row.id,remote:!['localhost','127.0.0.1','[::1]'].includes(location.hostname)});
     setNotice('Stored on the laptop. Open Transfer & chat on either device to receive it.');
   }
-  async function decode(f:File,mic=false){setCodecState('idle');setSavedReceiver('');setReceiver({file:f,mic});await action(async()=>{
+  async function saveReceiver(){
+    if(!receiver)return;setBusy(true);setReceiverSave({});
+    try{const form=new FormData();form.append('file',receiver.file,'Orbit-Receiver-Recording.wav');form.append('source',receiver.mic?'MICROPHONE RECORDING':'UPLOADED MODEM WAV');form.append('synthetic',String(!receiver.mic&&syntheticPayload));const saved=await api('workspace/import',{method:'POST',body:form});setSavedReceiver(saved.id);setReceiverSave({path:saved.path});}
+    catch(e){setReceiverSave({error:'Recording was not saved. Reconnect to the laptop server and retry. '+(e as Error).message});}
+    finally{setBusy(false);}
+  }
+  async function decode(f:File,mic=false){setCodecState('idle');setSavedReceiver('');setReceiverSave({});setReceiver({file:f,mic});await action(async()=>{
     if(f.size>32*1024**2)throw Error('Choose a WAV smaller than 32 MiB.');
     setRx(null);setRx(await api('link/receive?preset='+filter+'&clock_search=true&source='+encodeURIComponent(mic?'MICROPHONE RECORDING':'UPLOADED MODEM WAV'),{
       method:'POST',headers:{'X-Orbit-Passphrase':b64(new TextEncoder().encode(key))},body:f}));await refresh();
@@ -117,7 +124,7 @@ export function AcousticLink(){
     {busy&&receiver&&<p role="status">Decoding your supplied recording. If needed, testing bounded clock corrections for recordings up to 60 seconds. No message is guessed.</p>}
     <label>Or upload the received PCM WAV · 0.1–300 s<input type="file" accept=".wav,audio/wav" disabled={busy} onChange={e=>{const f=e.target.files?.[0];if(f)decode(f);e.target.value='';}}/></label>
     {receiver&&<button className="button secondary" disabled={busy} onClick={()=>decode(receiver.file,receiver.mic)}>Re-run same receiver WAV · selected filter</button>}
-    {receiverUrl&&receiver&&<div>{!navigator.userAgent.includes('OrbitCompanion/')&&<a className="button secondary" href={receiverUrl} download="Orbit-Receiver-Recording.wav">Save receiver WAV for troubleshooting</a>}<button className="button secondary" disabled={busy||!!savedReceiver} onClick={()=>action(async()=>{const form=new FormData();form.append('file',receiver.file,'Orbit-Receiver-Recording.wav');form.append('source',receiver.mic?'MICROPHONE RECORDING':'UPLOADED MODEM WAV');form.append('synthetic',String(!receiver.mic&&syntheticPayload));const saved=await api('workspace/import',{method:'POST',body:form});setSavedReceiver(saved.id);})}>{savedReceiver?'Recording saved in shared Library':'Save recording to Library for diagnosis'}</button>{savedReceiver&&<a className="button secondary" href={'/api/media/'+savedReceiver+'/file'}>Download saved receiver WAV</a>}<p>Listen to the actual input. It should contain the complete modem beeps.</p><audio controls src={receiverUrl}/></div>}
+    {receiverUrl&&receiver&&<div>{!navigator.userAgent.includes('OrbitCompanion/')&&<a className="button secondary" href={receiverUrl} download="Orbit-Receiver-Recording.wav">Save receiver WAV for troubleshooting</a>}<button className="button secondary" disabled={busy||!!savedReceiver} onClick={saveReceiver}>{savedReceiver?'Recording saved in shared Library':'Save recording to Library for diagnosis'}</button>{savedReceiver&&<a className="button secondary" href={'/api/media/'+savedReceiver+'/file'}>Download saved receiver WAV</a>}{receiverSave.path&&<p role="status">Saved on the laptop inside its active orbit-data folder: <code>{receiverSave.path}</code>. If downloading does not open a save dialog, open that folder in File Explorer and copy this WAV. The filename on disk is the identifier shown here.</p>}{receiverSave.error&&<p role="alert">{receiverSave.error}</p>}<p>Listen to the actual input. It should contain the complete modem beeps.</p><audio controls src={receiverUrl}/></div>}
     {rx&&<><h3>{rx.success?'Hash-checked content recovered':'No complete message recovered'}</h3><p>{rx.source} · {rx.reason||rx.protocol}</p>
       <p>Same-WAV comparison: raw {rx.before.crc_valid_packets} CRC-valid packets; selected filter {rx.after.crc_valid_packets}. {rx.elapsed_ms.toFixed(1)} ms computation. No ground-truth bits: BER unavailable.</p>
       {rx.after.packet_groups?.map((group:D)=><p key={group.message_id}>Received packets: {group.received.map((i:number)=>i+1).join(', ')} of {group.expected}. {group.missing.length?'Missing packets: '+group.missing.map((i:number)=>i+1).join(', ')+'. Start recording before playback and capture the complete sound.':'All packet positions are present.'}</p>)}
@@ -140,3 +147,4 @@ export function AcousticLink(){
     {!received.length&&<p>Receive a transmission to start. Try “Hello Orbit” first.</p>}
   </section></div>;
 }
+

@@ -121,6 +121,7 @@ def main():
     try:
         import webview
 
+        webview.settings["ALLOW_DOWNLOADS"] = True
         # A native window opens the bundled local interface; phones use the same server.
         webview.create_window(
             "Orbit — Wi-Fi Sensing Lab",
