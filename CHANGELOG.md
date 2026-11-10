@@ -1,3 +1,10 @@
+# 5.0 sound demo addition — 2026-11-10
+
+- Add reproducible 1,698-byte amplitude-only walking Simulation with supplied path,
+  encrypted generated-WAV-to-Library-to-sensing acceptance test and demo script.
+- Add sample download and direct reconstructed-inbox-to-3D route. Physical acoustic
+  reception remains unverified; no inferred walking/standing classification added.
+
 # 5.0 spatial milestone — 2026-11-09
 
 - Replace projected2Dfigure with procedural WebGL3D human/room, real camera controls, three styles, source-labelled exports, fallback and theme-linked materials.

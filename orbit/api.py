@@ -1190,6 +1190,10 @@ def create_app(data_dir=None, access_code=None, lan=False, port=8765):
             "3D Studio · Simulation one person walking · complex CSI",
             "application/octet-stream",
         ),
+        "Simulation-Walking-Tiny.npz": (
+            "Sound transport · tiny walking Simulation · amplitude and supplied path",
+            "application/octet-stream",
+        ),
         "Simulation-Empty.zip": ("Simulation · empty channel", "application/zip"),
         "Simulation-One-Still.zip": ("Simulation · one person still", "application/zip"),
         "Simulation-One-Moving.zip": ("Simulation · one person moving", "application/zip"),

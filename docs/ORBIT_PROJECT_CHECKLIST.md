@@ -1,5 +1,15 @@
 # ORBIT canonical checklist — 5.0 spatial milestone — 2026-11-09
 
+2026-11-10 addition: tiny walking sound example (1,698-byte NPZ, 32 amplitude
+samples, one subcarrier and supplied generated trajectory). Encrypted generated
+PCM WAV → hash-exact reconstruction → shared Library → 3D-session data and FIR
+analysis passed in `tests/test_tiny_walking.py`; 21 targeted sensing tests passed.
+New direct inbox-to-3D button builds successfully; new button interaction and
+physical handset acoustic delivery NOT EXECUTED. At 400 bit/s without FEC the
+generated transmission is 52.18 s / 16 frames. This does not implement activity
+inference or fix the unresolved microphone transfer. See
+[the sound demo guide](ORBIT_TINY_WALKING_SOUND_DEMO.md).
+
 This is a merged progress entry; all earlier rows remain below. The new authoritative requirements are recorded in the [parity matrix](REFERENCE_VIDEO_FEATURE_MATRIX.md). **The project is not100%complete.** Hardware acceptance and explicit PARTIAL rows remain.
 
 | Scope | Status | Evidence / remaining limit |
