@@ -1,3 +1,9 @@
+# 5.1 phone-control hotfix - 2026-11-10
+
+- Fix Take control on HTTP LAN browsers where crypto.randomUUID is unavailable.
+- Use getRandomValues for command IDs and surface ID/retry-refresh failures.
+- No new APK required: paired phones load the UI from the laptop server. Physical handset acceptance remains unverified.
+
 # 5.1 shared Command Centre — 2026-11-10
 
 - Add one authenticated server-owned experiment, WebSocket snapshots, controller

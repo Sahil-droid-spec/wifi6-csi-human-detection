@@ -3,6 +3,7 @@ import * as echarts from 'echarts';
 import {Transfer} from './Transfer';
 import {AcousticLink} from './AcousticLink';
 import './shared-command.css';
+import {commandEventId} from './commandEvent';
 const Scene=lazy(()=>import('./SpatialScene'));
 type D=Record<string,any>;
 const scenarios=[['empty','Empty room'],['still','One standing'],['walking','One walking'],['two_still','Two standing'],['two','Two walking'],['mixed','Standing + walking'],['entering','One entering'],['leaving','One leaving'],['two_entering','Two entering'],['two_leaving','Two leaving'],['fast','Fast movement'],['hand','Hand movement'],['custom','Custom people']];
@@ -36,7 +37,7 @@ export function SharedCommand({state:legacy,reduced=false}:{state:D;reduced?:boo
   refresh();open();fallback=setInterval(()=>{if(socket?.readyState!==WebSocket.OPEN)refresh();api('workspace').then(d=>{if(alive.current)setLibrary(d.assets.filter((a:D)=>!a.trashed));}).catch(()=>{});},1500);
   return()=>{alive.current=false;clearTimeout(reconnect);clearInterval(fallback);socket?.close();};
  },[]);
- async function command(action:string,payload:D={}){setError('');const event=crypto.randomUUID();for(let attempt=0;attempt<2;attempt++){try{const d=await api('shared/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event_id:event,revision:current.current?.revision||0,action,payload})});if(alive.current)merge(d.state);return;}catch(e:any){if(e.status===409&&attempt===0){const fresh=await api('shared/state');current.current=fresh;merge(fresh);continue;}setError(e.message);return;}}}
+ async function command(action:string,payload:D={}){setError('');let event:string;try{event=commandEventId();}catch(e:any){setError(e.message);return;}for(let attempt=0;attempt<2;attempt++){try{const d=await api('shared/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event_id:event,revision:current.current?.revision||0,action,payload})});if(alive.current)merge(d.state);return;}catch(e:any){if(e.status===409&&attempt===0){try{const fresh=await api('shared/state');current.current=fresh;merge(fresh);continue;}catch(refreshError:any){setError(refreshError.message);return;}}setError(e.message);return;}}}
  const d=shared?.dataset,processing=shared?.processing||{},result=shared?.result;
  const owner=!!shared?.device_id&&shared.controller===shared.device_id;
  const packet=useMemo(()=>{if(!d)return 0;let lo=0,hi=d.time.length-1;while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(d.time[mid]<=(shared?.cursor||0))lo=mid;else hi=mid-1;}return lo;},[d,shared?.cursor]);

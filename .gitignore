@@ -36,3 +36,4 @@ dist-desktop/
 speech-models/
 
 frontend/.timeline-test/
+frontend/.command-test/

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
-    "test:timeline": "tsc src/sensingTimeline.ts --target es2022 --module es2022 --moduleResolution bundler --skipLibCheck --outDir .timeline-test && node --test tests/sensing-timeline.test.mjs"
+    "test:timeline": "tsc src/sensingTimeline.ts --target es2022 --module es2022 --moduleResolution bundler --skipLibCheck --outDir .timeline-test && node --test tests/sensing-timeline.test.mjs",
+    "test:command": "tsc src/commandEvent.ts --target es2022 --module es2022 --moduleResolution bundler --skipLibCheck --outDir .command-test && node --test tests/command-event.test.mjs"
   },
   "dependencies": {
     "@noble/hashes": "^2.4.0",
