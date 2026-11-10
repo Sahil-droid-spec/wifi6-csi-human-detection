@@ -24,8 +24,16 @@ from pydantic import BaseModel, Field, model_validator
 from scipy import signal
 
 
+class AvatarState(BaseModel):
+    id: str = Field(pattern=r"^[a-zA-Z0-9_-]{1,24}$")
+    activity: Literal["standing", "walking", "running", "turning", "entering", "leaving", "hand", "custom"] = "walking"
+    speed: float = Field(default=1, ge=0, le=3, allow_inf_nan=False)
+    visible: bool = True
+
+
 class Simulation(BaseModel):
-    scenario: Literal["empty", "still", "walking", "moving", "two", "crossing"] = "walking"
+    scenario: Literal["empty", "still", "walking", "moving", "two", "crossing", "two_still", "mixed", "entering", "leaving", "two_entering", "two_leaving", "fast", "hand", "custom"] = "walking"
+    avatars: list[AvatarState] | None = Field(default=None, max_length=4)
     packet_rate: int = Field(default=100, ge=20, le=500)
     subcarriers: int = Field(default=52, ge=16, le=256)
     duration: float = Field(default=12, ge=4, le=30, allow_inf_nan=False)
@@ -42,6 +50,8 @@ class Simulation(BaseModel):
 
     @model_validator(mode="after")
     def bounded(self):
+        if self.avatars and len({p.id for p in self.avatars}) != len(self.avatars):
+            raise ValueError("Use a unique ID for each person.")
         if self.packet_rate * self.duration * self.subcarriers > 1_000_000:
             raise ValueError(
                 "Reduce rate, duration or subcarriers to at most one million complex samples."
@@ -70,6 +80,21 @@ class Analysis(BaseModel):
     subcarrier: int = Field(default=0, ge=0, le=255)
 
 
+def scenario_people(config: Simulation) -> list[AvatarState]:
+    """Explicit scenario truth, never an inferred count or activity."""
+    if config.scenario == "custom":
+        return config.avatars or []
+    states = {
+        "empty": [], "still": ["standing"], "walking": ["walking"],
+        "moving": ["hand"], "two": ["walking", "walking"],
+        "crossing": ["walking", "walking"], "two_still": ["standing", "standing"],
+        "mixed": ["standing", "walking"], "entering": ["entering"],
+        "leaving": ["leaving"], "two_entering": ["entering", "entering"],
+        "two_leaving": ["leaving", "leaving"], "fast": ["running"], "hand": ["hand"],
+    }[config.scenario]
+    return [AvatarState(id=f"person-{i+1}", activity=a) for i, a in enumerate(states)]
+
+
 def synthesize(config: Simulation) -> dict:
     """Multipath baseband model, not a validated 802.11ax PHY or RF measurement."""
     rng = np.random.default_rng(config.seed)
@@ -84,24 +109,31 @@ def synthesize(config: Simulation) -> dict:
         channel += rng.uniform(0.15, 0.7) * np.exp(
             1j * (phase - 2 * np.pi * carrier[:, None] * delay)
         )
-    count = 0 if config.scenario == "empty" else 2 if config.scenario in ("two", "crossing") else 1
+    people = [p for p in scenario_people(config) if p.visible]
+    count = len(people)
     positions = []
     for person in range(count):
+        avatar = people[person]
         phase = person * np.pi
-        moving = config.scenario != "still"
-        x = np.sin(timestamps * config.virtual_speed * 0.55 + phase) * (1.7 if moving else 0)
-        z = (
-            np.cos(timestamps * config.virtual_speed * 0.35 + phase) * (0.7 if moving else 0)
-            + person * 0.4
-        )
+        moving = avatar.activity not in ("standing", "hand", "turning")
+        speed = config.virtual_speed * avatar.speed * (1.8 if avatar.activity == "running" else 1)
+        x = np.sin(timestamps * speed * (0.55 + person * 0.035) + phase) * (1.7 if moving else 0)
+        # Disjoint lanes keep independent activities from occupying the same point.
+        lane = (person - (count - 1) / 2) * 1.1
+        z = lane + np.cos(timestamps * speed * 0.35 + phase) * ((0.7 if count == 1 else 0.18) if moving else 0)
+        if avatar.activity in ("entering", "leaving"):
+            travel = np.clip(timestamps / max(config.duration * 0.7, 1), 0, 1)
+            x = (-3.3 + travel * 3.3) if avatar.activity == "entering" else travel * 3.3
         if config.scenario == "crossing":
-            travel = 1.7 * np.sin(timestamps * config.virtual_speed * 0.55)
+            travel = 1.7 * (np.sin(timestamps * config.virtual_speed * 0.55) if person == 0 else np.cos(timestamps * config.virtual_speed * 0.55))
             x = travel if person == 0 else np.zeros(n)
             z = travel if person == 1 else np.zeros(n)
         elif config.scenario == "moving":
             x = 0.2 * np.sin(timestamps * config.virtual_speed * 2)
-            z = 0.15 * np.cos(timestamps * config.virtual_speed * 1.7)
+            z = lane + 0.15 * np.cos(timestamps * config.virtual_speed * 1.7)
         path = np.sqrt((x + 2.8) ** 2 + z**2 + 1) + np.sqrt((x - 2.8) ** 2 + z**2 + 1)
+        if avatar.activity == "hand" and config.scenario != "moving":
+            path += 0.02 * np.sin(timestamps * speed * 3)
         breathing = 0.002 * np.sin(2 * np.pi * 0.25 * timestamps + phase)
         reflection = 0.22 * np.exp(1j * (-2 * np.pi * (path + breathing) / 0.06))
         channel += (
@@ -109,7 +141,10 @@ def synthesize(config: Simulation) -> dict:
             * reflection[None, :]
             * np.exp(-1j * carrier[:, None] * (path[None, :] + person))
         )
-        positions.append(np.c_[x, z, np.arctan2(np.gradient(x), np.gradient(z))])
+        yaw = np.arctan2(np.gradient(x), np.gradient(z))
+        if avatar.activity == "turning":
+            yaw = timestamps * speed
+        positions.append(np.c_[x, z, yaw])
     # Slow drift and an AGC-like step affect all channels; they are not motion truth.
     gain = config.gain * (1 + config.drift * np.sin(timestamps * 0.7))
     gain[n // 2 :] *= 1.06
@@ -123,6 +158,7 @@ def synthesize(config: Simulation) -> dict:
         "invalid": invalid,
         "timestamps": timestamps,
         "positions": positions,
+        "people": [p.model_dump() for p in people],
         "synthetic": True,
         "config": config.model_dump(),
         "rate": config.packet_rate,
@@ -203,6 +239,7 @@ def analyze(session: dict, body: Analysis) -> dict:
     delay[np.abs(response) < 1e-7] = np.nan
     phase_response = np.unwrap(np.angle(response))
     spectrum, stft, interval = [], None, None
+    spectrum_phase, psd = [], []
     if runs:
         x, y = max(runs, key=lambda p: p[1] - p[0])
         length = y - x
@@ -213,6 +250,10 @@ def analyze(session: dict, body: Analysis) -> dict:
             for v in (raw, filtered)
         ]
         spectrum = np.column_stack([frequency, *spectra]).tolist()
+        transforms = [np.fft.rfft((v[x:y]-np.mean(v[x:y]))*taper) for v in (raw, filtered)]
+        spectrum_phase = np.column_stack([frequency, np.angle(transforms[0]), np.angle(transforms[1])]).tolist()
+        pf, power = signal.welch(filtered[x:y], fs=rate, nperseg=min(256, length))
+        psd = np.c_[pf, power].tolist()
         nperseg = min(body.stft_size, length)
         f, t, z = signal.stft(
             filtered[x:y],
@@ -251,6 +292,8 @@ def analyze(session: dict, body: Analysis) -> dict:
         if phase
         else "Phase unavailable: this input stores amplitude only.",
         "spectrum": spectrum,
+        "spectrum_phase": spectrum_phase,
+        "psd": psd,
         "stft": stft,
         "heatmap": heat,
         "response": np.c_[w, 20 * np.log10(np.maximum(np.abs(response), 1e-12))].tolist(),
@@ -285,6 +328,8 @@ def install(app, ctx: dict) -> None:
             sessions.move_to_end(ident)
             return sessions[ident]
 
+    ctx["sensing_session"] = get_session
+
     def register(session: dict, threshold: float | None = None) -> dict:
         session["audit"] = motion_audit(session)
         session["threshold"] = threshold
@@ -292,7 +337,8 @@ def install(app, ctx: dict) -> None:
         with lock:
             sessions[ident] = session
             while len(sessions) > 4:
-                sessions.popitem(last=False)
+                removable = next(k for k in sessions if k != ctx.get("sensing_pin"))
+                sessions.pop(removable)
         audit = session["audit"]
         valid_score = np.isfinite(audit["score"])
         events = []
@@ -321,6 +367,7 @@ def install(app, ctx: dict) -> None:
             if session.get("rate")
             else None,
             "positions": [p.tolist() for p in session["positions"]],
+            "people": session.get("people", []),
             "threshold": threshold,
             "events": events,
             "config": session["config"],
@@ -497,7 +544,7 @@ def install(app, ctx: dict) -> None:
                 session["channel"] = channel
             threshold = None
             if session["synthetic"]:
-                if len(imported_positions) > 2 or any(
+                if len(imported_positions) > 4 or any(
                     p.shape != (n, 3)
                     or p.dtype.kind not in "fiu"
                     or not np.isfinite(p).all()
@@ -513,6 +560,7 @@ def install(app, ctx: dict) -> None:
                     raise ValueError("Use an Orbit export with dictionary configuration metadata.")
                 if imported_positions or config.get("scenario") == "empty":
                     session["config"] = config
+                    session["people"] = [p.model_dump() for p in scenario_people(Simulation(**config)) if p.visible][:len(imported_positions)]
                 threshold = metadata.get("calibrated_threshold")
                 if threshold is not None and (
                     not isinstance(threshold, (int, float))

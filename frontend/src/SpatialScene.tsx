@@ -14,13 +14,12 @@ import {
   CanvasTexture,
   Color,
   Group,
-  Euler,
-  Quaternion,
   Line,
   LineBasicMaterial,
   Vector3,
 } from "three";
 import "./spatial-scene.css";
+import {RiggedHuman} from './RiggedHuman';
 
 export type SceneFrame = {
   time: number;
@@ -32,6 +31,10 @@ export type SceneFrame = {
   packet?: number;
   trails?: number[][][];
   activity?: number;
+  people?: {id:string;activity:string;visible?:boolean}[];
+  roomObjects?: {id:string;kind:string;x:number;z:number;rotation:number;scale:number}[];
+  roomPreset?: string;
+  onSelectPerson?: (id:string)=>void;
 };
 type Palette = {
   background: string;
@@ -76,7 +79,7 @@ const initial: Options = {
   labels: true,
   people: true,
   quality: "balanced",
-  style: "hologram",
+  style: "solid",
   preset: "perspective",
   reset: 0,
   width: 7,
@@ -86,7 +89,7 @@ const initial: Options = {
   pan: 0,
   zoom: 1,
   floor: true,
-  joints: true,
+  joints: false,
   particles: true,
   scan: false,
   trails: true,
@@ -136,7 +139,7 @@ function ContextGuard({ onLoss }: { onLoss: () => void }) {
   }, [gl, onLoss]);
   return null;
 }
-function Controls({ options }: { options: Options }) {
+function Controls({ options, frame }: { options: Options; frame: SceneFrame }) {
   const { camera, gl, invalidate, size } = useThree();
   const ref = useRef<OrbitControls | null>(null);
   useEffect(() => {
@@ -160,12 +163,16 @@ function Controls({ options }: { options: Options }) {
       top: [0.001, 12, 0.001],
       front: [0, 2.5, 10],
       side: [10, 2.5, 0],
+      back: [0, 2.5, -10],
+      tx: [-2.8, 2.7, 3.5],
+      rx: [2.8, 2.7, 3.5],
+      follow: [3.2, 2.7, 4.2],
     };
     const aspect=size.width/Math.max(1,size.height);
     const fit=options.preset==='human'?Math.max(1,.65/aspect):Math.max(1,1.2/aspect)*Math.max(1,options.width/7,options.depth/5);
     const target=new Vector3(0,1,0);
     camera.position.fromArray(p[options.preset] || p.perspective).sub(target).multiplyScalar(fit).add(target);
-    ref.current?.target.set(0, 1, 0);
+    ref.current?.target.set(options.preset==='tx'?options.tx:options.preset==='rx'?options.rx:0, 1, 0);
     ref.current?.update();
     invalidate();
   }, [options.preset, options.reset, options.width, options.depth, size.width, size.height, camera, invalidate]);
@@ -181,193 +188,8 @@ function Controls({ options }: { options: Options }) {
     camera.zoom = options.zoom;
     camera.updateProjectionMatrix();
   }, [options.zoom, camera]);
-  useFrame(() => ref.current?.update());
+  useFrame(() => {if(options.preset==='follow'&&frame.positions?.[0]&&ref.current){const p=frame.positions[0],target=new Vector3(p[0],1,p[1]),delta=target.clone().sub(ref.current.target);camera.position.add(delta);ref.current.target.copy(target);}ref.current?.update();});
   return null;
-}
-/** Display interpolation only; data/model windows are never resampled. */
-function SmoothGroup({position=[0,0,0],rotation=[0,0,0],snap=false,children}:{position?:number[];rotation?:number[];snap?:boolean;children?:ReactNode}){const object=useRef<Group>(null),ready=useRef(false);const target=useMemo(()=>new Vector3().fromArray(position),[position[0],position[1],position[2]]),q=useMemo(()=>new Quaternion().setFromEuler(new Euler(rotation[0],rotation[1],rotation[2])),[rotation[0],rotation[1],rotation[2]]);useFrame((_,dt)=>{const g=object.current;if(!g)return;if(snap||!ready.current){g.position.copy(target);g.quaternion.copy(q);ready.current=true;}else{const amount=1-Math.exp(-25*Math.min(dt,.1));g.position.lerp(target,amount);g.quaternion.slerp(q,amount);}});return <group ref={object}>{children}</group>;}
-function Limb({
-  position,
-  rotation,
-  color,
-  wire,
-  joints,
-  snap,
-  length = 0.5,
-}: {
-  position: [number, number, number];
-  rotation?: [number, number, number];
-  color: string;
-  wire: boolean;
-  joints: boolean;
-  snap: boolean;
-  length?: number;
-}) {
-  return (
-    <SmoothGroup snap={snap} position={position} rotation={rotation}>
-      <mesh position={[0, -length / 2, 0]}>
-        <capsuleGeometry args={[0.075, length - 0.15, 5, 12]} />
-        <meshStandardMaterial
-          color={color}
-          roughness={0.36}
-          metalness={0.35}
-          wireframe={wire}
-        />
-      </mesh>
-      {joints && (
-        <mesh>
-          <sphereGeometry args={[0.085, 12, 10]} />
-          <meshStandardMaterial color={color} />
-        </mesh>
-      )}
-    </SmoothGroup>
-  );
-}
-function Person({
-  position,
-  phase,
-  style,
-  color,
-  moving,
-  joints,
-  snap,
-}: {
-  position: number[];
-  phase: number;
-  style: string;
-  color: string;
-  moving: boolean;
-  joints: boolean;
-  snap: boolean;
-}) {
-  const swing = moving ? Math.sin(phase * 5) * 0.65 : 0,
-    wire = style === "wireframe";
-  return (
-    <SmoothGroup snap={snap}
-      position={[position[0] || 0, 0, position[1] || 0]}
-      rotation={[0, position[2] || 0, 0]}
-    >
-      <mesh position={[0, 1.78, 0]}>
-        <sphereGeometry args={[0.17, 24, 20]} />
-        <meshStandardMaterial
-          color={color}
-          wireframe={wire}
-          metalness={0.35}
-          roughness={0.3}
-        />
-      </mesh>
-      <mesh position={[0, 1.58, 0]}>
-        <cylinderGeometry args={[0.075, 0.09, 0.17, 16]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      <mesh position={[0, 1.01, 0]} scale={[1, 0.65, 0.7]}>
-        <sphereGeometry args={[0.24, 20, 16]} />
-        <meshStandardMaterial color={color} wireframe={wire} />
-      </mesh>
-      {[-1, 1].map((sign) => (
-        <mesh key={"eye" + sign} position={[sign * 0.059, 1.81, 0.148]}>
-          <sphereGeometry args={[0.018, 10, 8]} />
-          <meshStandardMaterial
-            color={color}
-            emissive={color}
-            emissiveIntensity={0.7}
-          />
-        </mesh>
-      ))}
-      <mesh position={[0, 1.37, 0]} scale={[1, 0.95, 0.6]}>
-        <capsuleGeometry args={[0.22, 0.3, 8, 20]} />
-        <meshStandardMaterial
-          color={color}
-          wireframe={wire}
-          transparent={style === "hologram"}
-          opacity={style === "hologram" ? 0.7 : 1}
-          metalness={0.4}
-          roughness={0.35}
-        />
-      </mesh>
-      <Limb
-        position={[-0.29, 1.53, 0]}
-        rotation={[swing, 0, -0.08]}
-        color={color}
-        wire={wire}
-        joints={joints} snap={snap}
-      />
-      <Limb
-        position={[0.29, 1.53, 0]}
-        rotation={[-swing, 0, 0.08]}
-        color={color}
-        wire={wire}
-        joints={joints} snap={snap}
-      />
-      <SmoothGroup snap={snap} position={[-0.29, 1.53, 0]} rotation={[swing, 0, -0.08]}>
-        <Limb
-          position={[0, -0.5, 0]}
-          rotation={[-0.2, 0, 0]}
-          length={0.36}
-          color={color}
-          wire={wire}
-          joints={joints} snap={snap}
-        />
-      </SmoothGroup>
-      <SmoothGroup snap={snap} position={[0.29, 1.53, 0]} rotation={[-swing, 0, 0.08]}>
-        <Limb
-          position={[0, -0.5, 0]}
-          rotation={[-0.2, 0, 0]}
-          length={0.36}
-          color={color}
-          wire={wire}
-          joints={joints} snap={snap}
-        />
-      </SmoothGroup>
-      {[-1, 1].map((sign) => (
-        <SmoothGroup snap={snap}
-          key={sign}
-          position={[sign * 0.13, 1.03, 0]}
-          rotation={[sign * swing * 0.7, 0, 0]}
-        >
-          <Limb
-            position={[0, 0, 0]}
-            length={0.48}
-            color={color}
-            wire={wire}
-            joints={joints} snap={snap}
-          />
-          <SmoothGroup snap={snap}
-            position={[0, -0.48, 0]}
-            rotation={[Math.max(0, -sign * swing), 0, 0]}
-          >
-            <Limb
-              position={[0, 0, 0]}
-              length={0.46}
-              color={color}
-              wire={wire}
-              joints={joints} snap={snap}
-            />
-            <mesh position={[0, -0.44, 0.07]}>
-              <boxGeometry args={[0.16, 0.1, 0.29]} />
-              <meshStandardMaterial color={color} wireframe={wire} />
-            </mesh>
-          </SmoothGroup>
-        </SmoothGroup>
-      ))}
-      {style === "hologram" &&
-        Array.from({ length: 15 }, (_, i) => (
-          <mesh
-            key={i}
-            position={[0, 0.15 + i * 0.115, 0]}
-            rotation={[-Math.PI / 2, 0, 0]}
-          >
-            <ringGeometry args={[0.25, 0.256, 48]} />
-            <meshBasicMaterial
-              color={color}
-              transparent
-              opacity={0.35}
-              depthWrite={false}
-            />
-          </mesh>
-        ))}
-    </SmoothGroup>
-  );
 }
 function NodeLabel({
   text,
@@ -493,10 +315,10 @@ function World({
   return (
     <>
       <color attach="background" args={[new Color(colors.background)]} />
-      <ambientLight intensity={1.8} />
-      <directionalLight position={[3, 7, 5]} intensity={3} />
-      <pointLight position={[-3, 3, -2]} color={colors.blue} intensity={15} />
-      <Controls options={options} />
+      <ambientLight intensity={0.8} />
+      <directionalLight position={[3, 7, 5]} intensity={2.4} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+      <pointLight position={[-3, 3, -2]} color={colors.blue} intensity={8} />
+      <Controls options={options} frame={frame} />
       {options.floor && (
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
@@ -651,18 +473,26 @@ function World({
           ))}
         </group>
       )}
+      {frame.roomObjects?.map(o=><group key={o.id} position={[o.x,0,o.z]} rotation={[0,o.rotation,0]} scale={o.scale}>
+        {o.kind==='partition'?<mesh position={[0,1,0]} castShadow><boxGeometry args={[1.6,2,.12]}/><meshStandardMaterial color={colors.muted} roughness={.9}/></mesh>:o.kind==='shelf'?<group>{[.2,.8,1.4,2].map(y=><mesh key={y} position={[0,y,0]} castShadow><boxGeometry args={[1.2,.06,.4]}/><meshStandardMaterial color={colors.muted}/></mesh>)}{[-.56,.56].map(x=><mesh key={x} position={[x,1.1,0]}><boxGeometry args={[.06,2.2,.4]}/><meshStandardMaterial color={colors.line}/></mesh>)}</group>:<group>
+         <mesh position={[0,o.kind==='chair'?.48:o.kind==='sofa'?.42:.78,0]} castShadow receiveShadow><boxGeometry args={o.kind==='chair'?[.48,.09,.48]:o.kind==='sofa'?[1.6,.22,.65]:[1.3,.09,.75]}/><meshStandardMaterial color={o.kind==='sofa'?colors.blue:colors.muted} roughness={.8}/></mesh>
+         {(o.kind==='chair'||o.kind==='sofa')&&<mesh position={[0,o.kind==='chair'?.8:.75,-.28]} castShadow><boxGeometry args={[o.kind==='chair'?.48:1.6,.6,.09]}/><meshStandardMaterial color={colors.muted}/></mesh>}
+         {[-1,1].flatMap(x=>[-1,1].map(z=><mesh key={x+':'+z} position={[x*(o.kind==='chair'?.18:.5),.35,z*.25]} castShadow><boxGeometry args={[.06,.7,.06]}/><meshStandardMaterial color={colors.line}/></mesh>))}
+        </group>}
+      </group>)}
       {options.people &&
         positions.map((p, i) => (
-          <Person
-            key={i}
+          <Suspense key={frame.people?.[i]?.id||i} fallback={null}><RiggedHuman
             position={p}
             phase={frame.reduced ? 0 : frame.time + i}
             style={options.style}
             color={i ? colors.blue : colors.cyan}
-            moving={moving && options.pose === "scenario"}
+            moving={(frame.people?.[i]?['walking','running','entering','leaving','custom'].includes(frame.people[i].activity):moving) && options.pose === "scenario"}
+            playing={!frame.reduced&&frame.playing}
             joints={options.joints}
-            snap={frame.reduced||!frame.playing}
-          />
+            activity={frame.people?.[i]?.activity}
+            onSelect={()=>frame.onSelectPerson?.(frame.people?.[i]?.id||String(i))}
+          /></Suspense>
         ))}
     </>
   );
@@ -675,6 +505,8 @@ export default function SpatialScene({ frame,onTogglePlay,onRestart }: { frame: 
     [message, setMessage] = useState(""),
     [recording, setRecording] = useState(false),
     [expanded, setExpanded] = useState(false);
+  const [savedVideo,setSavedVideo]=useState<{id:string;path:string}|null>(null);
+  const recordSources=useRef(new Set<string>());
   const root = useRef<HTMLDivElement>(null),
     canvas = useRef<HTMLCanvasElement | null>(null),
     recorder = useRef<MediaRecorder | null>(null),
@@ -742,8 +574,8 @@ export default function SpatialScene({ frame,onTogglePlay,onRestart }: { frame: 
   const drawExport = (target: HTMLCanvasElement) => {
     const original = canvas.current;
     if (!original) return;
-    target.width = original.width;
-    target.height = original.height + 76;
+    if(target.width!==original.width)target.width = original.width;
+    if(target.height!==original.height+76)target.height = original.height + 76;
     const ctx = target.getContext("2d");
     if (!ctx) return;
     ctx.fillStyle = colors.surface;
@@ -757,7 +589,7 @@ export default function SpatialScene({ frame,onTogglePlay,onRestart }: { frame: 
         " · " +
         (frameRef.current.packet === undefined
           ? "Illustration"
-          : "Packet " + frameRef.current.packet),
+          : "Packet " + frameRef.current.packet) + " · " + frameRef.current.scenario + " · " + (frameRef.current.positions?.length ?? 0) + " supplied people",
       18,
       29,
     );
@@ -790,8 +622,10 @@ export default function SpatialScene({ frame,onTogglePlay,onRestart }: { frame: 
           "This browser cannot record the scene. Use Save image instead.",
         );
       const target = document.createElement("canvas");
+      setSavedVideo(null);recordSources.current.clear();
       drawExport(target);
       const animate = () => {
+        recordSources.current.add(frameRef.current.source);
         drawExport(target);
         recordFrame.current = requestAnimationFrame(animate);
       };
@@ -804,15 +638,21 @@ export default function SpatialScene({ frame,onTogglePlay,onRestart }: { frame: 
       r.ondataavailable = (e) => {
         if (e.data.size) chunks.push(e.data);
       };
-      r.onstop = () => {
+      r.onstop = async () => {
         cancelAnimationFrame(recordFrame.current);
+        const blob=new Blob(chunks, { type: r.mimeType });
         download(
-          new Blob(chunks, { type: r.mimeType }),
+          blob,
           "Orbit-" + frame.source.replaceAll(" ", "-") + "-scene.webm",
         );
         s.getTracks().forEach((t) => t.stop());
         if (recordTimer.current) clearTimeout(recordTimer.current);
         setRecording(false);
+        try{
+          if(blob.size>64*1024**2||!blob.size)throw Error('Choose a shorter scene recording below 64 MiB.');
+          const form=new FormData();form.append('file',blob,'Orbit-Scene-Visualization.webm');form.append('source','SCENE VISUALIZATION · '+[...recordSources.current].join(', ').slice(0,70));form.append('synthetic',String([...recordSources.current].some(s=>s.includes('SIMULATION'))));
+          const response=await fetch('/api/workspace/import',{method:'POST',body:form});const row=await response.json();if(!response.ok)throw Error('Keep the laptop server connected and record a shorter clip.');setSavedVideo(row);setMessage('Scene video saved in the shared Library. This visualization is not a raw sensing recording.');
+        }catch(e){setMessage('The download was requested, but the Library copy was not saved. '+(e as Error).message);}
       };
       r.start();
       recordTimer.current = setTimeout(() => {
@@ -837,7 +677,7 @@ export default function SpatialScene({ frame,onTogglePlay,onRestart }: { frame: 
         <span className="spatial-chip">
           {failed ? "2D fallback" : "WEBGL · 3D"}
         </span>
-        {["perspective", "human", "top", "front", "side"].map((v) => (
+        {["perspective", "human", "top", "front", "side", "back", "tx", "rx", "follow"].map((v) => (
           <button
             key={v}
             title={
@@ -943,6 +783,7 @@ export default function SpatialScene({ frame,onTogglePlay,onRestart }: { frame: 
           <SceneBoundary onFail={() => setFailed(true)}>
             <Suspense fallback={<p>Preparing the 3D renderer…</p>}>
               <Canvas
+                shadows={effectiveOptions.quality !== "low"}
                 dpr={
                   effectiveOptions.quality === "low"
                     ? 1
@@ -1000,7 +841,7 @@ export default function SpatialScene({ frame,onTogglePlay,onRestart }: { frame: 
           >
             <option>hologram</option>
             <option>solid</option>
-            <option>wireframe</option>
+            <option>wireframe</option><option>skeleton</option>
           </select>
         </label>
         <label>
@@ -1137,6 +978,7 @@ export default function SpatialScene({ frame,onTogglePlay,onRestart }: { frame: 
         </p>
       )}
       {message && <p role="status">{message}</p>}
+        {savedVideo&&<div><p>Saved locally: <code>{savedVideo.path}</code></p><a className="button secondary" href={'/api/media/'+savedVideo.id+'/file'} download="Orbit-Scene-Visualization.webm">Save stored scene video</a><video controls src={'/api/media/'+savedVideo.id+'/file'} style={{width:'100%',maxHeight:260}}/></div>}
     </section>
   );
 }

@@ -1,0 +1,130 @@
+{
+  "archive_sha256": "7838d94f7beb6d7b2f0d69b819289485e5e4bfb6e13b8353682728a42b7a5c25",
+  "files": [
+    {
+      "name": "WI-SENSE-X/README.md",
+      "bytes": 1553,
+      "sha256": "113d8af409c08e4d364cd07247ca458f25e6d5dadf6a6102e7963dc84aeb9b59"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/package-lock.json",
+      "bytes": 129361,
+      "sha256": "d8cb4b7d7ae7df70b6ca306f794b7ee53c5a7f1d537344d40fab7ab358f7e738"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/package.json",
+      "bytes": 868,
+      "sha256": "8f7268327babbb2297d5a97289dfc693a25c7d5c497aa1f786e57a6303e20fbc"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/tsconfig.json",
+      "bytes": 362,
+      "sha256": "4cc7917705b076d785d98160d2129d826e25ce640611b24d1cc850a463b78593"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/playwright.config.ts",
+      "bytes": 607,
+      "sha256": "b6de60e521f46a1ce1ee589ba1e129cf266e622764bf672a9576d5755f6facbd"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/vite.config.ts",
+      "bytes": 341,
+      "sha256": "3ba5c08a7d6fbfb000df396994fc830930da157f92d24a82ad8bb3965653c740"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/e2e/workspace.spec.ts",
+      "bytes": 4908,
+      "sha256": "564eb4735cc2a5543d63da88bbaf952ff03e104cec4b778622134bcd04c27f1f"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/src/App.tsx",
+      "bytes": 5660,
+      "sha256": "525a41f076f53d52b1c88dd25eec8cd11d8bb92ce49d9e3f99d498b3b0a33486"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/src/main.tsx",
+      "bytes": 228,
+      "sha256": "a7471d3582fe47204837e81cf8bdea2e350948303a11d5f10dccad6aedf08e7b"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/src/types/index.ts",
+      "bytes": 1916,
+      "sha256": "daf1a7970637df87922029c7a548d742f077ad17b56bfa4074d9ebad9f292924"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/src/stores/useStore.ts",
+      "bytes": 1197,
+      "sha256": "6ac5c2d785e56e9767e5f2ec48acfa8a784b372bd03341e4b487c9ba4abfd6ea"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/src/stores/useStore.test.ts",
+      "bytes": 820,
+      "sha256": "7b003264324cf04b867670f41a7038ba4a6c7a8907360a714480d486f4052174"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/src/components/Pages.tsx",
+      "bytes": 16208,
+      "sha256": "b85d72676f219565baec9426c769bb338b8480332871740673858b9d51478f87"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/src/components/Controls.tsx",
+      "bytes": 7067,
+      "sha256": "dbdddb820b9263fcb3639dd61594bd0b5badcb4bfd70f0e0e67a8fed226d9cae"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/src/services/api.ts",
+      "bytes": 1669,
+      "sha256": "9b26bb94434c2e5500b3659ecec8aa58f92178db1ace70ef33001e6fcf98a60e"
+    },
+    {
+      "name": "WI-SENSE-X/backend/app/core/models.py",
+      "bytes": 1771,
+      "sha256": "6fedf5297adc43b9e0539e4e780e57839de788fa1c5c11ec428ec3d99403d385"
+    },
+    {
+      "name": "WI-SENSE-X/backend/app/core/engine.py",
+      "bytes": 6091,
+      "sha256": "cb0918e87d1b16090127b4e22d048a5d7cfe8bb605045c729720f03365e1d29e"
+    },
+    {
+      "name": "WI-SENSE-X/backend/app/recording/storage.py",
+      "bytes": 1709,
+      "sha256": "68e8483c348037a8cd081677eea41b3b72536d3778a3d4ff7ec590039c6594c6"
+    },
+    {
+      "name": "WI-SENSE-X/backend/app/providers/base.py",
+      "bytes": 638,
+      "sha256": "7195154138faaca28ae2442212de041562c3c58dcf43fc723f8307ab9df74b1b"
+    },
+    {
+      "name": "WI-SENSE-X/backend/app/simulation/channel.py",
+      "bytes": 2337,
+      "sha256": "0249238d4c5f2b704233693a593ec04c1ba69e16f283def355438b1f451d7701"
+    },
+    {
+      "name": "WI-SENSE-X/backend/app/api/main.py",
+      "bytes": 7523,
+      "sha256": "65e2149361d23d9308920f22cd2790a61490b433ada276a4b5aef290478acf98"
+    },
+    {
+      "name": "WI-SENSE-X/backend/app/dsp/processing.py",
+      "bytes": 4104,
+      "sha256": "dec9aec77e0870be81611eb0b5425c4b98fc6f38690f1fd869b5b59ef58746de"
+    },
+    {
+      "name": "WI-SENSE-X/backend/app/detection/motion.py",
+      "bytes": 1428,
+      "sha256": "9da8e1a86c452c1d361d89d367431d1646f0fb93f10c1389f8048c4c96346308"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/src/components/charts/Plot.tsx",
+      "bytes": 3705,
+      "sha256": "96d6b96953bef3cf12129b1734490bcab562b8698fe2be086171612c8cc7a392"
+    },
+    {
+      "name": "WI-SENSE-X/frontend/src/components/three/Chamber.tsx",
+      "bytes": 15528,
+      "sha256": "834768b280c5d54e9aae7a50232d2fa2b29a25a7d3539552494054b772fa9de6"
+    }
+  ]
+}

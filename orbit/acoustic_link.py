@@ -63,6 +63,8 @@ def envelope(
     name = Path(name.replace("\\", "/")).name
     if len(name) > 120 or not name or any(ord(c) < 32 for c in name):
         raise ValueError("Use a short plain filename.")
+    compressed = zlib.compress(payload, level=9)
+    packing = len(compressed) + 32 < len(payload)
     metadata = json.dumps(
         {
             "name": name,
@@ -70,13 +72,14 @@ def envelope(
             "fundus": fundus,
             "role": role,
             "synthetic": bool(synthetic),
+            **({"packing": "zlib", "original_size": len(payload)} if packing else {}),
         },
         ensure_ascii=False,
         separators=(",", ":"),
     ).encode()
     if len(metadata) > 512 or any(c in name for c in '<>:"|?*') or name.endswith((".", " ")):
         raise ValueError("Use a shorter plain filename without special characters.")
-    body = struct.pack(">H", len(metadata)) + metadata + payload
+    body = struct.pack(">H", len(metadata)) + metadata + (compressed if packing else payload)
     message_id, salt, nonce = (
         secrets.token_bytes(16),
         secrets.token_bytes(16),
@@ -111,6 +114,16 @@ def open_envelope(raw: bytes, passphrase: str):
     if not isinstance(metadata, dict):
         raise ValueError("The recovered metadata must describe a file.")
     content = body[2 + size :]
+    if metadata.get("packing", "none") == "zlib":
+        unpacker = zlib.decompressobj()
+        try:
+            content = unpacker.decompress(content, MAX_CONTENT + 1)
+        except zlib.error as exc:
+            raise ValueError("The compressed payload is damaged. Retry the recording.") from exc
+        if not unpacker.eof or unpacker.unused_data or len(content) > MAX_CONTENT or len(content) != metadata.get("original_size"):
+            raise ValueError("The compressed payload exceeds its declared bounded size.")
+    elif metadata.get("packing", "none") != "none":
+        raise ValueError("This payload encoding is not supported.")
     name = metadata.get("name", "")
     if (
         not isinstance(name, str)
@@ -258,7 +271,30 @@ def decode_packets(audio: np.ndarray, clock_search: bool = False):
     # Speaker/ADC clocks need not agree with WAV metadata. Keep the nominal
     # path unchanged; bounded fallback never bypasses CRC, AEAD or SHA checks.
     if clock_search and len(audio) <= RATE * 60 and np.max(np.abs(audio)) > 1e-7:
-        for ppm in (1000, -1000, 2000, -2000, 500, -500, 250, -250):
+        # Estimate sample-clock mismatch from BOTH known carrier peaks instead of
+        # assuming every phone clock differs by one of eight exact fixed amounts.
+        # CRC + authenticated envelope + file hash remain mandatory.
+        spectrum = abs(np.fft.rfft(audio * np.hanning(len(audio)))) ** 2
+        freq = np.fft.rfftfreq(len(audio), 1 / RATE)
+        estimates = []
+        for tone in TONES:
+            bins = np.flatnonzero((freq > tone * 0.98) & (freq < tone * 1.02))
+            if len(bins):
+                peak = bins[np.argmax(spectrum[bins])]
+                offset = 0.0
+                if 0 < peak < len(spectrum)-1:
+                    y = np.log(np.maximum(spectrum[peak-1:peak+2], 1e-24))
+                    denominator = y[0] - 2*y[1] + y[2]
+                    if abs(denominator) > 1e-12:
+                        offset = float(np.clip(0.5*(y[0]-y[2])/denominator, -0.5, 0.5))
+                measured = (peak + offset) * RATE / len(audio)
+                estimates.append((tone / measured - 1) * 1e6)
+        adaptive = []
+        if len(estimates) == 2 and abs(estimates[0]-estimates[1]) < 350:
+            estimate = round(float(np.mean(estimates))/5)*5
+            if 25 <= abs(estimate) <= 15000:
+                adaptive = [estimate, estimate-25, estimate+25, estimate-50, estimate+50]
+        for ppm in dict.fromkeys([1000, -1000, 2000, -2000, 500, -500, 250, -250, *adaptive]):
             divisor = math.gcd(1000000, 1000000 + ppm)
             adjusted = signal.resample_poly(audio, 1000000 // divisor, (1000000 + ppm) // divisor)
             for sps in (40, 80, 160):
@@ -270,7 +306,7 @@ def decode_packets(audio: np.ndarray, clock_search: bool = False):
                     best = (complete, report)
     best[1].setdefault("clock_adjustment_ppm", 0)
     best[1]["clock_search"] = (
-        "Eight fixed clock corrections, at most 60 seconds of input."
+        "Carrier-estimated clock correction plus eight fixed fallbacks; at most 60 seconds of input."
         if clock_search and len(audio) <= RATE * 60
         else "Not requested or recording exceeds the 60-second fallback bound."
     )
@@ -593,7 +629,16 @@ def install(app, ctx):
         if not operation_lock.acquire(blocking=False):
             raise HTTPException(409, "Wait for the current acoustic decode to finish.")
         try:
-            return await run_in_threadpool(
+            receiver_asset = None
+            if source == "MICROPHONE RECORDING":
+                # Explicitly submitted receiver recordings survive decode failure
+                # and page reload. No passphrase or key is saved in the asset.
+                samples(bytes(raw))
+                receiver_asset = ctx["save_asset"](
+                    bytes(raw), "Orbit-Receiver-Recording.wav", "MICROPHONE RECORDING",
+                    synthetic=False, notes="Submitted microphone WAV retained for diagnosis; no physical decode success implied.",
+                )
+            result = await run_in_threadpool(
                 recover,
                 bytes(raw),
                 phrase,
@@ -602,6 +647,9 @@ def install(app, ctx):
                 hashlib.sha256(request.cookies.get("orbit_session", "").encode()).hexdigest()[:20],
                 clock_search,
             )
+            if receiver_asset:
+                result["receiver_asset"] = receiver_asset
+            return result
         finally:
             operation_lock.release()
 

@@ -1,3 +1,18 @@
+# 5.1 shared Command Centre — 2026-11-10
+
+- Add one authenticated server-owned experiment, WebSocket snapshots, controller
+  ownership, revision/idempotence safeguards and shared background DSP results.
+- Replace primitive avatars with licensed CC0 skinned human mesh and animation
+  clips; add exact multi-person/mixed scenarios, short tour and shared room editor.
+- Integrate real existing transfer UI, received input selection and reprocessing,
+  shared amplitude/phase/FFT/PSD/STFT/motion charts and source-safe derived saves.
+- Add bounded carrier-estimated acoustic clock correction and compression before
+  encryption. Keep original hash checks; automatically retain submitted receiver
+  WAVs and recorded scene videos in local Library. Physical delivery unverified.
+- Rebuild Windows wrapper with downloads enabled; APK5.1/code11 adds the current
+  exact LAN address without globally enabling cleartext HTTP.
+- Preserve existing independent detailed studios, datasets, models and research.
+
 # 5.0 sound demo addition — 2026-11-10
 
 - Add reproducible 1,698-byte amplitude-only walking Simulation with supplied path,

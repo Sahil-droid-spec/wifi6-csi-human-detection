@@ -190,7 +190,7 @@ public class MainActivity extends Activity {
         status=text("Connecting to "+base,11,Color.rgb(92,110,133)); status.setPadding(dp(12),0,dp(12),dp(5)); outer.addView(status);
         web=new WebView(this); outer.addView(web,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,0,1));
         WebSettings settings=web.getSettings(); settings.setJavaScriptEnabled(true); settings.setDomStorageEnabled(true);
-        settings.setUserAgentString(settings.getUserAgentString()+" OrbitCompanion/4.3");
+        settings.setUserAgentString(settings.getUserAgentString()+" OrbitCompanion/5.1");
         audioBridge=new AudioBridge(this,web,()->foreground&&web!=null&&isServerUrl(web.getUrl()));
         web.addJavascriptInterface(audioBridge,"OrbitAudio");
         photoBridge=new PhotoBridge(this,web,()->web!=null&&isServerUrl(web.getUrl()));

@@ -61,6 +61,7 @@ import {AcousticLink} from "./AcousticLink";
 import {Workbench} from "./Workbench";
 import {GlobalCommands} from "./GlobalCommands";
 import {ControlRoom} from "./ControlRoom";
+import {SharedCommand} from './SharedCommand';
 import {PhoneFiles,Progression,ResearchCode,NotebookLinks} from "./Demo";
 import {CameraStudio} from "./CameraStudio";
 import {PresenceExperiment} from "./PresenceExperiment";
@@ -951,7 +952,7 @@ function App() {
               </div>
             </header>
             <main className="workspace-main">
-              <div className="page-heading">
+              <div className="page-heading" style={page==="control"?{display:"none"}:undefined}>
                 <div>
                   <span className="eyebrow">
                     ORBIT /{" "}
@@ -1274,7 +1275,7 @@ function App() {
               {page === "acoustic"&&<Acoustic/>}
               {page === "link"&&<AcousticLink/>}
               {page === "workbench"&&<Workbench/>}
-              {page === "control"&&<ControlRoom state={state} capture={capture} onSelect={setSelected} onNavigate={p=>navigate(p as Page)} reduced={!motion}/>}
+              {page === "control"&&<SharedCommand state={state} reduced={!motion}/>}
               {page === "studio3d"&&<ControlRoom key="studio3d" studio state={state} capture={capture} onSelect={setSelected} onNavigate={p=>navigate(p as Page)} reduced={!motion}/>}
               {page === "camera"&&<CameraStudio/>}
               {page === "matlab"&&<MatlabStudio/>}

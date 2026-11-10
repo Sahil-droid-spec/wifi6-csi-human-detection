@@ -11,7 +11,7 @@ async function api(path:string,options:RequestInit={}){
 }
 const post=(path:string,body:D)=>api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 
-export function AcousticLink(){
+export function AcousticLink({onOpenSimulation}:{onOpenSimulation?:(assetId:string)=>void}={}){
   const [text,setText]=useState(()=>sessionStorage.getItem('orbit-link-text')||'Hello Orbit'),[file,setFile]=useState<File|null>(null),[key,setKey]=useState('');
   const [fec,setFec]=useState(false),[bitRate,setBitRate]=useState(400),[retrying,setRetrying]=useState(false);
   const [encrypted,setEncrypted]=useState(true),[consent,setConsent]=useState(false);
@@ -65,8 +65,8 @@ export function AcousticLink(){
   }
   async function decode(f:File,mic=false){setCodecState('idle');setSavedReceiver('');setReceiverSave({});setReceiver({file:f,mic});await action(async()=>{
     if(f.size>32*1024**2)throw Error('Choose a WAV smaller than 32 MiB.');
-    setRx(null);setRx(await api('link/receive?preset='+filter+'&clock_search=true&source='+encodeURIComponent(mic?'MICROPHONE RECORDING':'UPLOADED MODEM WAV'),{
-      method:'POST',headers:{'X-Orbit-Passphrase':b64(new TextEncoder().encode(key))},body:f}));await refresh();
+    setRx(null);const result=await api('link/receive?preset='+filter+'&clock_search=true&source='+encodeURIComponent(mic?'MICROPHONE RECORDING':'UPLOADED MODEM WAV'),{
+      method:'POST',headers:{'X-Orbit-Passphrase':b64(new TextEncoder().encode(key))},body:f});setRx(result);if(result.receiver_asset){setSavedReceiver(result.receiver_asset.id);setReceiverSave({path:result.receiver_asset.path});}await refresh();
   });}
   async function reliableSend(){
     if(!tx)return;const cancel=new AbortController();reliable.current=cancel;setRetrying(true);
@@ -140,7 +140,7 @@ export function AcousticLink(){
       {row.text&&<p style={{whiteSpace:'pre-wrap'}}>{row.text}</p>}
       {row.type.startsWith('image/')&&<img src={row.download_url} alt="Reconstructed received image" style={{maxWidth:'100%',maxHeight:300}}/>}
       {row.type.startsWith('audio/')&&<audio controls src={row.download_url}/>}
-      {/^Simulation-.*\.npz$/i.test(row.name)&&<button className="button" disabled={busy} onClick={()=>action(async()=>{const a=await post('workspace/import-reference',{kind:'link_received',id:row.id});location.hash='/studio3d?asset='+a.id;})}>Save &amp; open Simulation in 3D</button>}
+      {/^Simulation-.*\.npz$/i.test(row.name)&&<button className="button" disabled={busy} onClick={()=>action(async()=>{const a=await post('workspace/import-reference',{kind:'link_received',id:row.id});if(onOpenSimulation)onOpenSimulation(a.id);else location.hash='/studio3d?asset='+a.id;})}>Save &amp; open Simulation in 3D</button>}
       <div className="button-row"><a className="button secondary" href={row.download_url}>Save reconstructed file</a><button className="button secondary" disabled={busy} onClick={()=>action(async()=>{const a=await post('workspace/import-reference',{kind:'link_received',id:row.id});location.hash='/workbench?asset='+a.id;})}>Save to shared Library</button>
         {row.type.startsWith('image/')&&<button className="button secondary" disabled={busy||!consent} onClick={()=>openLab(row)}>Save original to Retinal Image Lab</button>}
         {row.type==='audio/wav'&&<button className="button secondary" disabled={busy} onClick={()=>action(async()=>{const item=await post('audio/import-link',{received_id:row.id});location.hash='/audio?item='+item.id;})}>Save &amp; analyze in Audio Studio</button>}

@@ -2,6 +2,18 @@
 
 A local research lab for recorded Wi-Fi CSI, DSP, machine learning, and soft computing. A laptop hosts the app and phone workspace. Orbit keeps recorded detection experiments, ns-3 research, and ordinary file transfers distinct.
 
+## Shared Command Centre · 5.1
+
+Phone/controller and laptop/viewer now share one authenticated experiment: exact
+multi-person Simulation presets, a detailed rigged human, shared furniture,
+integrated file transfer and reprocessing of saved signal files. Shared charts
+include amplitude/phase, FIR/IIR, FFT magnitude/phase, PSD, STFT and motion proxy.
+AcousticLink adds bounded carrier-clock estimation and packing before encryption;
+physical speaker-to-microphone delivery remains unverified. Windows downloads are
+enabled in the rebuilt wrapper and receiver WAV/scene-video copies stay in Library.
+[Easy demo](docs/ORBIT_5_1_DEMO.md) · [complete/partial parity](docs/ORBIT_SHARED_V2_PARITY.md).
+Existing research graphs and earlier progress remain below.
+
 ## Spatial milestone · 5.0
 
 Open **Signal lab → 3D Sensing Studio** for an actual WebGL human/room environment with orbit/pan/zoom, synchronized generated/recorded replay, CSI/DSP/FFT/STFT and motion analysis. The scene is an explanation, not a recovered human pose. Existing modules and the local phone server remain. [Demo guide](docs/ORBIT_DEMO_GUIDE.md) · [honest reference parity](docs/REFERENCE_VIDEO_FEATURE_MATRIX.md) · [tests and limits](docs/ORBIT_ACCEPTANCE_RESULTS.md). This milestone does not establish physical phone/RF/clinical acceptance or100%project completion.

@@ -74,6 +74,19 @@ def test_clock_search_does_not_invent_silent_or_truncated_payload():
     assert not decode_packets(x[: len(x) // 3], clock_search=True)[0]
 
 
+@pytest.mark.parametrize("ppm", [3500, -7250])
+def test_carrier_estimated_clock_on_generated_echo_noise(ppm):
+    raw = envelope(b"Unknown phone clock teaching test", "message.txt", True, KEY)
+    original, total = modulate(raw)
+    received = resample(original, round(len(original) * (1 + ppm / 1e6)))
+    received = received + .25 * np.r_[np.zeros(80), received[:-80]]
+    received += np.random.default_rng(42).normal(0, .008, len(received))
+    complete, report = decode_packets(received, clock_search=True)
+    assert complete == [raw], report
+    assert report["crc_valid_packets"] == total
+    assert open_envelope(complete[0], KEY)[2] == b"Unknown phone clock teaching test"
+
+
 @pytest.mark.parametrize("lost_training_bits", [8, 24, 32])
 def test_clipped_training_prefix_still_requires_payload_crc(lost_training_bits):
     raw = envelope(b"Clipped training prefix", "message.txt", True, KEY)

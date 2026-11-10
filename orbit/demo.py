@@ -19,6 +19,8 @@ def install(app, ctx):
     install_control_room(app, ctx)
     from .sensing_studio import install as install_sensing_studio
     install_sensing_studio(app, ctx)
+    from .shared_command import install as install_shared_command
+    install_shared_command(app, ctx)
     from .speech import install as install_speech
     install_speech(app, ctx)
     from .research_tools import install as install_research_tools

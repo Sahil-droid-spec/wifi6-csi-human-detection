@@ -1,5 +1,41 @@
 # ORBIT canonical checklist — 5.0 spatial milestone — 2026-11-09
 
+## 5.1 Shared Command Centre V2 — 2026-11-10
+
+- IMPLEMENTED: detailed CC0 rigged human mesh and idle/walk/jog/gesture clips;
+  independent exact 0/1/2-person scenarios, mixed activity, custom up to four,
+  server-owned short scenario tour, shared numeric furniture editing/save/reload.
+- IMPLEMENTED: authenticated WebSocket state, explicit controller ownership,
+  revisions, idempotent commands, reconnect snapshots, shared playback/processing,
+  bounded background jobs that discard superseded results, received-file routing
+  and real existing transfer graphs inside Command Centre.
+- TESTED: **193 Python tests passed**, **5 frontend timeline tests passed**, frontend
+  build and ruff pass. Browser clients on separate local origins demonstrated a
+  scenario change propagating to the other client, real tiny-NPZ upload, and
+  received 32-packet input reprocessed with 7-tap Hamming FIR. This is not a physical
+  handset acceptance test. See outputs/Orbit-5.1-Tests.txt in the release package.
+- VISUAL EVIDENCE: actual browser canvas recording with one standing, two standing,
+  two walking and mixed activity; all64source frames sequentially decoded and
+  transition frames inspected. Variable/low frame rate reflects browser background
+  throttling; no universal FPS guarantee. Native Windows window also rendered;
+  user interaction was detected and further native UI automation stopped.
+- ACOUSTIC SOFTWARE: packing before AES-GCM reduces this exact1,698-byte teaching
+  payload to42.18s/13frames at400bit/s without FEC. Carrier-estimated clock fallback
+  adds tested generated3500/-7250ppm echo/noise cases. Original hash/authentication
+  checks remain mandatory. Microphone submissions retain their actual WAV in the
+  local Library even when normal decoding fails. Native download setting is now
+  included in rebuilt Orbit.exe; a scene video also saves a Library copy.
+- NOT VERIFIED: actual phone speaker→laptop microphone and reverse, handset QR/
+  GPU/microphone acceptance, live CSI/SDR/native802.11bf, through-wall localization,
+  clinical measurements and original missing SmartCSI trained artifacts.
+- PARTIAL: full image-job synchronization, presenter-camera sharing, 3D furniture
+  drag gizmos, foot-locking IK/collision-aware avatar paths, full universal version
+  comparison/revert UI and complete plot configuration export. The supplied
+  master specification is **not100%complete**.
+
+Full source comparison and acceptance limits: [ORBIT_SHARED_V2_PARITY.md](ORBIT_SHARED_V2_PARITY.md).
+Simple faculty demo: [ORBIT_5_1_DEMO.md](ORBIT_5_1_DEMO.md).
+
 2026-11-10 addition: tiny walking sound example (1,698-byte NPZ, 32 amplitude
 samples, one subcarrier and supplied generated trajectory). Encrypted generated
 PCM WAV → hash-exact reconstruction → shared Library → 3D-session data and FIR
