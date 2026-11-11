@@ -1,115 +1,200 @@
-## Shared phone/laptop data demo - 11 November 2026
+# ORBIT — Wi-Fi Sensing & Signal Processing Lab
 
-Command Centre now sends and receives verified datasets in either direction, opens shared replay and synchronizes DSP. Five built-in Simulation files include standing, walking and two-person scenarios; no separate sample download is needed. [Demo steps and hardware limits](docs/ORBIT_SHARED_DATA_DEMO.md). Existing research graphs and results remain below.
+**Recorded CSI research · shared phone/laptop 3D workspace · DSP · soft computing**
 
-# ORBIT Ultimate — Wi-Fi 6 CSI Human Presence & Activity Sensing
+Import a signal, inspect its quality, process it, evaluate a model and preserve the
+evidence. A Windows laptop hosts ORBIT; a paired phone sends files and controls the
+same experiment. Recorded research, generated examples and network simulations
+remain distinct throughout the workflow.
 
-A local research lab for recorded Wi-Fi CSI, DSP, machine learning, and soft computing. A laptop hosts the app and phone workspace. Orbit keeps recorded detection experiments, ns-3 research, and ordinary file transfers distinct.
+[All features](docs/FEATURE_CATALOG.md) · [Image & graph gallery](docs/IMAGE_GALLERY.md) ·
+[Phone demo](docs/ORBIT_SHARED_DATA_DEMO.md) · [Research history](docs/research_history.md) ·
+[Checklist](docs/ORBIT_PROJECT_CHECKLIST.md)
 
-## Shared Command Centre · 5.1
+![Actual shared-room browser render with two supplied simulated people](docs/images/orbit-shared-data-room.png)
 
-Phone/controller and laptop/viewer now share one authenticated experiment: exact
-multi-person Simulation presets, a detailed rigged human, shared furniture,
-integrated file transfer and reprocessing of saved signal files. Shared charts
-include amplitude/phase, FIR/IIR, FFT magnitude/phase, PSD, STFT and motion proxy.
-AcousticLink adds bounded carrier-clock estimation and packing before encryption;
-physical speaker-to-microphone delivery remains unverified. Windows downloads are
-enabled in the rebuilt wrapper and receiver WAV/scene-video copies stay in Library.
-[Easy demo](docs/ORBIT_5_1_DEMO.md) · [complete/partial parity](docs/ORBIT_SHARED_V2_PARITY.md).
-Existing research graphs and earlier progress remain below.
+*Actual browser render. People follow supplied Simulation paths; their positions
+are not reconstructed from measured Wi-Fi. This scene does not establish live CSI,
+physical acoustic delivery or through-wall localization.*
 
-## Spatial milestone · 5.0
+## Latest progress · 5.1
 
-Open **Signal lab → 3D Sensing Studio** for an actual WebGL human/room environment with orbit/pan/zoom, synchronized generated/recorded replay, CSI/DSP/FFT/STFT and motion analysis. The scene is an explanation, not a recovered human pose. Existing modules and the local phone server remain. [Demo guide](docs/ORBIT_DEMO_GUIDE.md) · [honest reference parity](docs/REFERENCE_VIDEO_FEATURE_MATRIX.md) · [tests and limits](docs/ORBIT_ACCEPTANCE_RESULTS.md). This milestone does not establish physical phone/RF/clinical acceptance or100%project completion.
+The shared **Command Centre** adds explicit controller handoff, rigged humans,
+standing/walking/multi-person scenarios, a numerical room editor and one server
+timeline. Send/Receive stays inside the room workspace: the receiver verifies
+SHA-256, saves the input in Library and opens shared replay. FIR, Butterworth and
+notch processing use the selected input; both screens receive the same result.
 
-## App checkpoint · 4.4
+The latest shared-data workflow passed **16 focused backend tests**, **6 frontend
+command/timeline tests**, a production build and frozen-Windows two-client checks.
+The preceding 5.1 full-suite checkpoint passed **193 Python tests**. These are
+distinct scopes, not added together. [Acceptance records](docs/ORBIT_ULTIMATE_TEST_RESULTS.md).
+The user confirmed phone **Take control** works; complete handset/ESP acceptance is
+still a separate physical test.
 
-Command center adds a procedural 3D explainer, gap-aware same-input DSP graphs, subcarrier maps and links to matched model evidence. The acoustic receiver now handles a clipped training preamble while retaining CRC/AEAD/hash validation. [4.4 guide](docs/command_center_release_4_4.md).
+## From signal to evidence
 
-The existing interface and research gallery are retained. Connected workbench adds shared file lifecycle, offline English transcription, reproducible DSP workflows, generated modulation/BER practicals, reference-based research tools and device diagnostics. AcousticLink adds SECDED, selectable rates and a sender-bound decoded ACK path; APK 4.3 adds preview-first native photo/voice workflows and secure media permission support.
+![Original CSI processing and evaluation pipeline](assets/assets/project_pipeline.svg)
 
-[Current checklist and remaining boundaries](docs/ORBIT_PROJECT_CHECKLIST.md) · [Install and test guide](docs/professional_release_4_3.md). Physical phone/audio/CSI/SDR acceptance, missing original SmartCSI artifacts and independent clinical validation are not asserted as completed. Wi-Fi transfer is not evidence of live CSI or AX/BF superiority.
+| Workspace | Features | Evidence boundary |
+|---|---|---|
+| **Command center / 3D Sensing Studio** | Shared scenarios, Send/Receive, replay, TX/RX markers, furniture, cameras, ten signal views, scene recording | Supplied paths; no recovered human pose |
+| **Library / Lab notebook** | MAT/ZIP/CSV/NPY/NPZ, metadata wizard, media, notes, original/derived links and lifecycle controls | CSI/media registries retain their contracts |
+| **Signal Studio / DSP & SC tools** | FIR/IIR/notch, windows, FFT/DFT, convolution, sampling, quantisation, Hilbert, Laplace, spectra and spectrograms | Numerical practicals and recordings are labelled |
+| **Learning Lab / Replay / Evidence** | LR, RF, ANN, GA and fuzzy experiments; held-out replay; quality gates; confusion matrices | Dataset restrictions and explicit validation protocols |
+| **Connect / Transfer / Inbox** | Local server, one-time QR, resumable chunks, SHA-256, chat, receipts and transfer graphs | Application traffic, not Wi-Fi PHY throughput |
+| **AcousticLink / Acoustic modem** | Text/binary-to-BFSK, AES-GCM, CRC, SECDED, ACK/retries and reconstructed inbox | Codec tested; physical sound delivery unverified |
+| **Audio Studio / Connected workbench** | WAV analysis, filtering, known-track mixing, bounded two-channel ICA, optional local speech and workflows | Fixture results do not establish arbitrary voice recognition/separation |
+| **MATLAB Studio / SDR & spectrum** | Optional MATLAB comparisons, fixed Simulink fixture, recorded/generated I/Q and hardware adapters | License/toolbox/device dependent |
+| **Camera / Retinal Image Lab** | Capture paths, QR/motion/face-eye candidates, pulse experiments, fundus enhancement and vessel candidates | Research tools; no diagnosis or webcam BP |
+| **Research Journey / SmartCSI** | Original figures, SAGE/AX-BF history, GA-RF/fuzzy prototype and score imports | Archived simulation and exploratory detection stay distinct |
 
-## Research at a glance
+The [full catalog](docs/FEATURE_CATALOG.md) lists **31 screens and 57 feature groups**,
+including partial/blocked requests, 18 themes, search/Ctrl+K, presentation mode,
+reduced motion/effects, the offline guide and recording plan.
 
-![Research pipeline from CSI through DSP, modelling and evaluation](assets/assets/project_pipeline.svg)
+## Phone → laptop → shared processing
 
-| Original CSI graphs | What to look for |
-|---|---|
-| [20 MHz amplitude](assets/assets/csi_20mhz_examples.webp) · [40 MHz amplitude](assets/assets/csi_40mhz_examples.webp) | Changes across recorded packets and subcarriers |
-| [FIR comparison](assets/assets/fir_filter_comparison.webp) · [DFT spectrum](assets/assets/dft_spectrum_comparison.webp) | How the original notebook's filter changed the waveform and frequency content |
-| [Validation protocols](assets/assets/validation_protocol_comparison.png) · [Original AX/BF comparison](assets/assets/phase7_simulator_results.png) | How the split changed capture scores and how the partial simulator measured throughput and sensing latency |
+1. Run **Start-Orbit-Server.cmd**. Put both devices on the same reachable router or
+   hotspot and pair the phone using a fresh QR in **Connect**.
+2. Open **Command center** on both. On the phone: **Take control → Phone to Laptop →
+   One walking → Send selected Simulation data**.
+3. On the laptop: **Receive & open shared data**. Bytes are checked and saved before
+   replay. Samples include one standing/walking, two standing/walking and mixed.
+4. Take control on the phone again. Change a scenario or select **FIR → Hamming →
+   7 taps**. Both screens update. Scenario changes create a new Simulation; DSP
+   changes process the current input without resending it.
+5. Reverse direction for laptop-to-phone receipt. Expand the transfer graph for
+   actual accepted bytes; a tiny upload may finish before the next refresh.
 
-![Archived comparison of capture accuracy under different validation protocols](assets/assets/validation_protocol_comparison.png)
+![Actual selected-input waveform and computed FIR output](docs/images/orbit-shared-data-dsp.png)
+
+*Computed graphs from a selected Simulation file. Filtering can change a waveform
+without improving detection. Camera angles remain local to each screen.*
+
+An **ESP32-S3** needs compatible capture firmware and a receiver protocol; USB power
+or phone pairing alone does not provide CSI. The map does not invent ESP/router/RF
+telemetry. [Equipment and demo steps](docs/ORBIT_SHARED_DATA_DEMO.md).
+
+## Recorded CSI: results and limitations
+
+![Archived recorded 20 MHz amplitude examples](assets/assets/csi_20mhz_examples.webp)
+
+The archived 20 MHz bandwidth-comparison run used **15 recordings, two dates,
+leave-one-recording-date-out and capture-level majority voting over accepted
+windows**. Both RF and ANN obtained **10/15 capture accuracy, 0.6786 balanced
+accuracy and 0.7059 presence F1** under that protocol. ANN did not improve over RF.
+These small-cohort results do not establish general live-sensing performance.
+[Metrics, folds and limitations](docs/model_comparison_20mhz_40mhz.md).
+
+![RF confusion matrix: archived 20 MHz date-held-out evaluation](results/figures/confusion_matrix_20mhz_random_forest.png)
+
+The 40 MHz run instead used exploratory **leave-one-MAT-capture-out on 11 recordings**.
+Class and date are confounded; its perfect capture scores are not independent
+date-held-out generalization or evidence that 40 MHz is better.
 
 <details>
-<summary>Original CSI, FIR, DFT and AX/BF graphs</summary>
+<summary>Original FIR, DFT, 40 MHz and validation-protocol graphs</summary>
 
-![20 MHz recorded CSI amplitude examples](assets/assets/csi_20mhz_examples.webp)
-![40 MHz recorded CSI amplitude examples](assets/assets/csi_40mhz_examples.webp)
-![Original raw versus FIR-filtered CSI](assets/assets/fir_filter_comparison.webp)
-![Original DFT magnitude comparison](assets/assets/dft_spectrum_comparison.webp)
-![Archived AX throughput and BF report latency under three simulator configurations](assets/assets/phase7_simulator_results.png)
+![Archived raw versus moving-average FIR](assets/assets/fir_filter_comparison.webp)
+![Archived raw versus filtered DFT magnitude](assets/assets/dft_spectrum_comparison.webp)
+![Archived recorded 40 MHz amplitudes](assets/assets/csi_40mhz_examples.webp)
+![Archived validation-protocol comparison](assets/assets/validation_protocol_comparison.png)
+
+The original moving-average experiment, later matched Hamming experiment and
+SmartCSI exploratory fusion are different experiments; their scores are not interchangeable.
 
 </details>
 
-The figures are archived outputs. The original AX/BF plot is from a five-run-per-configuration partial ns-3.40 experiment. The separate SAGE V3 study used 12 seeds and reported a severe-fading AX-only throughput gain alongside lower successful BF report rates in matched mixed-mode comparisons. The research history keeps both protocols and the recorded CSI results separate. [Research notebook](https://colab.research.google.com/drive/1iFoaTazemwuRKRnVC7APWzceNzxh0OiK?usp=sharing) · [Original research history](docs/research_history.md) · [Research Journey and SAGE V3](docs/research_journey.md)
+## SAGE V3: gains and negative results
 
-## Orbit progress
+The Research Journey preserves **19 original figures**, with PDF page provenance
+and SHA-256 hashes: early AX/BF trade-offs, failed optimization, SARA V1/V2, SAGE
+and BF reliability. These outputs were archived, not rerun for this README.
 
-| Area | Current status |
-|---|---|
-| Recorded CSI and Evidence | Quality-aware feature extraction, grouped training, held-out Replay, and a separate matched Hamming FIR experiment using the same features and held-out dates. |
-| Phone exchange | One-time QR, resumable hash-verified exchange, chat, and a server-measured upload timeline. Physical Android acceptance pending. |
-| Audio and MATLAB | Verified transferred WAVs can enter Audio Studio, be filtered into linked Library copies, and be reopened for a bounded comparison in optional licensed MATLAB. |
-| Additional labs | Software BFSK loopback, generated or recorded I/Q SDR, Camera Studio, and local MATLAB/Simulink fixture comparisons |
-| Retinal Image Lab | Consented photo enhancement and vessel-candidate masks through Python or licensed MATLAB, with Library save and measured timings. Software verification uses generated geometry. |
+![Original SAGE V3 gains from the archived 12-seed ns-3 comparison](docs/research-figures/graph-13.png)
 
-[Current checklist](docs/ORBIT_PROJECT_CHECKLIST.md) · [Implementation status](docs/ORBIT_ULTIMATE_STATUS.md) · [Test record](docs/ORBIT_ULTIMATE_TEST_RESULTS.md)
+The reported **51.86% relative throughput improvement** belongs to **AX-only severe
+fading in the archived 12-seed ns-3 comparison against IdealWifiManager**, seeds
+1101–1112. It is not detection accuracy, a percentage-point gain or a measured
+ESP/phone radio improvement. Stable-channel tests showed essentially no benefit;
+channel-event traces may differ between controllers.
 
-## Windows application
+![Original BF successful reports from the archived 12-seed study](docs/research-figures/graph-14.png)
 
-Extract the Windows download fully, then open **Orbit.exe**. It includes Python and the scientific runtime. The native window uses Microsoft Edge WebView2. Keep the app open while using your phone.
+Under that archived **12-seed mixed-mode ns-3 protocol**, successful BF reports
+declined: Rayleigh **2.958 → 2.667 reports/s**; severe **2.492 → 1.933 reports/s**.
+Communication gains therefore do not establish sensing-reliability gains.
+[All figures and captions](docs/IMAGE_GALLERY.md).
 
-For a server without the desktop window, run **Start-Orbit-Server.cmd**, or:
+SmartCSI combines a GA-selected RF score with optional fuzzy fusion. Its historical
+15-capture fusion result is **exploratory**: the final rule was studied using
+available results, so independent validation is needed. Exact original trained
+RF/mask/fuzzy artifacts are missing; separate app retraining is not an exact reproduction.
+[SmartCSI explanation](docs/smartcsi_presentation.md) · [Journey provenance](docs/research_journey.md).
 
-    Orbit.exe --server
+## Run ORBIT
 
-Use --port 8766 for another port, or --local-only to disable LAN binding. The app does not change firewall rules; allow the private-network prompt yourself when appropriate.
+**Existing packaged Windows install:** copy an extracted update into the folder
+containing `Orbit.exe`, merge and replace files. Keep `_internal` and `orbit-data`.
+An update overlay is not a standalone fresh installation. The native window uses
+WebView2; the laptop server stays running while the phone is connected.
 
-## Phone
+```powershell
+Orbit.exe
+Orbit.exe --server       # LAN server without desktop window
+Orbit.exe --port 8766    # alternate port
+Orbit.exe --local-only   # disable LAN binding
+```
 
-Install the APK, then create a one-use QR in **Connect** on the laptop. Scan/open the link on the phone; pairing avoids entering the session code. The app reconnects while its session remains valid. Android Share → Orbit accepts files; choose them in Import wizard. Offline examples can be saved from the app connection screen.
+**Source, Windows x64 CPython 3.10:**
 
-The APK permits HTTP only to its build-time private laptop IPs. If an IP changes, rebuild with --lan-host or use the phone browser. orbit.local discovery depends on mDNS; numeric LAN URLs remain available. The phone scientific workspace requires the laptop server.
+```powershell
+python launch_orbit.py --lan
+# Prepare matching wheels online, then launch offline:
+python tools/prepare_offline.py
+python launch_orbit.py --offline --lan
+```
 
-## Source / offline Python launch
+Raw datasets, the speech model, private signing material and a complete native
+runtime are not in the source repo. Optional speech, vision, MATLAB and SDR require
+their documented dependencies. [Run guide](docs/orbit_run_guide.md).
 
-Windows x64 CPython 3.10:
+APK **5.1** uses the laptop **LAN address**, not phone `localhost`. Its HTTP allowlist
+is restricted to configured private hosts; a changed laptop address can need a
+rebuilt allowlist or the paired browser. Media access needs permission and a
+supported secure/native context. [Android](android/README.md) · [Hardware](docs/ORBIT_ULTIMATE_HARDWARE_SETUP.md).
 
-    python tools/prepare_offline.py
-    python launch_orbit.py --offline --lan
+## Checks and remaining work
 
-The first command prepares wheels online; the downloadable source bundle already includes them. Add --check-install to verify dependencies without starting the server. Other Python versions need matching wheels. The frontend is prebuilt; development uses npm ci and npm run build in frontend/.
+```powershell
+python -m pytest tests -q
+python -m ruff check orbit tests tools desktop.py build_desktop.py launch_orbit.py
+python tools/checksums.py --verify
+npm --prefix frontend ci
+npm --prefix frontend run test:command
+npm --prefix frontend run test:timeline
+npm --prefix frontend run build
+```
 
-## Workflow
+Replay defaults to held-out predictions. Outer test groups are excluded from app
+training/scaling/feature selection/tuning. Quality-skipped windows are distinct
+from predictions, and Simulation stays out of recorded Evidence.
 
-Home → Library (files, folders, ZIP, MAT, numeric CSV/NPY/NPZ) → Signal Studio → Learning Lab → Replay. Use Import wizard for missing metadata. Uploads resume by hash/offset; duplicates are detected. Inbox collects phone imports and manual tap labels. Removed datasets can be restored from Inbox.
+Remaining boundaries: physical sound delivery; complete handset/ESP/SDR acceptance;
+native 802.11bf; through-wall pose reconstruction; original SmartCSI artifacts;
+independent clinical validation. Full landmark/gesture/object models, furniture
+drag/IK/collision solving, universal version/revert UI and fully shared image jobs
+remain partial. No 100% completion claim is made.
 
-Simulation contains generated empty/still/moving/two-person channels. It has a separate library/models and a visible Simulation chip. Generated outputs always retain synthetic=true; they are excluded from Evidence. Recording plan prepares balanced real-lab sessions with consent and metadata checks.
+## Gallery and credits
 
-DSP & SC tools extends filters, FFT, aliasing, pole-zero views, convolution, spectrograms, the ANN ladder, SOM, fuzzy defuzzification, quality gating, nested GA DSP search and heuristic model fusion. Orbit guide is offline rule-based help, not an external AI model.
+- [All images](docs/IMAGE_GALLERY.md) · [Original-figure manifest](docs/research-figures/manifest.json)
+- [Actual rendered scenario-tour video](docs/media/orbit-5.1-scenario-tour.mp4): supplied scenarios, variable-timestamp recorded frames; not a fixed-FPS benchmark
+- [Original research history](docs/research_history.md) · [Colab notebook](https://colab.research.google.com/drive/1iFoaTazemwuRKRnVC7APWzceNzxh0OiK?usp=sharing)
+- [Changelog](CHANGELOG.md) · [Checklist](docs/ORBIT_PROJECT_CHECKLIST.md) · [Reference parity](docs/ORBIT_SHARED_V2_PARITY.md)
 
-## Validation and limits
-
-Replay defaults to saved outer-fold predictions. Scaling, GA feature selection and tuning exclude held-out recordings/dates. Final-model inference is explicitly labelled. Metrics carry validation protocols; small datasets and date/class confounding remain limitations. Simulated results do not establish real-world accuracy. No verified live CSI, through-wall detection or native 802.11bf support is claimed.
-
-Run python -m pytest tests -q and python -m ruff check orbit tests tools desktop.py build_desktop.py launch_orbit.py. Verify file bytes with python tools/checksums.py --verify. See CHANGELOG.md, docs/step1_audit.md and [the preserved research history](docs/research_history.md).
-
-## New local communication and acoustic DSP tools
-
-Connect → fresh QR → Transfer & chat. General files up to 256 MiB are separate from CSI imports. Open **View upload graph** for server-accepted bytes and observed application throughput. For a verified PCM16 WAV, **Save & analyze WAV** opens Audio Studio with playback, waveform, spectrum, spectrogram, and non-destructive filtering. Use Audio Studio on the laptop for optional MATLAB comparison and Trash controls. Sessions expire server-side after 12 hours.
-
-Signal lab -> Acoustic modem: UTF-8 BFSK at 1200/2200 Hz, 100 bit/s, preamble/length/CRC32. Generated speaker WAV, noisy loopback and PCM WAV decode. Microphone capture needs a supported secure context and permission; phone LAN HTTP commonly blocks it. Physical acoustic tests, AgentLink, calls, live SDR and MATLAB Engine remain unverified or pending.
-
-Grouped navigation preserves existing pages. See docs/ORBIT_ULTIMATE_STATUS.md and feature inventory. No new mandatory libraries; existing NumPy/SciPy/scikit-learn BSD-family licenses and FastAPI MIT metadata inspected. MATLAB remains optional.
+Quaternius human mesh/animations are **CC0**, with ORBIT materials and supplied-path
+control. Three.js, React Three Fiber and supporting notices are preserved in
+[licenses](docs/licenses/README.md). ORBIT's layout/assets are not copied from the
+reference app. MATLAB remains optional proprietary software.

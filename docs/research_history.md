@@ -1,5 +1,7 @@
 # Wi-Fi CSI Human Presence & Activity Sensing
 
+Historical research narrative and earlier app checkpoints. For the current implementation, use the [feature catalog](FEATURE_CATALOG.md) and [main README](../README.md).
+
 **Combining Wi-Fi 6 Channel State Information (CSI), Digital Signal Processing, Machine Learning, and Soft Computing**
 
 <p>
@@ -44,7 +46,7 @@ Access depends on the notebook's sharing permissions.
 ## Project Pipeline
 
 <p align="center">
-  <img src="assets/assets/project_pipeline.svg" alt="Project pipeline from recorded CSI data through DSP, machine learning, evaluation and reporting" width="100%">
+  <img src="../assets/assets/project_pipeline.svg" alt="Project pipeline from recorded CSI data through DSP, machine learning, evaluation and reporting" width="100%">
 </p>
 
 1. **Dataset inspection:** Examine CSI arrays, configuration files, labels and available packet-capture data.
@@ -76,7 +78,7 @@ Raw datasets and large PCAP archives are not included in this repository.
 The following saved plots show CSI amplitude traces from recorded captures. Signal differences are useful for exploration, but the plots alone do not prove reliable human detection.
 
 <p align="center">
-  <img src="assets/assets/csi_20mhz_examples.webp" alt="20 MHz CSI amplitude examples from recorded captures" width="92%">
+  <img src="../assets/assets/csi_20mhz_examples.webp" alt="20 MHz CSI amplitude examples from recorded captures" width="92%">
 </p>
 
 ### FIR Filtering
@@ -84,7 +86,7 @@ The following saved plots show CSI amplitude traces from recorded captures. Sign
 A 15-tap moving-average FIR filter was evaluated on CSI amplitude traces. The results were compared against raw features to check whether filtering helped the classifiers.
 
 <p align="center">
-  <img src="assets/assets/fir_filter_comparison.webp" alt="Comparison of raw and FIR-filtered CSI amplitude" width="92%">
+  <img src="../assets/assets/fir_filter_comparison.webp" alt="Comparison of raw and FIR-filtered CSI amplitude" width="92%">
 </p>
 
 ### DFT Analysis
@@ -92,7 +94,7 @@ A 15-tap moving-average FIR filter was evaluated on CSI amplitude traces. The re
 DFT magnitude was used to inspect frequency-domain characteristics of raw and filtered traces.
 
 <p align="center">
-  <img src="assets/assets/dft_spectrum_comparison.webp" alt="DFT magnitude comparison of raw and FIR-filtered signals" width="92%">
+  <img src="../assets/assets/dft_spectrum_comparison.webp" alt="DFT magnitude comparison of raw and FIR-filtered signals" width="92%">
 </p>
 
 ### 40 MHz CSI Examples
@@ -100,7 +102,7 @@ DFT magnitude was used to inspect frequency-domain characteristics of raw and fi
 The 40 MHz dataset workflow inspected 11 MATLAB captures with 512 subcarriers and included PCAP/CSI reconciliation.
 
 <p align="center">
-  <img src="assets/assets/csi_40mhz_examples.webp" alt="40 MHz CSI amplitude examples from recorded captures" width="92%">
+  <img src="../assets/assets/csi_40mhz_examples.webp" alt="40 MHz CSI amplitude examples from recorded captures" width="92%">
 </p>
 
 ## 3. Presence Detection: Validation Matters
@@ -108,7 +110,7 @@ The 40 MHz dataset workflow inspected 11 MATLAB captures with 512 subcarriers an
 The measured scores vary substantially depending on the validation protocol. This is important because windows from the same recording or recording conditions can be more similar than data collected on a different day.
 
 <p align="center">
-  <img src="assets/assets/validation_protocol_comparison.png" alt="Comparison of recorded capture accuracy under different validation protocols" width="92%">
+  <img src="../assets/assets/validation_protocol_comparison.png" alt="Comparison of recorded capture accuracy under different validation protocols" width="92%">
 </p>
 
 ### Baseline Results on 20 MHz CSI
@@ -202,7 +204,7 @@ The scale-invariant hybrid v1 beat both comparison baselines in only **1 of 12 p
 A separate experiment compared three configurations using a partial ns-3.40 research implementation, with five valid runs per configuration.
 
 <p align="center">
-  <img src="assets/assets/phase7_simulator_results.png" alt="Recorded AX throughput and BF sensing latency for three simulator configurations" width="92%">
+  <img src="../assets/assets/phase7_simulator_results.png" alt="Recorded AX throughput and BF sensing latency for three simulator configurations" width="92%">
 </p>
 
 ### Mean Results Across Five Runs
@@ -262,17 +264,17 @@ Raw CSI archives, large PCAP files, datasets and multi-gigabyte runtime backups 
 
 The curated experiment records, validation summaries, dataset audits, and supporting figures are available in the repository:
 
-- [Research progress](docs/research_progress.md)
-- [Experiment log and limitations](docs/experiment_log.md)
-- [20 MHz / 40 MHz model comparison: Logistic Regression, Random Forest and ANN](docs/model_comparison_20mhz_40mhz.md)
-- [AX/BF simulator evaluation](docs/ax_bf_simulator_evaluation.md)
-- [Results data dictionary](docs/results_data_dictionary.md)
-- [Model metrics](results/presence_model_comparison_by_bandwidth.csv)
-- [Capture-level predictions](results/capture_level_model_predictions.csv)
-- [Data-quality audits](results/csi_capture_quality_audit.csv) and [window audit](results/csi_window_quality_audit.csv)
-- [Validation folds and fit warnings](results/model_validation_fold_details.csv)
-- [AX/BF runs](results/ax_bf_simulation_runs.csv) and [summary](results/ax_bf_simulation_summary.csv)
-- [Combined comparison notebook](notebooks/wifi_csi_bandwidth_model_comparison.ipynb)
+- [Research progress](research_progress.md)
+- [Experiment log and limitations](experiment_log.md)
+- [20 MHz / 40 MHz model comparison: Logistic Regression, Random Forest and ANN](model_comparison_20mhz_40mhz.md)
+- [AX/BF simulator evaluation](ax_bf_simulator_evaluation.md)
+- [Results data dictionary](results_data_dictionary.md)
+- [Model metrics](../results/presence_model_comparison_by_bandwidth.csv)
+- [Capture-level predictions](../results/capture_level_model_predictions.csv)
+- [Data-quality audits](../results/csi_capture_quality_audit.csv) and [window audit](../results/csi_window_quality_audit.csv)
+- [Validation folds and fit warnings](../results/model_validation_fold_details.csv)
+- [AX/BF runs](../results/ax_bf_simulation_runs.csv) and [summary](../results/ax_bf_simulation_summary.csv)
+- [Combined comparison notebook](../notebooks/wifi_csi_bandwidth_model_comparison.ipynb)
 
 **Model evaluation caveat:** the latest 20 MHz date-held-out comparison reports 0.4667 capture accuracy for Logistic Regression and 0.6667 for both Random Forest and ANN/MLP across only two dates. The latest 40 MHz capture-held-out comparison reports 1.0000 capture accuracy for all three models, but all no-person captures are dated 2024-07-30 and person-present captures are dated 2024-08-01/02. Treat the 40 MHz scores as exploratory and confounded, not as evidence of robust generalization. See the linked report for details. These offline results do not establish live or real-hardware through-wall sensing.
 
@@ -325,7 +327,7 @@ python launch_orbit.py
 
 Windows: double-click `Start-Orbit.cmd`. Phone access: `python launch_orbit.py --lan`. Open **http://127.0.0.1:8765** and enter the access code printed in the terminal. Python 3.10+ is required; the first launch installs dependencies into a private environment. The frontend is prebuilt.
 
-![Orbit circular workspace](docs/images/orbit-desktop.png)
+![Orbit circular workspace](images/orbit-desktop.png)
 
 ---
 

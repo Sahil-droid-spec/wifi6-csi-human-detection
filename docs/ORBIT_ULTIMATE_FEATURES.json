@@ -1,8 +1,48 @@
 {
-  "updated": "2026-11-09",
-  "version": "5.0.0",
+  "updated": "2026-11-11",
+  "version": "5.1.0",
   "canonical_checklist": "docs/ORBIT_PROJECT_CHECKLIST.md",
   "features": [
+    {
+      "feature": "Shared Command Centre: controller ownership, live state and timeline",
+      "status": "SOFTWARE VERIFIED; USER CONFIRMED TAKE CONTROL",
+      "evidence": "Revisioned authenticated WebSocket/REST, stale-command rejection, deduplication and reconnection. User confirmed phone Take control works; this is not full handset acceptance."
+    },
+    {
+      "feature": "Command Centre Send/Receive in both directions",
+      "status": "SOFTWARE VERIFIED",
+      "evidence": "Phone-to-laptop and laptop-to-phone file bytes, SHA-256 checks, shared incoming filename, Library import, explicit controller handoff and replay. Two-client API, browser and frozen-Windows checks."
+    },
+    {
+      "feature": "Five built-in file-based scenario demonstrations",
+      "status": "SOFTWARE VERIFIED / SIMULATION",
+      "evidence": "One standing, one walking, two standing, two walking and mixed. Eight-second exports contain 160 samples, 16 complex subcarriers and supplied paths; never inferred poses."
+    },
+    {
+      "feature": "Rigged humans, independent activities and shared furniture",
+      "status": "SOFTWARE VERIFIED / SIMULATION",
+      "evidence": "CC0 human mesh and idle/walk/jog/gesture animations, up to four stable person IDs, scenario tour and numerical furniture editor. Foot-locking IK, drag gizmos and avatar/furniture collision solving remain partial."
+    },
+    {
+      "feature": "Shared saved-input DSP and ten chart views",
+      "status": "SOFTWARE VERIFIED",
+      "evidence": "FIR/window, Butterworth and notch controls; waveform, FFT magnitude/phase, PSD, STFT, amplitude/phase and motion views; background result revisions; original bytes retained."
+    },
+    {
+      "feature": "Active browser sessions and ESP32-S3 setup map",
+      "status": "SOFTWARE VERIFIED; ESP HARDWARE UNVERIFIED",
+      "evidence": "Server-observed browser/WebSocket heartbeat with 20-second expiry. Device display role is not physical hardware detection; no invented ESP/USB/Wi-Fi association telemetry."
+    },
+    {
+      "feature": "Acoustic packing, estimated sample-clock correction and failed-WAV retention",
+      "status": "SOFTWARE VERIFIED; PHYSICAL SOUND UNVERIFIED",
+      "evidence": "Packing before AES-GCM, bounded carrier-clock recovery, CRC/authentication/hash checks, automatic original receiver WAV save. A generated file test is not phone-speaker-to-laptop-microphone acceptance."
+    },
+    {
+      "feature": "Scene recording saved in shared Library",
+      "status": "SOFTWARE VERIFIED",
+      "evidence": "Explicit canvas recording creates a local Library WebM and download/preview. Actual short tour MP4 preserves captured timestamps; not a fixed-FPS benchmark."
+    },
     {
       "feature": "WebGL3D sensing studio and reference parity",
       "status": "PARTIAL",
@@ -26,7 +66,7 @@
     {
       "feature": "APK phone connection/upload/download/microphone",
       "status": "IMPLEMENTED / HARDWARE UNVERIFIED",
-      "evidence": "APK 4.3 build/sign/alignment and private-address parser checks. Requires a physical phone."
+      "evidence": "APK 5.1/code11 build, v2/v3 signing, alignment and 13 address-parser checks; exact allowed LAN hosts. User confirmed controller handoff. Full handset upload/download/microphone acceptance remains unverified."
     },
     {
       "feature": "Shared media IDs, context actions, original/derivative links",
@@ -99,7 +139,7 @@
       "evidence": "Local Vosk model produced actual words and timings; no cloud service or unmeasured WER. Human/accent accuracy requires references."
     },
     {
-      "feature": "Speech \u2192 text \u2192 encrypted modem \u2192 text \u2192 ACK",
+      "feature": "Speech → text → encrypted modem → text → ACK",
       "status": "VERIFIED WORKING (software)",
       "evidence": "Full chain executed in frozen Windows build using generated speech."
     },
@@ -145,7 +185,7 @@
     },
     {
       "feature": "Basic signals, DFT/inverse/phase, sampling/aliasing/sinc, quantisation/SNR, Hilbert",
-      "status": "VERIFIED WORKING \u2014 SIMULATION",
+      "status": "VERIFIED WORKING — SIMULATION",
       "evidence": "Parameterized numerical practicals with actual outputs, source labels and finite-record limits."
     },
     {
@@ -155,7 +195,7 @@
     },
     {
       "feature": "Laplace s-plane responses",
-      "status": "VERIFIED WORKING \u2014 SIMULATION",
+      "status": "VERIFIED WORKING — SIMULATION",
       "evidence": "Proper rational coefficients, actual continuous impulse/step and poles/zeros; distinct from digital z-plane."
     },
     {
@@ -165,7 +205,7 @@
     },
     {
       "feature": "ASK/BPSK/DPSK/QPSK/16QAM/generic OFDM",
-      "status": "VERIFIED WORKING \u2014 SIMULATION",
+      "status": "VERIFIED WORKING — SIMULATION",
       "evidence": "Known bits, seeded AWGN, actual errors/counts/BER and sweep. Generic OFDM is not IEEE 802.11ax."
     },
     {

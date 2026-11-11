@@ -1,3 +1,13 @@
+# Current shared-data acceptance - 2026-11-11
+
+- Focused shared-command suite: 16 passed, 1 upstream Starlette warning in 30.19 seconds.
+- Frontend command-ID suite: 1 passed; timeline suite: 5 passed; production build passed with existing large-bundle advisory.
+- Frozen Orbit.exe with existing runtime: two authenticated software clients passed both transfer directions, exact SHA-256, shared incoming file, Library original, one/two supplied walkers, replay and Hamming FIR.
+- Browser: two distinct local origins exercised actual Send/Receive buttons, standing/walking scenario control and synchronized Blackman filtering. Browser roles are software fixtures, not physical phones.
+- Preceding full 5.1 suite: 193 passed, 1 warning in 270.43 seconds. This is an earlier scope, not a fresh full-suite run of this documentation update.
+- User confirmed phone Take control works; complete physical handset, ESP and acoustic acceptance NOT EXECUTED.
+- This documentation/gallery update does not rerun training, network simulation or clinical experiments.
+
 # Command center and clipped-preamble repair — 4.4 — 2026-11-08
 
 - Full project suite: 160 passed, one upstream Starlette TestClient warning in 138.90s. Ruff and TypeScript/Vite passed; existing >500 kB bundle advisory remains.

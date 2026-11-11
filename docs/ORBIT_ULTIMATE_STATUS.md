@@ -1,3 +1,7 @@
+# Current checkpoint - 5.1 shared data - 2026-11-11
+
+See [full current catalog](FEATURE_CATALOG.md), [shared data demo](ORBIT_SHARED_DATA_DEMO.md), [canonical checklist](ORBIT_PROJECT_CHECKLIST.md) and [image gallery](IMAGE_GALLERY.md). Shared phone/laptop control, verified bidirectional file handoff, supplied-path 3D replay and shared DSP are implemented and software-tested. The user confirmed Take control works. Physical acoustic/ESP/clinical acceptance and missing original SmartCSI artifacts remain explicit limits. Earlier entries below are historical.
+
 # Current checkpoint — 5.0 spatial milestone — 2026-11-09
 
 Actual WebGL 3D scene replaces the former projected2Dcanvas. Dedicated3DSensingStudio adds shared packet replay, complex-channel simulation, source-aware CSI/phase, DSP, FFT/STFT, motion events, bounded experiments, safe session roundtrip and shared Library saving. Existing server, phone transfer and all older menus remain. Themes now flow through the scene and Command center rather than a fixed dark override.

@@ -1,0 +1,240 @@
+{
+  "source": "Original figures extracted from the supplied 313-page research notebook export; archived outputs, not rerun for this documentation update.",
+  "source_pages": 313,
+  "source_sha256": "05d73a3fa3546c8f5f8f8b317d6b230aa1ff32a3845db5c7bcf8cad1a2c97e11",
+  "graphs": [
+    {
+      "id": 1,
+      "title": "Initial AX versus AX+BF",
+      "status": "Trade-off",
+      "kind": "Archived ns-3 network simulation",
+      "caption": "Sensing adds overhead; AX-only 57.1786 Mbps remains above the tested BF intervals.",
+      "file": "graph-01.png",
+      "source_pages": [
+        292
+      ],
+      "sha256": "d4996e00eb5fc0ba2274cd779167639bc2960a28e285a4ea07afcdf2c769df0e"
+    },
+    {
+      "id": 2,
+      "title": "Sensing interval optimization",
+      "status": "Trade-off",
+      "kind": "Archived ns-3 network simulation",
+      "caption": "Longer intervals reduce sensing overhead; throughput alone does not establish sensing quality.",
+      "file": "graph-02.png",
+      "source_pages": [
+        292
+      ],
+      "sha256": "53169f0229c7ce4367f7bfd52884e9aef07528e178f15a48a6367f4d21d3808a"
+    },
+    {
+      "id": 3,
+      "title": "Sensing availability",
+      "status": "Limitation",
+      "kind": "Archived ns-3 network simulation",
+      "caption": "Report rate falls as sensing interval increases. The 3 reports/s line is an illustrative target.",
+      "file": "graph-03.png",
+      "source_pages": [
+        292
+      ],
+      "sha256": "30a9e2b8233b0c2c913baf324bdb7134d46b83ffa3364d7f9c00ad2e8e85de75"
+    },
+    {
+      "id": 4,
+      "title": "Matched MCS and payload",
+      "status": "Negative result",
+      "kind": "Archived ns-3 network simulation",
+      "caption": "Compare matching MCS/payload settings; mixed AX+BF does not beat its matched AX baseline.",
+      "file": "graph-04.png",
+      "source_pages": [
+        292,
+        293
+      ],
+      "sha256": "31e160cfda89b1aefccbda36df84b4da21a5ed0eb70241b5f627d07cf2b1a06c"
+    },
+    {
+      "id": 5,
+      "title": "Guard interval and contention window",
+      "status": "Negative result",
+      "kind": "Archived ns-3 network simulation",
+      "caption": "Tuning helps both modes. Improved AX+BF does not establish superiority over equally tuned AX.",
+      "file": "graph-05.png",
+      "source_pages": [
+        293
+      ],
+      "sha256": "ef582b06cd5481b55b2aeb12bc61c1d72873cddcaeb9742ab7583b6e3581f9b9"
+    },
+    {
+      "id": 6,
+      "title": "Spatial reuse ON/OFF",
+      "status": "Positive in tested layouts",
+      "kind": "Archived ns-3 network simulation",
+      "caption": "OBSS-PD is an existing Wi-Fi 6 feature. Two-BSS total throughput depends on separation and geometry.",
+      "file": "graph-06.png",
+      "source_pages": [
+        293
+      ],
+      "sha256": "ee1c37e6b3ec681843cf000ccb7e808e1ef1e1763b255137783f5f3d51f64934"
+    },
+    {
+      "id": 7,
+      "title": "Spatial reuse gain",
+      "status": "Positive in tested layouts",
+      "kind": "Archived ns-3 network simulation",
+      "caption": "Up to 84.288% in these layouts; not a new standard feature invented by this project.",
+      "file": "graph-07.png",
+      "source_pages": [
+        293,
+        294
+      ],
+      "sha256": "d62a412fe3456292ebce6ce9c796a5f1707b62f80f0b4a4e921a20aa904cccd0"
+    },
+    {
+      "id": 8,
+      "title": "SARA V1",
+      "status": "No additional gain",
+      "kind": "Archived ns-3 network simulation",
+      "caption": "Standard, best fixed and SARA V1 each report 12.7624 Mbps.",
+      "file": "graph-08.png",
+      "source_pages": [
+        294
+      ],
+      "sha256": "5b9da86589f832ef2f56f1ed845b946bef1316bb219eb72547cb42893b90a265"
+    },
+    {
+      "id": 9,
+      "title": "SARA V2",
+      "status": "No additional gain",
+      "kind": "Archived ns-3 network simulation",
+      "caption": "The displayed challenging-layout tests do not show extra gain over standard/best tested settings.",
+      "file": "graph-09.png",
+      "source_pages": [
+        294
+      ],
+      "sha256": "6b5c678b579f481c02f25d99e08d153ee56dd4c933f0dfb838e02622687d1b05"
+    },
+    {
+      "id": 10,
+      "title": "SAGE V1/V2 link model",
+      "status": "Mixed results",
+      "kind": "Simplified link simulation",
+      "caption": "Not ns-3. V1/V2 can underperform ACK adaptation; interference is a different result.",
+      "file": "graph-10.png",
+      "source_pages": [
+        294
+      ],
+      "sha256": "e450d0bfa734d3e81d3587df86716e970fabb52fb66cc3060f96a634ba27c681"
+    },
+    {
+      "id": 11,
+      "title": "SAGE V3 stable channel",
+      "status": "Essentially no benefit",
+      "kind": "Archived ns-3 simulation",
+      "caption": "AX-only is unchanged at 103.481 Mbps; mixed changes from 103.0558 to 103.0520 Mbps.",
+      "file": "graph-11.png",
+      "source_pages": [
+        294,
+        295
+      ],
+      "sha256": "cbe707643fb421ee7b23ed4d8e6c42716f24a060705e170173ef7200dd0219de"
+    },
+    {
+      "id": 12,
+      "title": "SAGE V3 fading throughput",
+      "status": "Positive in tested fading",
+      "kind": "Archived 12-seed ns-3 validation",
+      "caption": "IdealWifiManager baseline; seeds 1101-1112. Not hardware, and event traces may differ between controllers.",
+      "file": "graph-12.png",
+      "source_pages": [
+        295
+      ],
+      "sha256": "8c984bba325ab94eb77e0ab2a727c896cf6d80031d4b15e0c87fe2cb4d6ef463"
+    },
+    {
+      "id": 13,
+      "title": "SAGE V3 relative gains",
+      "status": "Positive in tested fading",
+      "kind": "Archived 12-seed ns-3 validation",
+      "caption": "Largest reported AX-only severe-fading gain: 51.864%, displayed as 51.86%. Relative gain is not percentage points.",
+      "file": "graph-13.png",
+      "source_pages": [
+        295
+      ],
+      "sha256": "a41e5cc4ebb22aeed332357db365b4feef8136b3c3479f02d834cb42654ca05c"
+    },
+    {
+      "id": 14,
+      "title": "BF successful reports",
+      "status": "Reliability declined",
+      "kind": "Archived 12-seed ns-3 validation",
+      "caption": "Rayleigh: 2.958 to 2.667 reports/s; severe: 2.492 to 1.933. Communication gain is not sensing reliability gain.",
+      "file": "graph-14.png",
+      "source_pages": [
+        295,
+        296
+      ],
+      "sha256": "0dafab537f47852915de043869996745ebd13e00c8500f7037dfbb00b245d138"
+    },
+    {
+      "id": 15,
+      "title": "BF failed reports",
+      "status": "Reliability declined",
+      "kind": "Archived 12-seed ns-3 validation",
+      "caption": "Mean failures per 10-second run rise: Rayleigh 2.250 to 4.667; severe 5.500 to 10.833.",
+      "file": "graph-15.png",
+      "source_pages": [
+        296
+      ],
+      "sha256": "37bd5acfbc64a4b483ce76bfaf25018d822d964199f7f78b11059be4b971a581"
+    },
+    {
+      "id": 16,
+      "title": "SmartCSI accuracy",
+      "status": "Preliminary offline finding",
+      "kind": "15 recorded captures; exploratory score fusion",
+      "caption": "73.33%, 86.67%, 93.33%. Base scores are date-held-out; the final rule was explored using available results. Independent validation needed.",
+      "file": "graph-16.png",
+      "source_pages": [
+        296
+      ],
+      "sha256": "412443fcb783e5af1f7db79ddd3024c53b89f27c1d72c6035ad0e6e8de31d5b4"
+    },
+    {
+      "id": 17,
+      "title": "SmartCSI false alarms",
+      "status": "Preliminary offline finding",
+      "kind": "Same 15-capture offline experiment",
+      "caption": "False alarms 4 to 2 to 1. This is not network throughput or verified live detection.",
+      "file": "graph-17.png",
+      "source_pages": [
+        296,
+        297
+      ],
+      "sha256": "ca8cf6ac899c1a120a7e94a42ea0c44ec5c981ea4adc5a234d9d7041ecadbb2f"
+    },
+    {
+      "id": 18,
+      "title": "GA feature reduction",
+      "status": "Archived feature-count summary",
+      "kind": "Offline CSI feature selection",
+      "caption": "1024 to 13 = 98.7305% reduction. Fold masks are needed for full reproduction; not all app runs use this mask.",
+      "file": "graph-18.png",
+      "source_pages": [
+        297
+      ],
+      "sha256": "ccc44ba6244cc12864f06168f55dffb6ce5654e0ff0bdd49576c41ebfab71d5a"
+    },
+    {
+      "id": 19,
+      "title": "Final archived dashboard",
+      "status": "Mixed achievements and limitation",
+      "kind": "Archived synthesis of distinct experiments",
+      "caption": "Different metrics and protocols remain separate. BF report reliability declined despite communication gains.",
+      "file": "graph-19.png",
+      "source_pages": [
+        297
+      ],
+      "sha256": "f97a8d433f3985e9f86bbb86fab20fc5511c45d778512ac669eee20c45a343b5"
+    }
+  ]
+}
