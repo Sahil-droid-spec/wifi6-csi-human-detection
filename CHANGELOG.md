@@ -1,3 +1,10 @@
+# Shared data demonstration - 2026-11-11
+
+- Add Command Centre Send/Receive with shared phone/laptop direction, SHA-256 byte verification, Library save, controller handoff and replay.
+- Add five generated complex-CSI teaching samples with supplied paths, active session badges and an honest ESP32-S3 setup map.
+- Keep scenario generation distinct from filtering the received original; ignore older state snapshots and immediately update the command revision reference.
+- Correct frontend CI working directory for playback tests. Existing APK 5.1 remains compatible.
+
 # 5.1 phone-control hotfix - 2026-11-10
 
 - Fix Take control on HTTP LAN browsers where crypto.randomUUID is unavailable.

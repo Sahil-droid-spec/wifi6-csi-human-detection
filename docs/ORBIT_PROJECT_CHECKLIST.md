@@ -1,3 +1,10 @@
+## Shared data demo - 2026-11-11
+
+- Implemented: Command Centre bidirectional verified file handoff, five explicit Simulation samples, shared replay/DSP, active browser session badges and ESP setup explanation.
+- Tested: 16 shared-command tests (including both HTTP-client directions and all sample classes), LAN command-ID and playback regressions, production frontend build.
+- Hardware limit: physical handset/ESP capture acceptance NOT EXECUTED; no supplied avatar is claimed as a reconstructed Wi-Fi pose.
+- Steps: docs/ORBIT_SHARED_DATA_DEMO.md.
+
 # ORBIT canonical checklist — 5.0 spatial milestone — 2026-11-09
 
 ## 5.1 Shared Command Centre V2 — 2026-11-10

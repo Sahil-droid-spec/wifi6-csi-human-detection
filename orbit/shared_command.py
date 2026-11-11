@@ -18,9 +18,10 @@ from typing import Literal
 from urllib.parse import urlsplit
 
 from fastapi import HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from .sensing_studio import Analysis, SessionInput, Simulation
+from .sensing_studio import Analysis, SessionInput, Simulation, synthesize
 
 TOUR_STEP_SECONDS = 4
 
@@ -41,7 +42,7 @@ class Room(BaseModel):
 class Command(BaseModel):
     event_id: str = Field(min_length=8, max_length=80)
     revision: int = Field(ge=0)
-    action: Literal["claim", "scenario", "simulation", "play", "pause", "reset", "seek", "processing", "asset", "room", "save", "save_room", "load_room", "tour", "stop_tour"]
+    action: Literal["claim", "scenario", "simulation", "play", "pause", "reset", "seek", "processing", "asset", "room", "save", "save_room", "load_room", "tour", "stop_tour", "route", "handoff"]
     payload: dict = Field(default_factory=dict)
 
 
@@ -64,11 +65,24 @@ def install(app, ctx):
         "job": {"generation": 0, "status": "idle"}, "events": [],
         "data_revision": 0,
         "tour_running": False, "tour_generation": 0,
+        "transfer_route": "phone_to_laptop", "handoff": None,
     }
     seen: dict[tuple[str, str], dict] = {}
+    peers: dict[str, dict] = {}
 
     def device(cookie):
         return hashlib.sha256((cookie or "").encode()).hexdigest()[:20]
+
+    def touch_peer(cookie, agent):
+        who = device(cookie)
+        with lock:
+            expired = [key for key, peer in peers.items() if time.monotonic()-peer["last_seen"] > 20]
+            for key in expired:
+                peers.pop(key, None)
+            peers[who] = {"id": who, "role": "phone" if any(word in agent.lower() for word in ("android", "iphone")) else "laptop", "last_seen": time.monotonic()}
+
+    def active_peers():
+        return [{"id": peer["id"], "role": peer["role"]} for peer in peers.values() if time.monotonic()-peer["last_seen"] <= 20]
 
     def cursor():
         elapsed = state["cursor"]
@@ -80,7 +94,7 @@ def install(app, ctx):
 
     def snapshot():
         with lock:
-            return copy.deepcopy({**state, "cursor": cursor(), "server_monotonic": time.monotonic()})
+            return copy.deepcopy({**state, "cursor": cursor(), "peers": active_peers(), "server_monotonic": time.monotonic()})
 
     def schedule():
         state["result"] = None
@@ -106,7 +120,18 @@ def install(app, ctx):
 
     @app.get("/api/shared/state")
     def shared_state(request: Request):
+        touch_peer(request.cookies.get("orbit_session"), request.headers.get("user-agent", ""))
         return {**snapshot(), "device_id": device(request.cookies.get("orbit_session"))}
+
+    @app.get("/api/shared/sample")
+    def sample(scenario: Literal["still", "walking", "two_still", "two", "mixed"] = "walking"):
+        import numpy as np
+        config = Simulation(duration=8, packet_rate=20, subcarriers=16, packet_loss=0, jitter=0, scenario=scenario)
+        data = synthesize(config)
+        metadata = {"schema": "orbit.sensing.v1", "synthetic": True, "rate": 20, "config": config.model_dump(), "people": data["people"], "notes": "Supplied generated paths; not positions inferred from ESP or CSI."}
+        output = io.BytesIO()
+        np.savez_compressed(output, amplitude=data["amplitude"].astype(np.float32), invalid=data["invalid"], timestamps=data["timestamps"], csi_real=data["channel"].real.astype(np.float32), csi_imag=data["channel"].imag.astype(np.float32), positions=np.asarray(data["positions"]), metadata=np.array(json.dumps(metadata)))
+        return Response(output.getvalue(), media_type="application/octet-stream", headers={"Content-Disposition": f'attachment; filename="Simulation-{scenario}.npz"'})
 
     @app.post("/api/shared/command")
     async def command(body: Command, request: Request):
@@ -117,7 +142,7 @@ def install(app, ctx):
                 return {"ack": body.event_id, "duplicate": True, "state": {**snapshot(), "device_id": who}}
             if body.revision != state["revision"]:
                 raise HTTPException(409, "The shared session changed. Refresh and retry your choice.")
-            if body.action != "claim" and who != state["controller"]:
+            if body.action not in ("claim", "handoff") and who != state["controller"]:
                 raise HTTPException(403, "Use Take control before changing the shared experiment.")
             p, action = body.payload, body.action
             if action in ("claim", "scenario", "simulation", "asset", "pause", "reset", "stop_tour"):
@@ -125,6 +150,18 @@ def install(app, ctx):
                 state["tour_running"] = False
             if action == "claim":
                 state.update(controller=who, controller_label=str(p.get("label", "Paired controller"))[:48])
+            elif action == "route":
+                if p.get("direction") not in ("phone_to_laptop", "laptop_to_phone"):
+                    raise ValueError("Choose Phone to laptop or Laptop to phone.")
+                state["transfer_route"] = p["direction"]
+            elif action == "handoff":
+                row = ctx["get"]("exchange", str(p.get("file_id", "")))
+                if row["status"] not in ("uploading", "complete"):
+                    raise ValueError("Send an active or verified file before sharing it.")
+                direction = p.get("direction", state["transfer_route"])
+                if direction not in ("phone_to_laptop", "laptop_to_phone"):
+                    raise ValueError("Choose a supported transfer direction.")
+                state["handoff"] = {"file_id": row["id"], "name": row["name"], "direction": direction, "announced_by": who}
             elif action == "tour":
                 state["tour_generation"] += 1
                 generation = state["tour_generation"]
@@ -262,9 +299,10 @@ def install(app, ctx):
         revision = -1
         try:
             while ws.cookies.get("orbit_session") in ctx["sessions"]:
+                touch_peer(ws.cookies.get("orbit_session"), ws.headers.get("user-agent", ""))
                 with lock:
                     changed = state["revision"] != revision
-                    payload = snapshot() if changed else {"cursor": cursor(), "revision": state["revision"], "playing": state["playing"]}
+                    payload = snapshot() if changed else {"cursor": cursor(), "revision": state["revision"], "playing": state["playing"], "peers": active_peers()}
                     revision = state["revision"]
                 await ws.send_json({"type": "snapshot" if changed else "clock", "state": payload})
                 await asyncio.sleep(0.25)

@@ -1,3 +1,7 @@
+## Shared phone/laptop data demo - 11 November 2026
+
+Command Centre now sends and receives verified datasets in either direction, opens shared replay and synchronizes DSP. Five built-in Simulation files include standing, walking and two-person scenarios; no separate sample download is needed. [Demo steps and hardware limits](docs/ORBIT_SHARED_DATA_DEMO.md). Existing research graphs and results remain below.
+
 # ORBIT Ultimate — Wi-Fi 6 CSI Human Presence & Activity Sensing
 
 A local research lab for recorded Wi-Fi CSI, DSP, machine learning, and soft computing. A laptop hosts the app and phone workspace. Orbit keeps recorded detection experiments, ns-3 research, and ordinary file transfers distinct.

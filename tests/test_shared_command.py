@@ -1,4 +1,6 @@
 import hashlib
+import io
+import json
 import time
 
 import numpy as np
@@ -8,6 +10,93 @@ from fastapi.testclient import TestClient
 from orbit.api import create_app
 from orbit.sensing_studio import Simulation, synthesize
 from tools.make_acoustic_walking import walking_payload
+
+
+def test_command_centre_bidirectional_file_handoff_and_phone_processing(tmp_path, monkeypatch):
+    monkeypatch.setenv("ORBIT_DISABLE_MDNS", "1")
+    app = create_app(tmp_path, "BRIDGE", lan=True)
+    laptop = TestClient(app, headers={"user-agent": "Desktop browser"})
+    with TestClient(app, headers={"user-agent": "Android OrbitCompanion/5.1"}) as phone:
+        for client in (phone, laptop):
+            assert client.post("/api/auth", json={"code": "BRIDGE"}).is_success
+
+        def command(client, action, payload=None):
+            for _ in range(4):
+                revision = client.get("/api/shared/state").json()["revision"]
+                result = client.post("/api/shared/command", json={"event_id": str(time.time_ns()), "revision": revision, "action": action, "payload": payload or {}})
+                if result.status_code != 409:
+                    return result
+            raise AssertionError("Repeated conflicting revisions")
+
+        assert command(phone, "claim", {"label": "Phone controller"}).is_success
+        peer_state = laptop.get("/api/shared/state").json()
+        assert {p["role"] for p in peer_state["peers"]} == {"phone", "laptop"}
+        for direction, sender, receiver, scenario in (
+            ("phone_to_laptop", phone, laptop, "walking"),
+            ("laptop_to_phone", laptop, phone, "mixed"),
+        ):
+            assert command(sender, "claim").is_success
+            assert command(sender, "route", {"direction": direction}).is_success
+            source = sender.get("/api/shared/sample", params={"scenario": scenario})
+            assert source.is_success
+            raw = source.content
+            with np.load(io.BytesIO(raw), allow_pickle=False) as sample:
+                metadata = json.loads(str(sample["metadata"]))
+                assert metadata["synthetic"] is True
+                assert metadata["config"]["scenario"] == scenario
+                assert sample["amplitude"].shape == (16, 160)
+                assert "csi_real" in sample and "csi_imag" in sample
+            digest = hashlib.sha256(raw).hexdigest()
+            row = sender.post("/api/exchange/files", json={"name": f"Simulation-{scenario}.npz", "size": len(raw), "sha256": digest}).json()
+            assert command(sender, "handoff", {"file_id": row["id"], "direction": direction}).is_success
+            assert receiver.get("/api/shared/state").json()["handoff"]["file_id"] == row["id"]
+            assert sender.put(f'/api/exchange/files/{row["id"]}?offset=0', content=raw).is_success
+            assert sender.post(f'/api/exchange/files/{row["id"]}/complete', json={}).is_success
+            received = receiver.get(f'/api/exchange/files/{row["id"]}/download')
+            assert hashlib.sha256(received.content).hexdigest() == digest
+            receipt = receiver.post(f'/api/exchange/files/{row["id"]}/receipt', json={"sha256": digest, "bytes": len(raw), "transferred_bytes": len(raw), "elapsed_ms": 10, "retries": 0, "direction": "download"})
+            assert receipt.is_success
+            asset = receiver.post("/api/workspace/import-reference", json={"kind": "exchange", "id": row["id"]}).json()
+            assert command(receiver, "claim").is_success
+            assert command(receiver, "asset", {"asset_id": asset["id"]}).is_success
+            assert command(receiver, "play").is_success
+            for client in (phone, laptop):
+                state = client.get("/api/shared/state").json()
+                assert state["dataset"]["synthetic"] is True
+                assert state["dataset"]["config"]["scenario"] == scenario
+                assert len(state["dataset"]["people"]) == (1 if scenario == "walking" else 2)
+                assert state["playing"] is True
+            assert command(phone, "claim").is_success
+            assert command(phone, "processing", {"operation": "fir", "window": "hamming", "taps": 7}).is_success
+            for _ in range(100):
+                state = laptop.get("/api/shared/state").json()
+                if state["job"]["status"] == "complete":
+                    break
+                time.sleep(.02)
+            assert state["processing"]["window"] == "hamming"
+            assert len(state["result"]["coefficients"]["b"]) == 7
+            assert state["result"]["phase"] is not None
+            assert hashlib.sha256(receiver.get(f'/api/media/{asset["id"]}/file').content).hexdigest() == digest
+        assert command(phone, "route", {"direction": "invented"}).status_code == 422
+        assert phone.get("/api/shared/sample?scenario=unverified-real-person").status_code == 422
+        stranger = TestClient(app)
+        assert stranger.get("/api/shared/sample").status_code == 401
+
+
+@pytest.mark.parametrize("scenario,count", [("still", 1), ("walking", 1), ("two_still", 2), ("two", 2), ("mixed", 2)])
+def test_every_bridge_sample_has_explicit_source_and_supplied_paths(tmp_path, monkeypatch, scenario, count):
+    monkeypatch.setenv("ORBIT_DISABLE_MDNS", "1")
+    with TestClient(create_app(tmp_path, "SAMPLE", lan=True)) as client:
+        client.post("/api/auth", json={"code": "SAMPLE"})
+        response = client.get("/api/shared/sample", params={"scenario": scenario})
+        assert response.is_success
+        with np.load(io.BytesIO(response.content), allow_pickle=False) as data:
+            metadata = json.loads(str(data["metadata"]))
+            assert metadata["synthetic"] is True
+            assert data["positions"].shape[0] == count
+            assert len(metadata["people"]) == count
+            for person, path in zip(metadata["people"], data["positions"]):
+                assert bool(np.ptp(path[:, 0]) > .5) == (person["activity"] == "walking")
 
 
 @pytest.mark.parametrize("scenario,states", [
